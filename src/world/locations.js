@@ -497,10 +497,6 @@ export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390,
   g.fillRect(x - 12, ground - 4, 24, 4);
   ditherRect(g, x - 16, ground, 32, 4, 0x1c2839, 6);
 
-  // ombra
-  g.fillStyle(0x1c2839, 0.22);
-  g.fillRect(left + 5, top + 5, w + tip, h);
-
   // targa con punta a freccia
   g.fillStyle(0x163c4d, 1);
   const bodyX = dir === "left" ? left + tip : left;
