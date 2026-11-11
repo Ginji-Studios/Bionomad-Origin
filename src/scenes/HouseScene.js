@@ -1,12 +1,13 @@
 import Phaser from "../phaser.js";
 import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { setupSceneNavigation } from "../systems/SceneNavigation.js";
 
 export class HouseScene extends Phaser.Scene {
   constructor() {
     super("HouseScene");
   }
 
-  create() {
+  create(data) {
     const { width, height } = this.scale;
     addSceneChrome(this, "Casa del protagonista", "Un rifugio semplice, pieno di tracce della sua storia.", 0x3a2e39);
 
@@ -23,5 +24,18 @@ export class HouseScene extends Phaser.Scene {
 
     addLabel(this, "Il soggiorno", 52, 488, "#fff3b0");
     addLabel(this, "La pianta di casa", 675, 488, "#fff3b0");
+    this.interactionText = addLabel(this, "Avvicinati alla pianta e premi SPAZIO", 560, 112, "#b7e4c7", "15px");
+    this.navigation = setupSceneNavigation(this, data, {
+      spawnX: 140,
+      right: { scene: "CityScene", label: "citta" },
+      onInteract: (player) => {
+        const nearPlant = Phaser.Math.Distance.Between(player.x, player.y, 750, 360) < 150;
+        this.interactionText.setText(nearPlant ? "La pianta risponde al tuo tocco." : "Non c'e nulla da osservare qui.");
+      }
+    });
+  }
+
+  update(time, delta) {
+    this.navigation?.update(delta);
   }
 }

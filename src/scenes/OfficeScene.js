@@ -1,12 +1,13 @@
 import Phaser from "../phaser.js";
 import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { setupSceneNavigation } from "../systems/SceneNavigation.js";
 
 export class OfficeScene extends Phaser.Scene {
   constructor() {
     super("OfficeScene");
   }
 
-  create() {
+  create(data) {
     const { width, height } = this.scale;
     addSceneChrome(this, "Ufficio", "Il luogo del lavoro, delle routine e delle conversazioni sospese.", 0x293241);
 
@@ -25,5 +26,18 @@ export class OfficeScene extends Phaser.Scene {
 
     addLabel(this, "Postazione principale", 72, 488, "#4a2c2a");
     addLabel(this, "Archivio", 760, 488, "#4a2c2a");
+    this.interactionText = addLabel(this, "Avvicinati alla postazione e premi SPAZIO", 520, 112, "#4a2c2a", "15px");
+    this.navigation = setupSceneNavigation(this, data, {
+      spawnX: 820,
+      left: { scene: "CityScene", label: "citta" },
+      onInteract: (player) => {
+        const nearDesk = Phaser.Math.Distance.Between(player.x, player.y, 170, 360) < 150;
+        this.interactionText.setText(nearDesk ? "Hai trovato una nota sul lavoro di oggi." : "L'ufficio e silenzioso.");
+      }
+    });
+  }
+
+  update(time, delta) {
+    this.navigation?.update(delta);
   }
 }

@@ -1,12 +1,13 @@
 import Phaser from "../phaser.js";
 import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { setupSceneNavigation } from "../systems/SceneNavigation.js";
 
 export class CityScene extends Phaser.Scene {
   constructor() {
     super("CityScene");
   }
 
-  create() {
+  create(data) {
     const { width, height } = this.scale;
     addSceneChrome(this, "Citta di Bionomad", "Un primo sguardo al luogo in cui vive il protagonista.", 0x16324f);
 
@@ -31,5 +32,21 @@ export class CityScene extends Phaser.Scene {
 
     addLabel(this, "CENTRO", 415, 126, "#f4d35e", "20px");
     addLabel(this, "Piazza centrale", 30, height - 54, "#f1faee");
+    this.add.circle(510, height - 140, 18, 0xf2c6a0);
+    this.add.rectangle(510, height - 92, 34, 65, 0x95d5b2);
+    this.interactionText = addLabel(this, "Esplora la piazza", 390, 112, "#b7e4c7", "15px");
+    this.navigation = setupSceneNavigation(this, data, {
+      spawnX: 420,
+      left: { scene: "HouseScene", label: "casa" },
+      right: { scene: "OfficeScene", label: "ufficio" },
+      onInteract: (player) => {
+        const nearNpc = Phaser.Math.Distance.Between(player.x, player.y, 510, height - 140) < 130;
+        this.interactionText.setText(nearNpc ? "L'NPC: La citta oggi sembra diversa." : "Cammina verso qualcuno per parlare.");
+      }
+    });
+  }
+
+  update(time, delta) {
+    this.navigation?.update(delta);
   }
 }
