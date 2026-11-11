@@ -107,6 +107,42 @@ export const TEAM = [
   { key: "team_6", rows: girl({}), palette: { h: "#a8805a", r: "#7e9c8c", R: "#5c7a6b", b: "#3b5ba8", B: "#2a4180", k: "#1c2028" } }
 ];
 
+// stesse rifiniture dei cittadini del gioco: riflesso (1) e ombra (2) dei capelli,
+// luce negli occhi (3), guance (4), ombra del collo (5), suola (6)
+function polish(rows) {
+  const set = (row, x, from, to) => (row[x] === from ? row.slice(0, x) + to + row.slice(x + 1) : row);
+  return rows.map((row, y) => {
+    let r = row;
+    if (y === 1) [4, 5, 6].forEach((x) => (r = set(r, x, "h", "1")));
+    if (y === 2) [3, 4].forEach((x) => (r = set(r, x, "h", "1")));
+    if (y === 3) r = set(r, 2, "h", "1");
+    if (y >= 2 && y <= 5) r = set(r, 12, "h", "2");
+    if (y === 6) [5, 9].forEach((x) => (r = set(r, x, "E", "3")));
+    if (y === 8) [3, 10].forEach((x) => (r = set(r, x, "s", "4")));
+    if (y === 10) [5, 6, 7, 8].forEach((x) => (r = set(r, x, "s", "5")));
+    if (y === 20) [5, 11].forEach((x) => (r = set(r, x, "k", "6")));
+    return r;
+  });
+}
+
+function mix(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ch = (shift) => Math.round(((pa >> shift) & 255) * (1 - t) + ((pb >> shift) & 255) * t);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
+}
+
 export function registerTeamTextures(scene, makeTexture) {
-  TEAM.forEach(({ key, rows, palette }) => makeTexture(scene, key, rows, { ...SKIN, ...palette }));
+  TEAM.forEach(({ key, rows, palette }) => {
+    const full = { ...SKIN, ...palette };
+    makeTexture(scene, key, polish(rows), {
+      ...full,
+      1: mix(full.h, "#ffffff", 0.3),
+      2: mix(full.h, "#000000", 0.22),
+      3: "#f1f0ed",
+      4: mix(full.s, "#d0685a", 0.3),
+      5: full.S,
+      6: mix(full.k, "#808890", 0.5)
+    });
+  });
 }

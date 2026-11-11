@@ -1,7 +1,9 @@
 import Phaser from "../phaser.js";
+import { characterTexture } from "../ui/pixelSprites.js";
+import { animateImage } from "../entities/Player.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { TITLE_WORD } from "../ui/pixelSprites.js";
-import { bodyText, COLORS, showToast, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
+import { o2Label, bodyText, COLORS, showToast, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
 
 // menu principale in stile "schermata di avvio"
 const MENU_ITEMS = [
@@ -134,10 +136,39 @@ export class MenuScene extends Phaser.Scene {
 
     const hero = this.add.container(700, height - 54);
     const pack = this.add.image(-45, -36, "pack").setOrigin(0.5, 1).setScale(6);
-    const body = this.add.image(0, 0, "hero_milano_mask").setOrigin(0.5, 1).setScale(6);
+    const heroKey = () => characterTexture(this.registry.get("origin") ?? "milano", true);
+    const body = this.add.image(0, 0, heroKey()).setOrigin(0.5, 1).setScale(6);
     hero.add([pack, body]);
-    this.tweens.add({ targets: body, y: -4, duration: 1100, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    this.tweens.add({ targets: pack, y: -40, duration: 1100, delay: 150, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.hero = hero;
+    // passeggia avanti e indietro, ogni tanto si ferma e saluta
+    let mode = "idle";
+    animateImage(this, body, heroKey, () => mode);
+    const stroll = () => {
+      const targetX = Phaser.Math.Between(600, 840);
+      const dir = targetX >= hero.x ? 1 : -1;
+      hero.scaleX = dir;
+      mode = "walk";
+      this.tweens.add({
+        targets: hero,
+        x: targetX,
+        duration: Math.abs(targetX - hero.x) * 14 + 200,
+        onUpdate: () => {
+          body.y = -Math.round(Math.abs(Math.sin(this.time.now * 0.012)) * 4);
+          pack.y = -36 - Math.round(Math.abs(Math.sin(this.time.now * 0.012 - 0.6)) * 5);
+        },
+        onComplete: () => {
+          body.y = 0;
+          pack.y = -36;
+          mode = Math.random() < 0.4 ? "cheer" : "idle";
+          if (mode === "cheer") this.tweens.add({ targets: hero, y: hero.y - 18, duration: 180, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
+          this.time.delayedCall(Phaser.Math.Between(1400, 2600), () => {
+            mode = "idle";
+            this.time.delayedCall(500, stroll);
+          });
+        }
+      });
+    };
+    this.time.delayedCall(1200, stroll);
 
     // bollicine di ossigeno che escono dalle piante dello zaino
     this.time.addEvent({
@@ -148,7 +179,7 @@ export class MenuScene extends Phaser.Scene {
         const size = Phaser.Math.Between(3, 6) * 2;
         pixelDisc(bubble, 0, 0, size, COLORS.ink, 1, 2);
         pixelDisc(bubble, 0, 0, size - 2, COLORS.paper, 1, 2);
-        bubble.setPosition(655 + Phaser.Math.Between(-12, 12), height - 150);
+        bubble.setPosition(hero.x - 45 * hero.scaleX + Phaser.Math.Between(-12, 12), height - 150);
         this.tweens.add({ targets: bubble, y: bubble.y - Phaser.Math.Between(120, 200), alpha: 0, duration: 2600, ease: "Sine.easeOut", onComplete: () => bubble.destroy() });
         this.tweens.add({ targets: bubble, x: bubble.x + Phaser.Math.Between(-30, 30), duration: 1300, yoyo: true, ease: "Sine.easeInOut" });
       }
@@ -157,7 +188,7 @@ export class MenuScene extends Phaser.Scene {
     // etichetta "O2+" fluttuante
     const tag = this.add.container(800, 170);
     const tagBg = drawPanel(this.add.graphics(), -34, -16, 68, 32, { fill: COLORS.paper, border: COLORS.ink });
-    tag.add([tagBg, pixelText(this, 0, 0, "O2+", { size: 8, color: COLORS.ink, origin: 0.5 })]);
+    tag.add([tagBg, o2Label(this, 0, -1, { px: 22, color: COLORS.ink, suffix: "+" })]);
     this.tweens.add({ targets: tag, y: 156, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
     pixelText(this, 18, height - 31, "W/S  SCEGLI    INVIO  CONFERMA", { size: 8, color: COLORS.steelLight });

@@ -1,5 +1,5 @@
 import Phaser from "../phaser.js";
-import { Player } from "../entities/Player.js";
+import { faint, Player } from "../entities/Player.js";
 import { Npc } from "../entities/Npc.js";
 import { MockPlantInput } from "../input/MockPlantInput.js";
 import { getOrigin } from "../config/origins.js";
@@ -7,7 +7,7 @@ import { failRun, getRun, nextDestination } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { drawSign, drawStreetFloor } from "../world/locations.js";
 import { drawCityscape, ZONES } from "../world/cityscape.js";
-import { addHud, addObjectiveBox, bodyText, COLORS, ditherRect, drawPanel, fadeIn, goTo, pixelArrow, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { addHud, addObjectiveBox, bodyText, COLORS, ditherRect, drawPanel, dropShadow, fadeIn, goTo, pixelArrow, pixelDisc, pixelText, targetMarker, textChip } from "../ui/theme.js";
 
 const WORLD_W = 1920;
 const NAMES = { home: "CASA", office: "UFFICIO", foodtruck: "FOOD TRUCK", busstop: "FERMATA BUS", bus: "FERMATA BUS", street: "CITTÀ" };
@@ -110,24 +110,47 @@ export class TravelScene extends Phaser.Scene {
     }
 
     // freccia di arrivo che pulsa
-    this.goal = this.add.graphics().setDepth(900);
-    pixelArrow(this.goal, WORLD_W - 40, 440, "right", COLORS.red, 5);
-    this.tweens.add({ targets: this.goal, x: 8, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.goal = targetMarker(this, { depth: 900 }).setPosition(WORLD_W - 60, 336);
+    this.tweens.addCounter({ from: -6, to: 6, duration: 520, yoyo: true, repeat: -1, ease: "Sine.easeInOut", onUpdate: (t) => this.goal.bob(t.getValue()) });
   }
 
+  // percorso in alto: una linea "della metro" tra partenza e arrivo
   createRouteBar(from, to) {
     const { width } = this.scale;
-    const x0 = width / 2 - 180;
-    const x1 = width / 2 + 180;
-    const y = 74;
-    const g = this.add.graphics().setDepth(1000).setScrollFactor(0);
-    drawPanel(g, x0 - 120, y - 18, 600, 36, { fill: COLORS.paper, border: COLORS.ink });
+    const x0 = width / 2 - 170;
+    const x1 = width / 2 + 170;
+    const y = 76;
+    const fix = (obj, depth = 1001) => obj.setDepth(depth).setScrollFactor(0);
+    const g = fix(this.add.graphics(), 1000);
+    dropShadow(g, x0 - 150, y - 20, 640, 40, 4);
+    drawPanel(g, x0 - 150, y - 20, 640, 40, { fill: COLORS.paper, border: COLORS.ink });
+    // testate: partenza (blu) e arrivo (ruggine)
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(x0 - 150, y - 20, 132, 40);
+    g.fillStyle(COLORS.red, 1);
+    g.fillRect(x1 + 18, y - 20, 132, 40);
+    fix(pixelText(this, x0 - 84, y - 12, "DA", { size: 8, color: COLORS.steelLight, origin: [0.5, 0] }));
+    fix(bodyText(this, x0 - 84, y + 6, from, { size: 20, color: COLORS.paper, origin: 0.5, fit: 120 }));
+    fix(pixelText(this, x1 + 84, y - 12, "VERSO", { size: 8, color: COLORS.paper, origin: [0.5, 0] }));
+    fix(bodyText(this, x1 + 84, y + 6, to, { size: 20, color: COLORS.paper, origin: 0.5, fit: 120 }));
+    // binario tratteggiato con tacche
     g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x0, y - 2, x1 - x0, 4);
-    bodyText(this, x0 - 10, y, from, { size: 20, color: COLORS.steel, origin: [1, 0.5] }).setDepth(1001).setScrollFactor(0);
-    bodyText(this, x1 + 10, y, to, { size: 20, color: COLORS.ink, origin: [0, 0.5] }).setDepth(1001).setScrollFactor(0);
-    this.routeFill = this.add.graphics().setDepth(1001).setScrollFactor(0);
-    this.routeDot = this.add.image(x0, y - 2, "heart").setScale(2).setDepth(1002).setScrollFactor(0);
+    for (let x = x0; x < x1; x += 12) g.fillRect(x, y - 2, 8, 4);
+    g.fillStyle(COLORS.steel, 1);
+    [0.25, 0.5, 0.75].forEach((t) => g.fillRect(Math.round(x0 + (x1 - x0) * t) - 1, y + 6, 2, 6));
+    this.routeFill = fix(this.add.graphics());
+    // stazioni alle estremità
+    const stations = fix(this.add.graphics(), 1002);
+    [[x0, COLORS.ink], [x1, COLORS.red]].forEach(([x, color]) => {
+      stations.fillStyle(color, 1);
+      stations.fillRect(x - 7, y - 7, 14, 14);
+      stations.fillStyle(COLORS.paper, 1);
+      stations.fillRect(x - 3, y - 3, 6, 6);
+    });
+    // il cittadino in miniatura cammina lungo la linea
+    const base = this.player.baseTexture;
+    this.routeDot = fix(this.add.image(x0, y + 8, base).setOrigin(0.5, 1).setScale(1.5), 1003);
+    this.time.addEvent({ delay: 180, loop: true, callback: () => this.routeDot.setTexture(this.routeDot.texture.key === base ? `${base}_w1` : base) });
     this.route = { x0, x1, y };
   }
 
@@ -151,8 +174,9 @@ export class TravelScene extends Phaser.Scene {
     this.hud.setOxygen(this.hud.oxygen - delta / (this.origin.drainSeconds * 2000));
     if (this.hud.oxygen <= 0) {
       this.arrived = true;
+      this.hud.setOxygen(0);
       failRun(this.registry);
-      goTo(this, "EndScene", { result: "lose" });
+      faint(this.player).then(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose", fainted: true })));
       return;
     }
 

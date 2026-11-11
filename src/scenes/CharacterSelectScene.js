@@ -1,7 +1,8 @@
 import Phaser from "../phaser.js";
 import { ORIGINS } from "../config/origins.js";
 import { startRun } from "../systems/RunManager.js";
-import { characterTexture } from "../ui/pixelSprites.js";
+import { characterTexture, getGender, setGender } from "../ui/pixelSprites.js";
+import { animateImage } from "../entities/Player.js";
 import { addTopBar, bodyText, COLORS, dropShadow, drawPanel, goTo, paperGrid, pixelArrow, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 const CARD_W = 210;
@@ -48,11 +49,107 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     this.updateSelection(true);
 
+    // le carte entrano una alla volta dal basso
+    this.cards.forEach((card, i) => {
+      const y = card.container.y;
+      card.container.y = y + 40;
+      const alpha = card.container.alpha;
+      card.container.alpha = 0;
+      this.tweens.add({ targets: card.container, y, alpha, duration: 380, delay: 120 + i * 110, ease: "Back.easeOut" });
+    });
+
+    this.step = "origin";
+    this.gender = getGender();
     const keys = this.input.keyboard;
-    ["LEFT", "A"].forEach((key) => keys.on(`keydown-${key}`, () => this.changeSelection(-1)));
-    ["RIGHT", "D"].forEach((key) => keys.on(`keydown-${key}`, () => this.changeSelection(1)));
-    ["ENTER", "SPACE"].forEach((key) => keys.on(`keydown-${key}`, () => this.confirmSelection()));
-    keys.once("keydown-ESC", () => goTo(this, "MenuScene"));
+    const side = (dir) => (this.step === "gender" ? this.pickGender(dir > 0 ? "f" : "m") : this.changeSelection(dir));
+    ["LEFT", "A"].forEach((key) => keys.on(`keydown-${key}`, () => side(-1)));
+    ["RIGHT", "D"].forEach((key) => keys.on(`keydown-${key}`, () => side(1)));
+    ["ENTER", "SPACE"].forEach((key) => keys.on(`keydown-${key}`, () => (this.step === "gender" ? this.confirmGender() : this.confirmSelection())));
+    keys.on("keydown-ESC", () => (this.step === "gender" ? this.closeGender() : goTo(this, "MenuScene")));
+  }
+
+  // secondo passo: uomo o donna
+  openGender() {
+    const { width, height } = this.scale;
+    const origin = this.cards[this.selectedIndex].origin;
+    this.step = "gender";
+    const box = this.add.container(0, 0).setDepth(3000);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.6).setInteractive();
+    const w = 520;
+    const h = 300;
+    const x = width / 2 - w / 2;
+    const y = 120;
+    const g = this.add.graphics();
+    dropShadow(g, x, y, w, h, 8);
+    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(x, y, w, 28);
+    box.add([dim, g, pixelText(this, x + 12, y + 10, `${origin.city} · CITTADINO`, { size: 8, color: COLORS.paper })]);
+
+    this.genderSlots = [["m", "UOMO", -120], ["f", "DONNA", 120]].map(([id, label, dx]) => {
+      const cx = width / 2 + dx;
+      const frame = this.add.graphics();
+      const floor = this.add.graphics();
+      floor.fillStyle(COLORS.panelLight, 1);
+      floor.fillRect(cx - 70, y + 220, 140, 4);
+      const base = () => characterTexture(origin.id, false, id);
+      const pack = this.add.image(cx - 44, y + 192, "pack").setOrigin(0.5, 1).setScale(6);
+      const sprite = this.add.image(cx, y + 220, base()).setOrigin(0.5, 1).setScale(7);
+      animateImage(this, sprite, base, () => (this.gender === id ? "walk" : "idle"));
+      const text = pixelText(this, cx, y + 246, label, { size: 16, origin: 0.5 });
+      const zone = this.add.zone(cx, y + 150, 200, 220).setInteractive({ useHandCursor: true });
+      zone.on("pointerover", () => this.pickGender(id));
+      zone.on("pointerdown", () => {
+        this.pickGender(id);
+        this.confirmGender();
+      });
+      box.add([frame, floor, pack, sprite, text, zone]);
+      return { id, cx, frame, sprite, pack, text, top: y + 54 };
+    });
+    box.add(bodyText(this, width / 2, y + h - 18, "A / D scegli · INVIO conferma · ESC indietro", { size: 20, color: COLORS.steel, origin: 0.5 }));
+    box.setAlpha(0);
+    box.y = 20;
+    this.tweens.add({ targets: box, alpha: 1, y: 0, duration: 240, ease: "Cubic.easeOut" });
+    this.genderBox = box;
+    this.pickGender(this.gender);
+  }
+
+  pickGender(id) {
+    this.gender = id;
+    this.genderSlots.forEach((slot) => {
+      const on = slot.id === id;
+      slot.frame.clear();
+      drawPanel(slot.frame, slot.cx - 90, slot.top, 180, 210, { fill: on ? COLORS.bg : COLORS.paper, border: on ? COLORS.red : COLORS.panelLight, borderWidth: on ? 4 : 2 });
+      slot.text.setColor(on ? "#b4553f" : "#1c2839");
+      this.tweens.killTweensOf([slot.sprite, slot.pack]);
+      slot.sprite.setAlpha(on ? 1 : 0.6).setScale(7);
+      slot.pack.setAlpha(on ? 1 : 0.6);
+      if (on) {
+        slot.sprite.setScale(6.2, 7.8);
+        this.tweens.add({ targets: slot.sprite, scaleX: 7, scaleY: 7, duration: 260, ease: "Back.easeOut" });
+      }
+    });
+  }
+
+  closeGender() {
+    this.step = "origin";
+    const box = this.genderBox;
+    this.tweens.add({ targets: box, alpha: 0, duration: 160, onComplete: () => box.destroy() });
+  }
+
+  confirmGender() {
+    if (this.transitioning || this.confirming) return;
+    this.confirming = true;
+    setGender(this.gender);
+    this.registry.set("gender", this.gender);
+    startRun(this.registry, this.cards[this.selectedIndex].origin.id);
+    const slot = this.genderSlots.find((s) => s.id === this.gender);
+    this.cameras.main.flash(160, 241, 240, 237);
+    this.tweens.add({ targets: [slot.sprite, slot.pack], y: "-=24", duration: 160, yoyo: true, ease: "Quad.easeOut" });
+    this.time.delayedCall(420, () => {
+      this.confirming = false;
+      goTo(this, this.next);
+    });
   }
 
   createCard(origin, index, x, y) {
@@ -94,6 +191,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     });
     zone.on("pointerdown", () => this.confirmSelection());
 
+    // il cittadino della carta scelta cammina sul posto, gli altri respirano
+    animateImage(this, citizen, () => characterTexture(origin.id, true), () => (this.selectedIndex === index ? "walk" : "idle"));
     this.cards.push({ container, frame, radio, flag, citizen, baseY: y, origin });
   }
 
@@ -131,7 +230,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       card.flag.setScale(10);
       card.citizen.y = 136;
       if (selected) {
-        this.tweens.add({ targets: card.citizen, y: 128, duration: 300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        this.tweens.add({ targets: card.citizen, y: 124, duration: 180, yoyo: true, ease: "Quad.easeOut" });
         this.tweens.add({ targets: card.flag, scaleY: 10.6, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       }
     });
@@ -149,14 +248,9 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   confirmSelection() {
     if (this.transitioning || this.confirming) return;
-    this.confirming = true;
+    if (this.step !== "origin") return;
     const card = this.cards[this.selectedIndex];
-    startRun(this.registry, card.origin.id);
-    this.cameras.main.flash(160, 241, 240, 237);
     this.tweens.add({ targets: card.container, scale: 1.04, duration: 120, yoyo: true, ease: "Sine.easeOut" });
-    this.time.delayedCall(240, () => {
-      this.confirming = false;
-      goTo(this, this.next);
-    });
+    this.openGender();
   }
 }

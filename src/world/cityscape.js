@@ -1,5 +1,6 @@
 // città disegnata a livelli, con parallasse quando la
-import { COLORS, bandGradient, ditherRect, pixelDisc } from "../ui/theme.js";
+import { BAYER, COLORS, bandGradient, ditherRect, pixelDisc } from "../ui/theme.js";
+import { ORIGINS } from "../config/origins.js";
 
 const HORIZON = 380;
 const VIEW_W = 960;
@@ -133,7 +134,97 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
 
   drawLocalDetails(scene, near, originId, pal, { evening, parallax, rand, span: nearSpan });
   addLife(scene, pal, { evening, parallax, rand, originId });
+  addSmog(scene, originId, { evening, parallax, rand });
 }
+
+// smog: più l'aria è inquinata (difficoltà), più la città sparisce nella foschia.
+// la nebbia è una texture a retino generata una volta, ripetuta in TileSprite che scorrono
+// a velocità diverse: così si muove in modo continuo senza costare nulla
+const SMOG = {
+  day: { 1: 0x9a9d96, 2: 0xb09872 },
+  evening: { 1: 0x4b5664, 2: 0x5c5040 }
+};
+
+// rumore morbido (value noise) con seme, tra 0 e 1
+function makeNoise(rand, cols, rows) {
+  const grid = Array.from({ length: rows + 1 }, () => Array.from({ length: cols + 1 }, () => rand()));
+  return (x, y) => {
+    const xi = Math.floor(x) % cols;
+    const yi = Math.floor(y) % rows;
+    const fx = x - Math.floor(x);
+    const fy = y - Math.floor(y);
+    const sx = fx * fx * (3 - 2 * fx);
+    const sy = fy * fy * (3 - 2 * fy);
+    const top = grid[yi][xi] + (grid[yi][xi + 1] - grid[yi][xi]) * sx;
+    const bottom = grid[yi + 1][xi] + (grid[yi + 1][xi + 1] - grid[yi + 1][xi]) * sx;
+    return top + (bottom - top) * sy;
+  };
+}
+
+// texture di nebbia 512x192 a celle di 4 px: banchi ondulati, più densa in basso, bordo superiore sfrangiato
+function fogTexture(scene, key, color, density, rand) {
+  if (scene.textures.exists(key)) return;
+  const W = 512;
+  const H = 192;
+  const cell = 4;
+  const cols = W / cell;
+  const rows = H / cell;
+  const noise = makeNoise(rand, 16, 6);
+  const detail = makeNoise(rand, 64, 24);
+  const texture = scene.textures.createCanvas(key, W, H);
+  const ctx = texture.getContext();
+  ctx.fillStyle = `#${color.toString(16).padStart(6, "0")}`;
+  for (let cy = 0; cy < rows; cy += 1) {
+    const vertical = cy / rows; // 0 in alto, 1 in basso
+    for (let cx = 0; cx < cols; cx += 1) {
+      // le coordinate avvolgono orizzontalmente, così il tile si ripete senza giunture
+      const n = noise((cx / cols) * 16, (cy / rows) * 6) * 0.7 + detail((cx / cols) * 64, (cy / rows) * 24) * 0.3;
+      const level = (n * 0.8 + vertical * 1.1 - 0.55) * 16 * density;
+      if (BAYER[cy & 3][cx & 3] < level) ctx.fillRect(cx * cell, cy * cell, cell, cell);
+    }
+  }
+  texture.refresh();
+}
+
+function addSmog(scene, originId, { evening, parallax, rand }) {
+  const level = ORIGINS.find((o) => o.id === originId)?.smog ?? 0;
+  if (!level) return;
+  const color = (evening ? SMOG.evening : SMOG.day)[level];
+  const fixed = (obj) => (parallax ? obj.setScrollFactor(0) : obj);
+  const key = `fog_${originId}_${evening ? "e" : "d"}`;
+  fogTexture(scene, key, color, 0.55 + level * 0.3, rand);
+
+  // cielo velato
+  const veil = fixed(scene.add.graphics().setDepth(-9.5));
+  veil.fillStyle(color, 0.1 + level * 0.08);
+  veil.fillRect(0, 46, VIEW_W, HORIZON - 46);
+
+  // banchi di nebbia tra i livelli della città, ognuno con la sua velocità
+  // (tilePositionX scorre nel tempo; il tile si ripete senza giunture)
+  const bands = [
+    { depth: -7.5, y: HORIZON - 150, h: 170, alpha: 0.5 + level * 0.15, speed: 6, flip: false },
+    { depth: -6.5, y: HORIZON - 80, h: 100, alpha: 0.4 + level * 0.15, speed: 11, flip: true },
+    { depth: -5.5, y: HORIZON - 30, h: 60, alpha: 0.35 + level * 0.1, speed: 17, flip: false }
+  ];
+  const layers = bands.map((band) => {
+    const t = fixed(scene.add.tileSprite(0, band.y, VIEW_W, band.h, key).setOrigin(0, 0).setDepth(band.depth));
+    t.setAlpha(band.alpha);
+    t.tilePositionX = Math.floor(rand() * 512);
+    t.tilePositionY = band.flip ? 192 - band.h : 0;
+    return { t, speed: band.speed * (rand() < 0.5 ? -1 : 1) };
+  });
+
+  // scorrimento continuo, a passi interi di pixel per restare nello stile
+  const onUpdate = (time, delta) => {
+    layers.forEach((layer) => {
+      layer.t.tilePositionX = Math.round((layer.t.tilePositionX + (layer.speed * delta) / 1000) * 4) / 4;
+    });
+  };
+  scene.events.on("update", onUpdate);
+  scene.events.once("shutdown", () => scene.events.off("update", onUpdate));
+}
+
+
 
 // elementi tipici di ogni città, sul livello vicino
 function drawLocalDetails(scene, g, originId, pal, { evening, parallax, rand, span }) {

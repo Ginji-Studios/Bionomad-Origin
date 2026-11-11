@@ -169,7 +169,7 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     if (type === "forgot") {
-      // clessidra che scorre: nessuno la scalda e la pianta si affloscia nel gelo
+      // clessidra che scorre: la pianta si affloscia tra gelo e calore eccessivo
       fx.fillStyle(COLORS.steelLight, 1);
       fx.fillRect(cx - 62, baseY - 62, 18, 4);
       fx.fillRect(cx - 62, baseY - 30, 18, 4);
@@ -181,9 +181,22 @@ export class TutorialScene extends Phaser.Scene {
       const sand = this.add.rectangle(cx - 53, baseY - 38, 6, 8, 0xe8c66a).setOrigin(0.5, 1);
       this.tweens.add({ targets: sand, scaleY: { from: 0.1, to: 1 }, duration: 2000, repeat: -1, repeatDelay: 400 });
       this.tweens.add({ targets: plant, scaleY: 3.2, scaleX: 4.3, duration: 1200, hold: 700, yoyo: true, repeat: -1, ease: "Sine.easeIn" });
+      // alterna gelo (fiocchi che cadono) e calore eccessivo (onde rosse che salgono)
+      let cold = true;
+      const glow = this.add.rectangle(cx, baseY - 36, 140, 72, COLORS.red, 0);
+      loop(2400, () => {
+        cold = !cold;
+        this.tweens.add({ targets: glow, fillAlpha: cold ? 0 : 0.18, duration: 300 });
+      });
       loop(240, () => {
-        const flake = this.add.rectangle(cx + Phaser.Math.Between(-30, 60), baseY - 70, 4, 4, COLORS.paper, 0.9);
-        this.tweens.add({ targets: flake, y: baseY - 10, alpha: 0, duration: 1300, onComplete: () => flake.destroy() });
+        const x = cx + Phaser.Math.Between(-30, 60);
+        if (cold) {
+          const flake = this.add.rectangle(x, baseY - 70, 4, 4, COLORS.paper, 0.9);
+          this.tweens.add({ targets: flake, y: baseY - 10, alpha: 0, duration: 1300, onComplete: () => flake.destroy() });
+        } else {
+          const wave = this.add.rectangle(x, baseY - 12, 4, 6, COLORS.red, 0.8);
+          this.tweens.add({ targets: wave, y: baseY - 68, alpha: 0, x: x + Phaser.Math.Between(-6, 6), duration: 1000, onComplete: () => wave.destroy() });
+        }
       });
     }
 

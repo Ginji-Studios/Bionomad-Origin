@@ -1,43 +1,52 @@
 // sprite pixel-art generati via codice (nessun file immagine necessario)
 
 // proporzioni "chibi" come nelle tavole
+// lettere extra: L = riflesso dei capelli, d = ombra dei capelli, w = luce negli occhi,
+// c = guance, n = ombra del collo, t = colletto, B = piega dei pantaloni, K = suola
 const HERO = [
   "....hhhhhh....",
-  "..hhhhhhhhhh..",
-  ".hhhhhhhhhhhh.",
-  ".hhhhhhhhhhhh.",
-  ".hhsssssssshh.",
-  ".hssssssssssh.",
+  "..hhLLLhhhhh..",
+  ".hhLLhhhhhhhd.",
+  ".hLhhhhhhhhhd.",
+  ".hhsssssssshd.",
+  ".hssssssssssd.",
+  ".hssEwssEwssh.",
   ".hssEEssEEssh.",
-  ".hssEEssEEssh.",
-  "..ssssssssss..",
+  "..scsssssscs..",
   "...ssSSSSss...",
-  "....ssssss....",
-  "...rrrrrrrr...",
-  "..rrrrrrrrrr..",
+  "....snnnns....",
+  "...rrttttrr...",
+  "..rrrrttrrrr..",
   ".srrrrrrrrrrs.",
   ".srrrrrrrrrrs.",
   "..RRRRRRRRRR..",
   "...bbbbbbbb...",
-  "...bbbbbbbb...",
+  "...bbbBBbbb...",
   "...bbb..bbb...",
-  "...bbb..bbb...",
-  "..kkkk..kkkk.."
+  "...bbB..bbB...",
+  "..kkkK..kkkK.."
 ];
 
 // frame di animazione
 const withRows = (rows, changes) =>
   rows.map((row, y) => (typeof changes[y] === "function" ? changes[y](row) : changes[y] ?? row));
 const FRAME_ROWS = {
-  // passo visto di fronte
-  w1: { 13: ".srrrrrrrrrrr.", 14: "..RRRRRRRRRRs.", 19: "..kkkk..bbb...", 20: "........kkkk.." },
-  w2: { 13: ".rrrrrrrrrrrs.", 14: ".sRRRRRRRRRR..", 19: "...bbb..kkkk..", 20: "..kkkk........" },
+  // passo visto di fronte, ciclo a 4 frame: appoggio sx, passaggio, appoggio dx, passaggio.
+  // nei frame di appoggio un piede è sollevato e le braccia oscillano in direzioni opposte;
+  // nei frame di passaggio le gambe si riuniscono e il corpo si abbassa di un pixel
+  w1: { 12: "..rrrrrrrrrrr.", 13: ".srrrrrrrrrrs.", 14: "..RRRRRRRRRRs.", 19: "..kkkk..bbb...", 20: "........kkkk.." },
+  w2: { 12: ".rrrrrrrrrrr..", 13: ".srrrrrrrrrrs.", 14: ".sRRRRRRRRRR..", 19: "...bbb..kkkk..", 20: "..kkkk........" },
+  // passaggio: la testa scende di una riga (la costruisce passRows), gambe unite
+  p1: { 13: ".srrrrrrrrrrs.", 14: ".srrrrrrrrrrs.", 18: "....bbbbbb....", 19: "....bbBBbb....", 20: "...kkkkkkkK..." },
+  p2: { 13: ".srrrrrrrrrrs.", 14: ".srrrrrrrrrrs.", 18: "....bbbbbb....", 19: "....bbBBbb....", 20: "...kkkkkkkK..." },
+  // respiro da fermo: spalle leggermente più basse
+  idle: { 11: "....rttttr....", 13: ".srrrrrrrrrrs." },
   // azione
   act: { 12: "..rrrrrrrrrrss", 13: "..rrrrrrrrrr..", 14: "..RRRRRRRRRR.." },
   // esulta
   cheer: { 9: (row) => `s${row.slice(1, -1)}s`, 10: (row) => `s${row.slice(1, -1)}s`, 11: "srrrrrrrrrrrrs", 13: "..rrrrrrrrrr..", 14: "..RRRRRRRRRR.." },
   // occhi chiusi
-  blink: { 6: ".hssssssssssh." }
+  blink: { 6: ".hssssssssssh.", 7: ".hssEEssEEssh." }
 };
 
 // variante con mascherina, per quando si è all'aperto
@@ -290,15 +299,69 @@ export function makeTexture(scene, key, rows, palette) {
   texture.refresh();
 }
 
+// variante donna: capelli lunghi che scendono ai lati del viso fino alle spalle.
+// si applica sopra qualsiasi frame (off = 1 nei frame di passaggio, dove la testa è più bassa)
+function longHair(rows, off = 0) {
+  const paint = (row, cols) => [...row].map((c, x) => (cols.includes(x) && (c === "." || c === "s") ? "h" : c)).join("");
+  return rows.map((row, y) => {
+    const r = y - off;
+    if (r === 8) return paint(row, [1, 12]);
+    if (r === 9 || r === 10) return paint(row, [1, 2, 11, 12]);
+    if (r === 11) return paint(row, [1, 2, 11, 12]);
+    if (r === 12 && off === 0) return paint(row, [1, 12]);
+    // outfit: gonna a pieghe al posto dei pantaloni, gambe scoperte
+    if (y === 16) return "..BBBBBBBBBB..";
+    if (y === 17) return ".bBbBbBbBbBbB.";
+    if (y === 18 || y === 19) return row.replaceAll("b", "s").replaceAll("B", "S");
+    return row;
+  });
+}
+
+// colori di rifinitura ricavati dalla palette della variante, così valgono per tutti i personaggi
+function mix(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ch = (shift) => Math.round(((pa >> shift) & 255) * (1 - t) + ((pb >> shift) & 255) * t);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
+}
+function shaded(palette) {
+  return {
+    ...palette,
+    L: mix(palette.h, "#ffffff", 0.22),
+    d: mix(palette.h, "#000000", 0.25),
+    w: "#f1f0ed",
+    c: mix(palette.s, "#d0685a", 0.3),
+    n: palette.S,
+    t: mix(palette.r, "#ffffff", 0.35),
+    K: mix(palette.k, "#ffffff", 0.3)
+  };
+}
+
+let currentGender = "m";
+export function setGender(gender) {
+  currentGender = gender === "f" ? "f" : "m";
+}
+export function getGender() {
+  return currentGender;
+}
+
 export function registerPixelTextures(scene) {
   for (const [key, overrides] of Object.entries(HERO_VARIANTS)) {
-    const palette = { ...HERO_PALETTE, ...overrides };
-    makeTexture(scene, key, HERO, palette);
-    makeTexture(scene, `${key}_mask`, HERO_MASKED, palette);
+    const palette = shaded({ ...HERO_PALETTE, ...overrides });
+    const sheets = [["", HERO, 0], ["_mask", HERO_MASKED, 0]];
     for (const [frame, changes] of Object.entries(FRAME_ROWS)) {
-      makeTexture(scene, `${key}_${frame}`, withRows(HERO, changes), palette);
-      makeTexture(scene, `${key}_mask_${frame}`, withRows(HERO_MASKED, changes), palette);
+      const off = frame.startsWith("p") ? 1 : 0;
+      // nei frame di passaggio testa e mascherina scendono di una riga
+      const passRows = (rows) => ["..............", ...rows.slice(0, 10), ...rows.slice(11)];
+      sheets.push([`_${frame}`, withRows(off ? passRows(HERO) : HERO, changes), off]);
+      const masked = off ? { ...changes, 11: "..rrsMMMMsrr.." } : changes;
+      sheets.push([`_mask_${frame}`, withRows(off ? passRows(HERO_MASKED) : HERO_MASKED, masked), off]);
     }
+    sheets.forEach(([suffix, rows, off]) => {
+      makeTexture(scene, `${key}${suffix}`, rows, palette);
+      // i protagonisti hanno anche la versione donna (stesso set di frame)
+      if (key.startsWith("hero_")) makeTexture(scene, `${key}_f${suffix}`, longHair(rows, off), palette);
+    });
   }
   makeTexture(scene, "pack", PACK, PACK_PALETTE);
   makeTexture(scene, "pot_plant", POT_PLANT, PLANT_PALETTE);
@@ -327,7 +390,8 @@ export function registerPixelTextures(scene) {
 }
 
 // sprite del protagonista in base all'origine
-export function characterTexture(originId, masked = false) {
-  const key = HERO_VARIANTS[`hero_${originId}`] ? `hero_${originId}` : "hero_milano";
+export function characterTexture(originId, masked = false, gender) {
+  const base = HERO_VARIANTS[`hero_${originId}`] ? `hero_${originId}` : "hero_milano";
+  const key = (gender ?? currentGender) === "f" ? `${base}_f` : base;
   return masked ? `${key}_mask` : key;
 }

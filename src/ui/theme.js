@@ -1,3 +1,4 @@
+import Phaser from "../phaser.js";
 // tema grafico condiviso
 
 // palette dal branding BIODOM
@@ -71,6 +72,29 @@ export function pixelText(scene, x, y, text, { size = 16, color = COLORS.text, a
   return applyOrigin(label, origin);
 }
 
+// "O₂" con il 2 a pedice (il VT323 non ha il carattere ₂): prefix + O + ₂ + suffix, centrato in x, y
+export function o2Label(scene, x, y, { px = 24, color = COLORS.ink, prefix = "", suffix = "" } = {}) {
+  const style = (size) => ({ fontFamily: FONTS.body, fontSize: `${size}px`, color: hex(color), letterSpacing: 1 });
+  const c = scene.add.container(x, y);
+  const parts = [
+    scene.add.text(0, 0, `${prefix}O`, style(px)),
+    scene.add.text(0, Math.round(px * 0.32), "2", style(Math.round(px * 0.62))),
+    scene.add.text(0, 0, suffix, style(px))
+  ];
+  let cursor = 0;
+  parts.forEach((t, i) => {
+    t.x = cursor;
+    cursor += t.width + (i === 1 ? 1 : 0);
+  });
+  parts.forEach((t) => {
+    t.x -= Math.round(cursor / 2);
+    t.y -= Math.round(px / 2);
+  });
+  c.add(parts);
+  c.width = cursor;
+  return c;
+}
+
 export function bodyText(scene, x, y, text, { size = 24, color = COLORS.text, align = "left", wrap, origin, lineSpacing = 0, fit } = {}) {
   const label = scene.add.text(x, y, text, {
     fontFamily: FONTS.body,
@@ -116,7 +140,7 @@ export function pixelDisc(graphics, cx, cy, radius, color, alpha = 1, unit = 4) 
 }
 
 // retino a dithering (matrice di Bayer 4x4)
-const BAYER = [
+export const BAYER = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
   [3, 11, 1, 9],
@@ -218,40 +242,93 @@ export function addTopBar(scene, left, right = "BIODOM+") {
 export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it" } = {}) {
   const { width } = scene.scale;
   const depth = 1000;
-  const g = scene.add.graphics().setDepth(depth).setScrollFactor(0);
+  const fix = (obj) => obj.setDepth(depth).setScrollFactor(0);
+  const g = fix(scene.add.graphics());
+  // fascia scura con filetto ruggine e bordo a retino, come un'etichetta tecnica BIODOM
   g.fillStyle(COLORS.inkDeep, 1);
   g.fillRect(0, 0, width, 44);
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(0, 40, width, 4);
+  g.fillStyle(COLORS.red, 1);
+  g.fillRect(0, 44, width, 2);
+  ditherRect(g, 0, 46, width, 4, COLORS.inkDeep, 6, 2);
 
-  const heart = scene.add.image(26, 22, "heart").setScale(3).setDepth(depth).setScrollFactor(0);
-  scene.tweens.add({ targets: heart, scale: 3.6, duration: 260, yoyo: true, repeat: -1, repeatDelay: 520, ease: "Sine.easeOut" });
+  // cuore in una targhetta
+  drawPanel(g, 8, 6, 34, 32, { fill: 0x24344a, border: COLORS.steel, borderWidth: 2 });
+  const heart = fix(scene.add.image(25, 22, "heart").setScale(2.5));
+  scene.tweens.add({ targets: heart, scale: 3.1, duration: 260, yoyo: true, repeat: -1, repeatDelay: 520, ease: "Sine.easeOut" });
 
-  pixelText(scene, 48, 14, "OSSIGENO", { size: 16, color: COLORS.steelLight }).setDepth(depth).setScrollFactor(0);
+  fix(pixelText(scene, 52, 6, "OSSIGENO", { size: 8, color: COLORS.steelLight }));
+  fix(o2Label(scene, 66, 30, { px: 20, color: COLORS.paper })).setDepth(depth);
 
-  const bar = { x: 186, y: 9, w: 340, h: 26 };
-  const frame = scene.add.graphics().setDepth(depth).setScrollFactor(0);
-  drawPanel(frame, bar.x, bar.y, bar.w, bar.h, { fill: COLORS.inkDeep, border: COLORS.paper, borderWidth: 2 });
-  const segments = scene.add.graphics().setDepth(depth).setScrollFactor(0);
-  const percent = pixelText(scene, bar.x + bar.w + 18, 14, "", { size: 16 }).setDepth(depth).setScrollFactor(0);
+  // barra: cornice con angoli, tacche ogni 25% e segmenti con riflesso
+  const bar = { x: 150, y: 9, w: 340, h: 26 };
+  const frame = fix(scene.add.graphics());
+  const drawFrame = (color) => {
+    frame.clear();
+    drawPanel(frame, bar.x, bar.y, bar.w, bar.h, { fill: COLORS.inkDeep, border: color, borderWidth: 2 });
+    frame.fillStyle(color, 1);
+    // angoli rinforzati
+    [[bar.x - 4, bar.y - 2], [bar.x + bar.w, bar.y - 2], [bar.x - 4, bar.y + bar.h - 6], [bar.x + bar.w, bar.y + bar.h - 6]].forEach(([x, y]) => frame.fillRect(x, y, 4, 8));
+    // tacche 25 / 50 / 75
+    frame.fillStyle(COLORS.steel, 1);
+    [0.25, 0.5, 0.75].forEach((t) => frame.fillRect(Math.round(bar.x + 4 + (bar.w - 8) * t), bar.y + bar.h + 1, 2, 4));
+  };
+  drawFrame(COLORS.paper);
+  const segments = fix(scene.add.graphics());
 
-  const place = pixelText(scene, width - 16, 14, location, { size: 16, color: COLORS.steelLight, origin: [1, 0], fit: 200 }).setDepth(depth).setScrollFactor(0);
-  const flagIcon = scene.add.image(0, 22, flag).setScale(2).setDepth(depth).setScrollFactor(0);
-  const placeFlag = () => flagIcon.setX(place.x - place.width - 22);
+  // percentuale in una targhetta
+  const chip = fix(scene.add.graphics());
+  drawPanel(chip, bar.x + bar.w + 14, 8, 68, 28, { fill: 0x24344a, border: COLORS.steel, borderWidth: 2 });
+  const percent = fix(pixelText(scene, bar.x + bar.w + 48, 22, "", { size: 16, origin: 0.5 }));
+
+  // luogo: bandiera incorniciata + città, separati da un divisore
+  const place = fix(pixelText(scene, width - 16, 14, location, { size: 16, color: COLORS.paper, origin: [1, 0], fit: 200 }));
+  const flagFrame = fix(scene.add.graphics());
+  const flagIcon = fix(scene.add.image(0, 22, flag).setScale(2));
+  const placeFlag = () => {
+    const fx = place.x - place.width - 24;
+    flagIcon.setX(fx);
+    flagFrame.clear();
+    flagFrame.fillStyle(COLORS.paper, 1);
+    flagFrame.fillRect(fx - 14, 11, 28, 22);
+    flagFrame.fillStyle(COLORS.steel, 1);
+    flagFrame.fillRect(fx - 28, 8, 2, 28);
+  };
   placeFlag();
 
+  let low = false;
   const hud = {
     oxygen,
     setOxygen(value) {
       hud.oxygen = Math.max(0, Math.min(1, value));
       const count = 33;
       const filled = Math.round(hud.oxygen * count);
-      const color = hud.oxygen < 0.35 ? COLORS.red : hud.oxygen < 0.7 ? COLORS.steelLight : COLORS.paper;
+      const danger = hud.oxygen < 0.35;
+      const color = danger ? COLORS.red : hud.oxygen < 0.7 ? COLORS.steelLight : COLORS.paper;
       segments.clear();
       for (let i = 0; i < count; i += 1) {
-        segments.fillStyle(i < filled ? color : 0x2c3e52, 1);
-        segments.fillRect(bar.x + 5 + i * 10, bar.y + 5, 8, bar.h - 10);
+        const x = bar.x + 5 + i * 10;
+        if (i < filled) {
+          segments.fillStyle(color, 1);
+          segments.fillRect(x, bar.y + 5, 8, bar.h - 10);
+          // riflesso in alto e ombra in basso: il segmento sembra una fialetta
+          segments.fillStyle(0xffffff, 0.35);
+          segments.fillRect(x, bar.y + 5, 8, 2);
+          segments.fillStyle(COLORS.inkDeep, 0.3);
+          segments.fillRect(x, bar.y + bar.h - 9, 8, 4);
+        } else {
+          segments.fillStyle(0x2c3e52, 1);
+          segments.fillRect(x + 2, bar.y + 11, 4, 4);
+        }
       }
       percent.setText(`${Math.round(hud.oxygen * 100)}%`);
-      percent.setColor(hex(hud.oxygen < 0.35 ? 0xe07a62 : COLORS.paper));
+      percent.setColor(hex(danger ? 0xe07a62 : COLORS.paper));
+      // sotto il 35% la cornice diventa rossa
+      if (danger !== low) {
+        low = danger;
+        drawFrame(danger ? COLORS.red : COLORS.paper);
+      }
     },
     setLocation(text) {
       place.setText(text);
@@ -331,14 +408,162 @@ export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COL
 }
 
 // transizioni morbide tra scene (dissolvenza sul blu inchiostro)
+// transizione a blocchi: una diagonale di quadretti attraversa lo schermo.
+// amount 0 = scena visibile, 1 = tutta coperta; ogni blocco cresce dal centro al suo turno
+const WIPE_CELL = 48;
+function drawWipe(g, width, height, amount, reverse) {
+  g.clear();
+  if (amount <= 0) return;
+  g.fillStyle(COLORS.inkDeep, 1);
+  if (amount >= 1) {
+    g.fillRect(0, 0, width, height);
+    return;
+  }
+  const cols = Math.ceil(width / WIPE_CELL);
+  const rows = Math.ceil(height / WIPE_CELL);
+  const span = cols + rows;
+  const soft = 8; // quante diagonali sono "in crescita" nello stesso momento
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const diag = reverse ? span - (x + y) : x + y;
+      const local = Phaser.Math.Clamp((amount * (span + soft) - diag) / soft, 0, 1);
+      if (local <= 0) continue;
+      // +2 px di sovrapposizione: niente fessure tra i blocchi pieni
+      const size = local >= 1 ? WIPE_CELL + 2 : Math.max(4, Math.round((WIPE_CELL * local) / 4) * 4);
+      const cx = x * WIPE_CELL + WIPE_CELL / 2;
+      const cy = y * WIPE_CELL + WIPE_CELL / 2;
+      g.fillRect(cx - size / 2, cy - size / 2, size, size);
+    }
+  }
+}
+
+function wipe(scene, from, to, duration, onComplete) {
+  const { width, height } = scene.scale;
+  const g = scene.add.graphics().setDepth(9999).setScrollFactor(0);
+  // in uscita la diagonale copre da sinistra, in entrata si ritira verso destra
+  const reverse = to === 0;
+  const draw = (v) => drawWipe(g, width, height, reverse ? v : v, reverse);
+  draw(from);
+  scene.tweens.addCounter({
+    from,
+    to,
+    duration,
+    ease: "Sine.easeInOut",
+    onUpdate: (t) => draw(t.getValue()),
+    onComplete: () => {
+      draw(to);
+      if (to === 0) g.destroy();
+      // un frame di attesa a schermo coperto: la scena nuova non "lampeggia"
+      if (onComplete) scene.time.delayedCall(30, onComplete);
+    }
+  });
+}
+
 export function fadeIn(scene, duration = 280) {
   scene.transitioning = false;
-  scene.cameras.main.fadeIn(duration, 28, 40, 57);
+  wipe(scene, 1, 0, 420);
 }
 
 export function goTo(scene, key, data) {
   if (scene.transitioning) return;
   scene.transitioning = true;
-  scene.cameras.main.fadeOut(220, 28, 40, 57);
-  scene.cameras.main.once("camerafadeoutcomplete", () => scene.scene.start(key, data));
+  wipe(scene, 0, 1, 380, () => scene.scene.start(key, data));
+}
+
+// scoppio di quadretti (scintille, foglie, polvere) per dare peso a un momento
+export function burst(scene, x, y, { colors = [COLORS.paper], count = 12, spread = 60, depth = 990, size = 4, gravity = 40, duration = 600 } = {}) {
+  for (let i = 0; i < count; i += 1) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const dist = spread * (0.5 + Math.random() * 0.5);
+    const p = scene.add.rectangle(x, y, size, size, colors[i % colors.length]).setDepth(depth);
+    scene.tweens.add({
+      targets: p,
+      x: Math.round(x + Math.cos(angle) * dist),
+      y: Math.round(y + Math.sin(angle) * dist + gravity),
+      alpha: 0,
+      duration: duration + Math.random() * 200,
+      ease: "Cubic.easeOut",
+      onComplete: () => p.destroy()
+    });
+  }
+}
+
+// cartello da film: una fascia scura attraversa lo schermo con titolo e sottotitolo, poi se ne va
+export function titleCard(scene, title, subtitle = "", { hold = 1300, y } = {}) {
+  const { width, height } = scene.scale;
+  const cy = y ?? Math.round(height / 2);
+  const c = scene.add.container(0, 0).setDepth(2500).setScrollFactor(0);
+  const band = scene.add.rectangle(width / 2, cy, width, 96, COLORS.inkDeep, 0.92);
+  const line = scene.add.rectangle(width / 2, cy + 46, width, 4, COLORS.red);
+  const big = pixelText(scene, width / 2, cy - 14, title, { size: 32, color: COLORS.paper, origin: 0.5, fit: width - 80 });
+  const small = bodyText(scene, width / 2, cy + 24, subtitle, { size: 22, color: COLORS.steelLight, origin: 0.5 });
+  c.add([band, line, big, small]);
+  band.scaleY = 0;
+  line.scaleX = 0;
+  big.x = width + 400;
+  small.x = -400;
+  scene.tweens.add({ targets: band, scaleY: 1, duration: 200, ease: "Cubic.easeOut" });
+  scene.tweens.add({ targets: line, scaleX: 1, duration: 420, delay: 120, ease: "Cubic.easeOut" });
+  scene.tweens.add({ targets: [big, small], x: width / 2, duration: 420, delay: 140, ease: "Back.easeOut" });
+  return new Promise((resolve) => {
+    scene.time.delayedCall(hold + 500, () => {
+      scene.tweens.add({ targets: big, x: -400, duration: 300, ease: "Cubic.easeIn" });
+      scene.tweens.add({ targets: small, x: width + 400, duration: 300, ease: "Cubic.easeIn" });
+      scene.tweens.add({ targets: [band, line], scaleY: 0, duration: 220, delay: 240, onComplete: () => { c.destroy(); resolve(); } });
+    });
+  });
+}
+
+// segnaposto della destinazione, nello stile BIODOM: targhetta di carta con bordo blu
+// e il "+" ruggine del logo, puntale sotto, e un anello a retino che pulsa a terra
+export function targetMarker(scene, { depth = 950, drop = 120 } = {}) {
+  const c = scene.add.container(0, 0).setDepth(depth);
+  // anello a terra (resta fermo mentre la targhetta ondeggia)
+  const ring = scene.add.graphics();
+  const drawRing = (g, rx, color) => {
+    g.fillStyle(color, 1);
+    for (let a = 0; a < 24; a += 1) {
+      const t = (a / 24) * Math.PI * 2;
+      if (a % 2) continue;
+      g.fillRect(Math.round((Math.cos(t) * rx) / 4) * 4 - 2, Math.round((Math.sin(t) * rx * 0.32) / 2) * 2 - 1, 4, 2);
+    }
+  };
+  drawRing(ring, 30, COLORS.red);
+  drawRing(ring, 18, COLORS.ink);
+  ring.y = drop;
+  scene.tweens.add({ targets: ring, scaleX: 1.25, scaleY: 1.25, alpha: 0.35, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+
+  const g = scene.add.graphics();
+  // ombra piena spostata, come i pannelli
+  g.fillStyle(COLORS.inkDeep, 0.35);
+  g.fillRect(-16, -34, 40, 40);
+  // targhetta
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(-20, -38, 40, 40);
+  g.fillStyle(COLORS.paper, 1);
+  g.fillRect(-16, -34, 32, 32);
+  // "+" del logo b+
+  g.fillStyle(COLORS.red, 1);
+  g.fillRect(-2, -28, 4, 20);
+  g.fillRect(-10, -20, 20, 4);
+  // angolini tecnici
+  g.fillStyle(COLORS.steel, 1);
+  [[-14, -32], [10, -32], [-14, -8], [10, -8]].forEach(([x, y]) => g.fillRect(x, y, 4, 4));
+  // puntale a gradini
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(-12, 2, 24, 4);
+  g.fillRect(-8, 6, 16, 4);
+  g.fillRect(-4, 10, 8, 4);
+  // tratteggio che scende verso il punto
+  g.fillStyle(COLORS.ink, 0.6);
+  for (let y = 22; y < drop - 14; y += 12) g.fillRect(-1, y, 2, 6);
+
+  c.add([ring, g]);
+  c.ring = ring;
+  c.drop = drop;
+  // la targhetta ondeggia; l'anello compensa e resta a terra
+  c.bob = (offset) => {
+    g.y = Math.round(offset);
+  };
+  return c;
 }

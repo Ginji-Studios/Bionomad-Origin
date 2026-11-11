@@ -9,6 +9,7 @@ function frameKey(walker, frame) {
 }
 
 export function animateWalker(walker, delta, speedRatio, time) {
+  if (walker.fainted) return;
   walker.blinkTimer = (walker.blinkTimer ?? 1500 + Math.random() * 2500) - delta;
   const hop = walker.hopY ?? 0;
   let frame = null;
@@ -19,16 +20,21 @@ export function animateWalker(walker, delta, speedRatio, time) {
     walker.pack.y = -24 + hop;
   } else if (speedRatio > 0.05) {
     walker.walkPhase += delta * 0.013 * Math.max(0.6, speedRatio);
-    // ciclo
+    // ciclo a 4 frame: appoggio → passaggio → appoggio → passaggio
     const step = Math.floor(walker.walkPhase / (Math.PI / 2)) % 4;
-    frame = step === 0 ? "w1" : step === 2 ? "w2" : null;
-    const bob = Math.abs(Math.sin(walker.walkPhase)) * 5 * speedRatio;
-    walker.sprite.y = -bob + hop;
-    walker.pack.y = -24 - Math.abs(Math.sin(walker.walkPhase - 0.5)) * 5 * speedRatio + hop;
+    frame = ["w1", "p1", "w2", "p2"][step];
+    const bob = Math.abs(Math.sin(walker.walkPhase)) * 4 * speedRatio;
+    walker.sprite.y = Math.round(-bob + hop);
+    // lo zaino segue con un po' di ritardo e ondeggia di lato
+    walker.pack.y = Math.round(-24 - Math.abs(Math.sin(walker.walkPhase - 0.6)) * 5 * speedRatio + hop);
+    walker.pack.x = -30 + Math.round(Math.sin(walker.walkPhase * 0.5) * 2 * speedRatio);
   } else {
     const breath = Math.sin(time * 0.004) * 1.5;
     walker.sprite.y = Phaser.Math.Linear(walker.sprite.y, breath + hop, 0.2);
     walker.pack.y = Phaser.Math.Linear(walker.pack.y, -24 + breath * 0.6 + hop, 0.2);
+    walker.pack.x = Phaser.Math.Linear(walker.pack.x, -30, 0.2);
+    // nel punto basso del respiro le spalle si abbassano
+    if (breath < -1.1) frame = "idle";
   }
 
   if (!frame && walker.blinkTimer < 0) {
@@ -42,6 +48,7 @@ export function animateWalker(walker, delta, speedRatio, time) {
 // girata con un po' di peso: cambio di verso immediato, schiacciamento elastico,
 // lo zaino che arriva in ritardo e un filo di polvere se si stava camminando
 export function turnTo(walker, facing, moving = false) {
+  if (walker.fainted) return;
   if (Math.sign(walker.scaleX) === facing) return;
   const scene = walker.scene;
   walker.scaleX = facing;
@@ -56,6 +63,150 @@ export function turnTo(walker, facing, moving = false) {
     const dust = scene.add.rectangle(walker.x + facing * (8 + i * 6), walker.y - 2, 4, 4, 0xa3a9a6).setDepth(walker.depth - 1);
     scene.tweens.add({ targets: dust, x: dust.x + facing * (10 + i * 6), y: dust.y - 6 - i * 3, alpha: 0, duration: 380, onComplete: () => dust.destroy() });
   }
+}
+
+// svenimento per mancanza d'ossigeno: barcolla, cede sulle ginocchia e cade in avanti;
+// lo zaino vola all'indietro e il vaso della pianta si rovescia per terra.
+// instant = true mette subito tutto nella posa finale (per la scena successiva)
+export function faint(walker, { instant = false } = {}) {
+  const scene = walker.scene;
+  // cade in avanti (circa 100 px) e la pianta finisce dietro (circa 130 px):
+  // se vicino al bordo dello schermo si gira o barcolla verso il centro
+  const cam = scene.cameras.main;
+  const view = { x: cam.scrollX, right: cam.scrollX + cam.width };
+  const fits = (d) => (d > 0 ? view.right - walker.x >= 120 && walker.x - view.x >= 140 : walker.x - view.x >= 120 && view.right - walker.x >= 140);
+  let dir = Math.sign(walker.scaleX) || 1;
+  if (!fits(dir) && fits(-dir)) dir = -dir;
+  walker.scaleX = dir;
+  walker.facing = dir;
+  const safeX = Phaser.Math.Clamp(walker.x, view.x + (dir > 0 ? 140 : 120), view.right - (dir > 0 ? 120 : 140));
+  if (instant) walker.x = safeX;
+  else if (safeX !== walker.x) scene.tweens.add({ targets: walker, x: safeX, duration: 900, ease: "Sine.easeInOut" });
+  const sprite = walker.sprite;
+  const pack = walker.pack;
+  const tween = (config) => new Promise((resolve) => (instant ? resolve() : scene.tweens.add({ ...config, onComplete: resolve })));
+  const wait = (ms) => new Promise((resolve) => (instant ? resolve() : scene.time.delayedCall(ms, resolve)));
+  walker.fainted = true;
+  walker.frozen = true;
+  walker.velocity?.set(0, 0);
+  scene.tweens.killTweensOf([sprite, pack]);
+  sprite.setTexture(walker.baseTexture);
+  sprite.setPosition(0, 0).setScale(SPRITE_SCALE).setAngle(0);
+
+  // pose finali
+  const lie = () => {
+    sprite.setAngle(90).setY(-28).setX(0).setScale(SPRITE_SCALE);
+    sprite.setTint(0xb8c6d0);
+    walker.shadow.setScale(2.4, 1).setX(42);
+  };
+  const spill = () => {
+    if (!pack.visible) return null;
+    pack.setVisible(false);
+    // zaino e vaso diventano oggetti del mondo, così non si specchiano col personaggio
+    const groundY = walker.y;
+    const packX = walker.x - 70 * dir;
+    const fallenPack = scene.add.image(packX, groundY + 2, "pack").setOrigin(0.5, 1).setScale(SPRITE_SCALE).setAngle(-90 * dir).setDepth(walker.y - 1);
+    fallenPack.setTint(0xc7cfcc);
+    const potX = packX - 46 * dir;
+    const pot = scene.add.image(potX, groundY + 4, "pot_plant").setOrigin(0.5, 0.5).setScale(SPRITE_SCALE).setAngle(-90 * dir).setDepth(walker.y - 1);
+    pot.y -= 22;
+    // terra rovesciata
+    const soil = scene.add.graphics().setDepth(walker.y - 2);
+    soil.fillStyle(0x5a4636, 1);
+    for (let i = 0; i < 9; i += 1) soil.fillRect(potX - (24 + i * 6) * dir - 2, groundY - 2 - (i % 3) * 2, 6, 4);
+    return { fallenPack, pot, soil, packX, potX, groundY };
+  };
+
+  if (instant) {
+    lie();
+    spill();
+    return Promise.resolve();
+  }
+
+  return (async () => {
+    // fiato corto: bollicine sempre più piccole
+    for (let i = 0; i < 3; i += 1) {
+      const b = scene.add.rectangle(walker.x + 16 * dir, walker.y - 88, 6 - i * 2, 6 - i * 2, 0xf1f0ed).setDepth(walker.depth + 1);
+      scene.tweens.add({ targets: b, y: b.y - 30, alpha: 0, duration: 600, delay: i * 180, onComplete: () => b.destroy() });
+    }
+    scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 900,
+      onUpdate: (t) => {
+        const c = Phaser.Display.Color.Interpolate.ColorWithColor({ r: 255, g: 255, b: 255 }, { r: 184, g: 198, b: 208 }, 1, t.getValue());
+        sprite.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+      }
+    });
+    // barcolla
+    await tween({ targets: sprite, x: { from: -5, to: 5 }, duration: 170, yoyo: true, repeat: 2, ease: "Sine.easeInOut" });
+    sprite.x = 0;
+    // le ginocchia cedono
+    await tween({ targets: sprite, scaleY: SPRITE_SCALE * 0.84, scaleX: SPRITE_SCALE * 1.08, duration: 280, ease: "Quad.easeOut" });
+    await wait(180);
+    // cade in avanti, lo zaino scivola via all'indietro
+    scene.tweens.add({ targets: pack, x: -64, y: -6, angle: -40, duration: 260, ease: "Quad.easeIn" });
+    await tween({ targets: sprite, angle: 90, y: -28, scaleX: SPRITE_SCALE, scaleY: SPRITE_SCALE, duration: 300, ease: "Quad.easeIn" });
+    scene.cameras.main.shake(180, 0.008);
+    walker.shadow.setScale(2.4, 1).setX(42);
+    // piccolo rimbalzo all'impatto
+    await tween({ targets: sprite, y: -34, duration: 90, yoyo: true, ease: "Quad.easeOut" });
+    for (let i = 0; i < 6; i += 1) {
+      const dust = scene.add.rectangle(walker.x + (Phaser.Math.Between(-10, 90)) * dir, walker.y - 2, 4, 4, 0xa3a9a6).setDepth(walker.depth + 1);
+      scene.tweens.add({ targets: dust, y: dust.y - Phaser.Math.Between(6, 16), x: dust.x + Phaser.Math.Between(-12, 12), alpha: 0, duration: 420, onComplete: () => dust.destroy() });
+    }
+    pack.setAngle(0).setPosition(-30, -24);
+    const fallen = spill();
+    if (fallen) {
+      // il vaso rotola fuori dallo zaino e la terra si sparge
+      const { pot, soil, fallenPack } = fallen;
+      const potEndX = pot.x;
+      pot.x = fallenPack.x;
+      pot.y -= 30;
+      pot.setAngle(0);
+      soil.setAlpha(0);
+      scene.tweens.add({ targets: pot, x: potEndX, y: pot.y + 30, angle: -90 * dir, duration: 420, ease: "Bounce.easeOut" });
+      scene.tweens.add({ targets: soil, alpha: 1, duration: 200, delay: 260 });
+      // foglie che volano via
+      for (let i = 0; i < 4; i += 1) {
+        const leaf = scene.add.rectangle(potEndX, pot.y, 6, 4, 0x5c7a6b).setDepth(walker.depth + 1);
+        scene.tweens.add({
+          targets: leaf,
+          x: potEndX - Phaser.Math.Between(10, 60) * dir,
+          y: walker.y - Phaser.Math.Between(0, 8),
+          duration: 700 + i * 120,
+          delay: 200,
+          ease: "Sine.easeOut",
+          onComplete: () => leaf.setFillStyle(0x7a6a4a)
+        });
+      }
+    }
+    await wait(400);
+  })();
+}
+
+// anima un'immagine semplice (menu, carte) con i frame dello spritesheet.
+// mode() ritorna "walk", "idle" o "cheer"; base() la texture di partenza
+export function animateImage(scene, image, base, mode = () => "idle") {
+  const cycles = {
+    walk: ["w1", "p1", "w2", "p2"],
+    idle: [null, null, null, "idle", "idle", null, null, "blink"],
+    cheer: ["cheer", null]
+  };
+  let tick = 0;
+  return scene.time.addEvent({
+    delay: 150,
+    loop: true,
+    callback: () => {
+      if (!image.active) return;
+      tick += 1;
+      const m = mode();
+      const cycle = cycles[m] ?? cycles.idle;
+      const frame = cycle[(m === "idle" ? Math.floor(tick / 2) : tick) % cycle.length];
+      const key = frame ? `${base()}_${frame}` : base();
+      image.setTexture(scene.textures.exists(key) ? key : base());
+    }
+  });
 }
 
 // avvia un'azione
@@ -120,6 +271,7 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   update(input, delta, time = 0) {
+    if (this.fainted) return;
     const seconds = delta / 1000;
     const { x: moveX, y: moveY } = this.frozen ? { x: 0, y: 0 } : input.movement;
     const smoothing = 1 - Math.exp(-delta / 70);

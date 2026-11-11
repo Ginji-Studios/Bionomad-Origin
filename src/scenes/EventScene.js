@@ -1,5 +1,5 @@
 import Phaser from "../phaser.js";
-import { Player } from "../entities/Player.js";
+import { faint, Player } from "../entities/Player.js";
 import { Npc } from "../entities/Npc.js";
 import { MockPlantInput } from "../input/MockPlantInput.js";
 import { getOrigin } from "../config/origins.js";
@@ -9,7 +9,7 @@ import { buildBus, buildBusStop, buildFoodTruck, buildHome, buildOffice, buildRu
 import { EMERGENCY_ACTIONS } from "../config/events.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { PlantPanel } from "../ui/PlantPanel.js";
-import { addHud, addObjectiveBox, bodyText, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, pixelArrow, pixelDisc, pixelText, showToast, textChip } from "../ui/theme.js";
+import { addHud, addObjectiveBox, bodyText, o2Label, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
 
 const BUILDERS = { office: buildOffice, foodtruck: buildFoodTruck, busstop: buildBusStop, bus: buildBus, home: buildHome, street: buildRunHome };
 const MASKED = ["foodtruck", "busstop", "bus", "street"];
@@ -68,8 +68,7 @@ export class EventScene extends Phaser.Scene {
     textChip(this, 14, 72, `EVENTO ${this.run.index + 1}/${this.run.events.length} · ${this.event.title}`, { size: 20 });
     textChip(this, width - 14, 72, this.event.time, { size: 20, originX: 1 });
 
-    this.marker = this.add.graphics().setDepth(950);
-    pixelArrow(this.marker, 0, 0, "down", COLORS.red, 4);
+    this.marker = targetMarker(this);
     this.holdBar = this.add.graphics().setDepth(960);
     this.createPrompt();
 
@@ -594,7 +593,8 @@ export class EventScene extends Phaser.Scene {
 
     this.marker.setVisible(Boolean(point));
     if (point) {
-      this.marker.setPosition(point.x, point.y - 120 + Math.sin(time * 0.006) * 6);
+      this.marker.setPosition(point.x, point.y - 120);
+      this.marker.bob(Math.sin(time * 0.006) * 6);
     }
 
     const near = playing && step.type !== "emergency" && (step.type === "useSelf" || this.isNear(point));
@@ -662,9 +662,10 @@ export class EventScene extends Phaser.Scene {
     this.tweens.add({ targets: badge, alpha: 0, duration: 300, delay: 700, onComplete: () => badge.destroy() });
   }
 
+  // con l'aria più inquinata l'ossigeno si ricarica più lentamente
   addOxygen(amount) {
     const from = this.hud.oxygen;
-    const to = Math.min(1, from + amount);
+    const to = Math.min(1, from + amount * (this.origin.regen ?? 1));
     this.tweens.addCounter({ from, to, duration: 500, ease: "Cubic.easeOut", onUpdate: (tween) => this.hud.setOxygen(tween.getValue()) });
   }
 
@@ -837,9 +838,13 @@ export class EventScene extends Phaser.Scene {
         this.time.addEvent({ delay: 500, repeat: Math.floor(duration / 500) - 2, callback: () => this.player.act("act", 220, 0) });
         const food = this.add.rectangle(this.player.x + 20 * this.player.facing, this.player.y - 46, 14, 10, 0xd98a4b).setDepth(470);
         this.tweens.add({ targets: food, scaleX: 0.2, duration: duration - 400, ease: "Stepped", easeParams: [4] });
-        ["gnam", "gnam!", "O2 +"].forEach((word, i) => {
+        ["gnam", "gnam!", "o2"].forEach((word, i) => {
           this.time.delayedCall(400 + i * 650, () => {
-            const t = bodyText(this, this.player.x + Phaser.Math.Between(-30, 30), this.player.y - 110, word, { size: 22, color: COLORS.ink, origin: 0.5 }).setDepth(980);
+            const x = this.player.x + Phaser.Math.Between(-30, 30);
+            const t = (word === "o2"
+              ? o2Label(this, x, this.player.y - 110, { px: 22, color: COLORS.ink, prefix: "+" })
+              : bodyText(this, x, this.player.y - 110, word, { size: 22, color: COLORS.ink, origin: 0.5 })
+            ).setDepth(980);
             this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 800, onComplete: () => t.destroy() });
           });
         });
@@ -890,11 +895,10 @@ export class EventScene extends Phaser.Scene {
     this.marker.setVisible(false);
     this.prompt.setVisible(false);
     failRun(this.registry);
-    this.cameras.main.shake(300, 0.006);
-    this.player.sprite.setTint(0x9fb4c2);
-    this.player.pack.setTint(0x9fb4c2);
-    this.tweens.add({ targets: this.player, scaleY: 0.82, duration: 500, ease: "Bounce.easeOut" });
+    this.plantPanel?.close();
+    this.clearPlantClasses();
     this.banner("OSSIGENO ESAURITO", COLORS.red);
-    this.time.delayedCall(1800, () => goTo(this, "EndScene", { result: "lose" }));
+    // sviene dove si trova, poi la scena del game over
+    faint(this.player).then(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose", fainted: true })));
   }
 }

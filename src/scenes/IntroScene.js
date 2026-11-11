@@ -4,7 +4,7 @@ import { getOrigin } from "../config/origins.js";
 import { getRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse } from "../world/locations.js";
-import { addHud, addObjectiveBox, bodyText, COLORS, drawPanel, fadeIn, goTo, textChip } from "../ui/theme.js";
+import { addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, fadeIn, goTo, textChip, titleCard } from "../ui/theme.js";
 
 // cutscene di inizio run
 export class IntroScene extends Phaser.Scene {
@@ -66,9 +66,20 @@ export class IntroScene extends Phaser.Scene {
 
   async play(pack, hud, caption) {
     const player = this.player;
-    await this.wait(600);
+    // cartello d'apertura, poi il cittadino si sveglia stiracchiandosi
+    await this.wait(300);
+    await titleCard(this, this.origin.city, `07:30 · PM2.5 ${this.origin.pm25.toFixed(1)} · ${this.origin.difficulty}`);
+    if (this.done) return;
+    player.act("cheer", 500, 6);
+    await this.wait(700);
     this.say("Uff... l'aria è pesante.");
-    await this.wait(1200);
+    // tossisce: due scossoni e una nuvoletta
+    [0, 260].forEach((d) => this.time.delayedCall(d + 500, () => {
+      this.tweens.add({ targets: player.sprite, x: 3, duration: 50, yoyo: true, repeat: 1 });
+      const puff = this.add.rectangle(player.x + 22 * player.facing, player.y - 56, 6, 6, COLORS.stone).setDepth(990);
+      this.tweens.add({ targets: puff, x: puff.x + 20 * player.facing, y: puff.y - 10, alpha: 0, scale: 2, duration: 500, onComplete: () => puff.destroy() });
+    }));
+    await this.wait(1400);
     caption.setText("INDOSSA BIONOMAD+");
     await this.walk(this.world.points.pack.x - 50, 440, 1100);
     await this.wait(300);
@@ -78,6 +89,16 @@ export class IntroScene extends Phaser.Scene {
     await this.wait(380);
     player.setPack(true);
     player.setBaseTexture(characterTexture(this.origin.id, true));
+    // lo zaino si aggancia: lampo, scintille e bollicine d'ossigeno
+    this.cameras.main.flash(180, 159, 212, 176);
+    this.cameras.main.shake(140, 0.004);
+    burst(this, player.x - 30 * player.facing, player.y - 50, { colors: [0x9fd4b0, COLORS.paper, 0x7e9c8c], count: 16, spread: 70, gravity: -20 });
+    for (let i = 0; i < 8; i += 1) {
+      this.time.delayedCall(i * 110, () => {
+        const b = this.add.rectangle(player.x + Phaser.Math.Between(-40, 20), player.y - 60, 6, 6, COLORS.paper).setStrokeStyle(2, COLORS.ink).setDepth(990);
+        this.tweens.add({ targets: b, y: b.y - Phaser.Math.Between(60, 120), x: b.x + Phaser.Math.Between(-16, 16), alpha: 0, duration: 900, ease: "Sine.easeOut", onComplete: () => b.destroy() });
+      });
+    }
     this.tweens.addCounter({ from: 0.3, to: 1, duration: 1000, ease: "Cubic.easeOut", onUpdate: (t) => hud.setOxygen(t.getValue()) });
     this.say("Ah, si respira!");
     player.act("cheer", 700, 12);
@@ -88,9 +109,21 @@ export class IntroScene extends Phaser.Scene {
     const opening = this.add.rectangle(this.world.door.x + 42, (this.world.door.top + 380) / 2, 72, 380 - this.world.door.top - 12, COLORS.inkDeep).setDepth(5);
     opening.setScale(0, 1);
     this.tweens.add({ targets: opening, scaleX: 1, duration: 300 });
-    await this.wait(300);
-    this.tweens.add({ targets: player, alpha: 0, duration: 400 });
-    await this.wait(500);
+    // dalla porta entra la luce (velata dallo smog) e si allunga sul pavimento
+    const light = this.add.graphics().setDepth(6).setAlpha(0);
+    light.fillStyle(COLORS.paper, 0.35);
+    for (let i = 0; i < 10; i += 1) light.fillRect(this.world.door.x + 6 - i * 8, 380 + i * 8, 72 + i * 16, 8);
+    this.tweens.add({ targets: light, alpha: 1, duration: 400 });
+    await this.wait(400);
+    // ultimo sguardo alla casa, poi esce rimpicciolendo
+    player.facing = -1;
+    await this.wait(450);
+    player.facing = 1;
+    player.act("cheer", 300, 8);
+    await this.wait(350);
+    this.walking = true;
+    this.tweens.add({ targets: player, alpha: 0, scale: 0.8, y: player.y - 14, duration: 500, ease: "Sine.easeIn" });
+    await this.wait(600);
     this.finish();
   }
 

@@ -1,11 +1,11 @@
 import Phaser from "../phaser.js";
 import { EVENTS } from "../config/events.js";
 import { getOrigin } from "../config/origins.js";
-import { animateWalker, Player, turnTo } from "../entities/Player.js";
+import { animateWalker, faint, Player, turnTo } from "../entities/Player.js";
 import { getRun, startRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse, buildStreet } from "../world/locations.js";
-import { addHud, addObjectiveBox, bodyText, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 // esito della run
 export class EndScene extends Phaser.Scene {
@@ -15,6 +15,7 @@ export class EndScene extends Phaser.Scene {
 
   create(data = {}) {
     this.win = data.result === "win";
+    this.fainted = Boolean(data.fainted);
     this.run = getRun(this.registry);
     this.origin = getOrigin(this.registry);
     this.summaryShown = false;
@@ -101,16 +102,42 @@ export class EndScene extends Phaser.Scene {
     if (this.summaryShown) return;
     this.player.setBaseTexture(characterTexture(this.origin.id, false));
     this.tweens.add({ targets: glow, fillAlpha: 0.35, duration: 400, yoyo: true, repeat: 2 });
+    this.cameras.main.flash(200, 159, 212, 176);
+    this.cameras.main.shake(160, 0.004);
+    burst(this, hubX + 60, homeHub.glass.y + homeHub.glass.h, { colors: [0x9fd4b0, COLORS.paper, 0x7e9c8c], count: 18, spread: 90, gravity: -10 });
 
     // L'ossigeno si riempie, bollicine dalla serra
-    caption.setText("L'O2 SI RIEMPIE");
+    caption.setText("L'OSSIGENO SI RIEMPIE");
     this.tweens.addCounter({ from: this.hud.oxygen, to: 1, duration: 1600, ease: "Cubic.easeOut", onUpdate: (t) => this.hud.setOxygen(t.getValue()) });
     this.bubbles = this.time.addEvent({ delay: 160, repeat: 18, callback: () => this.bubble(hubX + Phaser.Math.Between(-60, 60), homeHub.glass.y + 60) });
     await this.wait(1000);
     if (this.summaryShown) return;
     this.say("Che giornata... ma ce l'abbiamo fatta.");
     [0, 450, 900].forEach((delay) => this.time.delayedCall(delay, () => this.player.act("cheer", 400, 16)));
-    await this.wait(2200);
+    // pioggia di foglie e scritta che rimbalza, lettera per lettera
+    const { width, height } = this.scale;
+    this.time.addEvent({
+      delay: 70,
+      repeat: 44,
+      callback: () => {
+        const leaf = this.add.rectangle(Phaser.Math.Between(20, width - 20), 40, 8, 4, Phaser.Utils.Array.GetRandom([0x7e9c8c, 0x5c7a6b, 0x9fd4b0, COLORS.paper])).setDepth(1250);
+        this.tweens.add({ targets: leaf, y: height + 10, x: leaf.x + Phaser.Math.Between(-80, 80), duration: Phaser.Math.Between(1600, 2600), ease: "Sine.easeIn", onComplete: () => leaf.destroy() });
+        this.tweens.add({ targets: leaf, scaleX: -1, duration: 260, yoyo: true, repeat: -1 });
+      }
+    });
+    await this.wait(900);
+    if (this.summaryShown) return;
+    const letters = "FINE GIORNATA".split("");
+    const size = 40;
+    const startX = width / 2 - (letters.length * size) / 2 + size / 2;
+    letters.forEach((char, i) => {
+      if (char === " ") return;
+      const l = pixelText(this, startX + i * size, -60, char, { size: 32, color: COLORS.inkDeep, origin: 0.5 }).setDepth(1300);
+      l.setShadow(4, 4, "#9fd4b0", 0, false, true);
+      this.tweens.add({ targets: l, y: 170, duration: 600, delay: i * 70, ease: "Bounce.easeOut" });
+      this.tweens.add({ targets: l, y: 162, duration: 400, delay: 1400 + i * 70, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    });
+    await this.wait(2600);
     this.showSummary();
   }
 
@@ -128,22 +155,28 @@ export class EndScene extends Phaser.Scene {
 
     // allarme rosso a impulsi
     const alarm = this.add.rectangle(width / 2, height / 2, width, height, COLORS.red, 0).setDepth(900);
-    this.tweens.add({ targets: alarm, fillAlpha: 0.22, duration: 300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
-    // cammina sempre più lento mentre l'O2 scende
-    this.tweens.add({ targets: this, walkSpeed: 0.2, duration: 2400 });
-    this.tweens.addCounter({ from: this.hud.oxygen, to: 0, duration: 2600, ease: "Sine.easeIn", onUpdate: (t) => this.hud.setOxygen(t.getValue()) });
-    await this.walk(width / 2, 2600);
+    if (this.fainted) {
+      // è già svenuto nella scena precedente: resta a terra con la pianta rovesciata
+      this.player.setPosition(width / 2 - 40, 456);
+      this.hud.setOxygen(0);
+      caption.setText("OSSIGENO ESAURITO");
+      await faint(this.player, { instant: true });
+    } else {
+      this.tweens.add({ targets: alarm, fillAlpha: 0.22, duration: 300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      // cammina sempre più lento mentre l'ossigeno scende
+      this.tweens.add({ targets: this, walkSpeed: 0.2, duration: 2400 });
+      this.tweens.addCounter({ from: this.hud.oxygen, to: 0, duration: 2600, ease: "Sine.easeIn", onUpdate: (t) => this.hud.setOxygen(t.getValue()) });
+      await this.walk(width / 2, 2600);
+      if (this.summaryShown) return;
+
+      // il cittadino sviene e la pianta cade a terra
+      caption.setText("OSSIGENO ESAURITO");
+      this.tweens.killTweensOf(alarm);
+      this.tweens.add({ targets: alarm, fillAlpha: 0, duration: 400 });
+      await faint(this.player);
+    }
     if (this.summaryShown) return;
-
-    // il cittadino si accascia
-    caption.setText("OSSIGENO ESAURITO");
-    this.cameras.main.shake(400, 0.008);
-    this.player.sprite.setTint(0x9fb4c2);
-    this.player.pack.setTint(0x9fb4c2);
-    this.tweens.add({ targets: this.player, scaleY: 0.78, duration: 600, ease: "Bounce.easeOut" });
-    this.tweens.killTweensOf(alarm);
-    this.tweens.add({ targets: alarm, fillAlpha: 0, duration: 400 });
     const dark = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0).setDepth(1200);
     this.tweens.add({ targets: dark, fillAlpha: 0.72, duration: 900, delay: 300 });
     await this.wait(1100);
@@ -257,7 +290,7 @@ export class EndScene extends Phaser.Scene {
     await this.typewrite(
       text,
       win
-        ? "Le tre task sono risolte una dopo l'altra. L'O2 si riempie e il cittadino rientra a casa, lieto di aver concluso la sua routine nel migliore dei modi."
+        ? "Le tre task sono risolte una dopo l'altra. L'ossigeno si riempie e il cittadino rientra a casa, lieto di aver concluso la sua routine nel migliore dei modi."
         : "Il cittadino non è riuscito a portare a termine una task: l'ossigeno è finito. Riprova, la tua pianta ti aspetta.",
       12
     );
@@ -298,7 +331,7 @@ export class EndScene extends Phaser.Scene {
     const o2 = { value: 0 };
     const bar = this.add.graphics();
     const percent = pixelText(this, x + w - 30, y + 194, "0%", { size: 8, color: COLORS.ink, origin: [1, 0] });
-    box.add([pixelText(this, x + w - 260, y + 194, "O2 FINALE", { size: 8, color: COLORS.steel }), percent, bar]);
+    box.add([pixelText(this, x + w - 260, y + 194, "OSSIGENO FINALE", { size: 8, color: COLORS.steel }), percent, bar]);
     const finalValue = win ? 1 : 0;
     await new Promise((resolve) =>
       this.tweens.add({

@@ -72,9 +72,13 @@ export class CreditsScene extends Phaser.Scene {
     const dir = index > this.page ? 1 : -1;
     const current = this.pages[this.page];
     const incoming = this.pages[next];
-    this.tweens.add({ targets: current, x: -dir * width * 0.3, alpha: 0, duration: 260, ease: "Cubic.easeIn" });
-    incoming.setX(dir * width * 0.3);
-    this.tweens.add({ targets: incoming, x: 0, alpha: 1, duration: 320, delay: 120, ease: "Cubic.easeOut" });
+    // le due pagine scorrono insieme come un nastro; i tween vecchi si fermano,
+    // così cambiando scheda in fretta non restano pagine sovrapposte o sparite
+    this.pages.forEach((p) => this.tweens.killTweensOf(p));
+    this.pages.forEach((p) => p !== current && p !== incoming && p.setAlpha(0));
+    this.tweens.add({ targets: current, x: -dir * width, alpha: 0, duration: 360, ease: "Cubic.easeInOut" });
+    incoming.setX(dir * width).setAlpha(1);
+    this.tweens.add({ targets: incoming, x: 0, duration: 360, ease: "Cubic.easeInOut" });
     this.page = next;
     this.drawDots();
   }
