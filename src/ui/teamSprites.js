@@ -2,7 +2,7 @@
 
 const SKIN = { s: "#f0dccb", S: "#d9bfa8", E: "#1c2839", g: "#3f5a6c", l: "#cfe0ea" };
 
-function girl({ top = "long", glasses = false, earrings = false, vest = false, skirt = false, streaks = false, tuft = false }) {
+function girl({ top = "long", glasses = false, earrings = false, vest = false, skirt = false, streaks = false, tuft = false, balayage = false }) {
   const rows = [
     "....hhhhhh....",
     "..hhhhhhhhhh..",
@@ -73,6 +73,24 @@ function girl({ top = "long", glasses = false, earrings = false, vest = false, s
     rows[9] = ".hfssSSSSssfh.";
     rows[10] = ".fh.ssssss.hf.";
   }
+  if (balayage) {
+    // capelli lunghi e mossi che scendono dritti ai lati fino ai fianchi:
+    // radici bionde, sfumatura rosa a metà, punte fucsia scure
+    rows[1] = "..hhhHhhhhhh..";
+    rows[2] = ".hhhhhhHhhhhh.";
+    rows[3] = ".hHhhhhhhhhHh.";
+    rows[4] = ".hhhhssssssHh.";
+    rows[5] = ".hhsssssssssh.";
+    rows[7] = ".HssEEssEEssH.";
+    rows[9] = ".HmssSSSSssmH.";
+    rows[10] = ".mH.ssssss.Hm.";
+    rows[11] = ".mmrrrrrrrrmm.";
+    rows[12] = "mffrrrrrrrrffm";
+    rows[13] = ".fFrrrrrrrrFf.";
+    rows[14] = "fFfrrrrrrrrfFf";
+    rows[15] = ".FFRRRRRRRRFF.";
+    rows[16] = ".F.bbbbbbbb.F.";
+  }
   return rows;
 }
 
@@ -81,7 +99,11 @@ export const TEAM = [
   { key: "team_2", rows: girl({ top: "bun" }), palette: { h: "#6e4a32", r: "#f1f0ed", R: "#cdd2ce", b: "#1c2028", k: "#dadfda" } },
   { key: "team_3", rows: girl({ top: "cap", vest: true, tuft: true }), palette: { h: "#6e4a32", c: "#1c2028", x: "#d0453a", r: "#8a2e2e", R: "#6a2222", w: "#f1f0ed", b: "#1c2028", k: "#f1f0ed" } },
   { key: "team_4", rows: girl({ skirt: true }), palette: { h: "#7a3a2e", r: "#1c2028", R: "#0f1216", p: "#b4553f", P: "#6e2a26", b: "#1c2028", k: "#0f1216" } },
-  { key: "team_5", rows: girl({ streaks: true }), palette: { h: "#e8d29a", f: "#d94f9a", r: "#5e7f94", R: "#3f5a6c", b: "#1c2028", k: "#0f1216" } },
+  {
+    key: "team_5",
+    rows: girl({ balayage: true }),
+    palette: { h: "#e8d29a", H: "#c9a865", m: "#e58cb6", f: "#d94f9a", F: "#a8306c", r: "#5e7f94", R: "#3f5a6c", b: "#1c2028", k: "#0f1216" }
+  },
   { key: "team_6", rows: girl({}), palette: { h: "#a8805a", r: "#7e9c8c", R: "#5c7a6b", b: "#3b5ba8", B: "#2a4180", k: "#1c2028" } }
 ];
 
