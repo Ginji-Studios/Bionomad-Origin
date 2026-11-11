@@ -2,33 +2,24 @@ import Phaser from "../phaser.js";
 import { BootScene } from "../scenes/BootScene.js";
 import { PreloadScene } from "../scenes/PreloadScene.js";
 import { MenuScene } from "../scenes/MenuScene.js";
-import { CityScene } from "../scenes/CityScene.js";
-import { HouseScene } from "../scenes/HouseScene.js";
-import { OfficeScene } from "../scenes/OfficeScene.js";
-import { CharacterScene } from "../scenes/CharacterScene.js";
-import { CreditsScene } from "../scenes/CreditsScene.js";
-import { TutorialScene } from "../scenes/TutorialScene.js";
 import { CharacterSelectScene } from "../scenes/CharacterSelectScene.js";
+import { IntroScene } from "../scenes/IntroScene.js";
+import { EventScene } from "../scenes/EventScene.js";
+import { EndScene } from "../scenes/EndScene.js";
+import { TutorialScene } from "../scenes/TutorialScene.js";
+import { CreditsScene } from "../scenes/CreditsScene.js";
 
 export const gameConfig = {
   type: Phaser.AUTO,
   width: 960,
   height: 540,
-  backgroundColor: "#12261f",
+  backgroundColor: "#1c2839",
+  // Stile pixel-art: niente sfocature quando il canvas viene scalato
+  pixelArt: true,
+  roundPixels: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [
-    BootScene,
-    PreloadScene,
-    MenuScene,
-    CityScene,
-    HouseScene,
-    OfficeScene,
-    CharacterScene,
-    CreditsScene,
-    TutorialScene,
-    CharacterSelectScene
-  ]
+  scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, IntroScene, EventScene, EndScene, TutorialScene, CreditsScene]
 };

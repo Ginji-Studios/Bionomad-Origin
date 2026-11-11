@@ -1,5 +1,6 @@
 import Phaser from "../phaser.js";
-import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { addCornerHints, addTopBar, bodyText, COLORS, ditherRect, drawPanel, paperGrid, pixelText } from "../ui/theme.js";
+import { characterTexture } from "../ui/pixelSprites.js";
 
 export class CharacterScene extends Phaser.Scene {
   constructor() {
@@ -9,21 +10,33 @@ export class CharacterScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const selectedName = this.registry.get("selectedCharacter") ?? "Da definire";
-    addSceneChrome(this, "Il protagonista", "Una prima scheda per definire identita, desideri e relazioni.", 0x1d3557);
+    paperGrid(this);
+    addTopBar(this, "PROTAGONISTA", "BIODOM+");
 
-    this.add.circle(250, 285, 88, 0xf2c6a0);
-    this.add.rectangle(250, 430, 150, 170, 0x457b9d);
-    this.add.circle(215, 270, 9, 0x1d3557);
-    this.add.circle(285, 270, 9, 0x1d3557);
-    this.add.arc(250, 300, 35, 15, 165, false, 0x1d3557);
+    const g = this.add.graphics();
+    drawPanel(g, 80, 80, 300, 380, { fill: COLORS.paper, border: COLORS.ink });
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(130, 402, 200, 10);
 
-    this.add.rectangle(620, 280, 420, 300, 0x274c77, 0.8);
-    addLabel(this, "Nome", 450, 205, "#a8dadc", "16px");
-    addLabel(this, selectedName, 450, 235, "#f1faee", "28px");
-    addLabel(this, "Tratto", 450, 300, "#a8dadc", "16px");
-    addLabel(this, "Osservatore del mondo naturale", 450, 330, "#f1faee", "22px");
-    addLabel(this, "Obiettivo", 450, 395, "#a8dadc", "16px");
-    addLabel(this, "Capire cosa sta cambiando nella citta", 450, 425, "#f1faee", "20px");
-    addLabel(this, "La scheda potra diventare un menu di gioco.", 450, height - 78, "#a8dadc", "16px");
+    const container = this.add.container(230, 404);
+    container.add([
+      this.add.image(-60, -48, "pack").setOrigin(0.5, 1).setScale(8),
+      this.add.image(0, 0, characterTexture(this.registry.get("selectedCharacter"))).setOrigin(0.5, 1).setScale(8)
+    ]);
+    this.tweens.add({ targets: container, y: 400, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+
+    drawPanel(g, 420, 80, 460, 380, { fill: COLORS.paper, border: COLORS.ink });
+    const row = (label, value, y, size = 28) => {
+      pixelText(this, 450, y, label, { size: 8, color: COLORS.textDim });
+      bodyText(this, 450, y + 16, value, { size, color: COLORS.text, wrap: 400 });
+    };
+    row("NOME", selectedName.toUpperCase(), 104, 40);
+    row("TRATTO", "Osservatore del mondo naturale", 184);
+    row("OBIETTIVO", "Capire cosa sta cambiando nella città", 258);
+    row("EQUIPAGGIAMENTO", "Zaino BIONOMAD+ con ecosistema vegetale", 352);
+
+    bodyText(this, width / 2, height - 54, "La scheda potrà diventare un menu di gioco.", { size: 22, color: COLORS.textMuted, origin: 0.5 });
+    addCornerHints(this, null, "ESC  MENU");
+    this.input.keyboard.once("keydown-ESC", () => this.scene.start("MenuScene"));
   }
 }

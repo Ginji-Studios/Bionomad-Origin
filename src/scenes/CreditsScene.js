@@ -1,5 +1,5 @@
 import Phaser from "../phaser.js";
-import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { addCornerHints, addTopBar, goTo, bodyText, COLORS, dropShadow, drawPanel, paperGrid, pixelText } from "../ui/theme.js";
 
 export class CreditsScene extends Phaser.Scene {
   constructor() {
@@ -8,13 +8,24 @@ export class CreditsScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    addSceneChrome(this, "Crediti", "Bionomad Origin e un progetto in evoluzione.", 0x0b132b);
+    paperGrid(this);
+    addTopBar(this, "CREDITI", "BIODOM+");
 
-    addLabel(this, "BIONOMAD ORIGIN", width / 2 - 190, 165, "#f4d35e", "30px");
-    addLabel(this, "Game design", width / 2 - 190, 245, "#8ecae6", "16px");
-    addLabel(this, "Ginji Studios", width / 2 - 190, 272, "#f1faee", "24px");
-    addLabel(this, "Sviluppo", width / 2 - 190, 335, "#8ecae6", "16px");
-    addLabel(this, "Phaser + Elegoo Uno R3", width / 2 - 190, 362, "#f1faee", "24px");
-    addLabel(this, "Grazie per aver visitato questo prototipo.", width / 2, height - 110, "#bde0fe", "18px").setOrigin(0.5);
+    drawPanel(this.add.graphics(), width / 2 - 260, 90, 520, 330, { fill: COLORS.paper, border: COLORS.ink });
+    pixelText(this, width / 2, 130, "BIONOMAD ORIGIN", { size: 24, color: COLORS.ink, origin: 0.5, shadow: true });
+
+    pixelText(this, width / 2, 196, "GAME DESIGN", { size: 8, color: COLORS.textDim, origin: 0.5 });
+    bodyText(this, width / 2, 222, "Ginji Studios", { size: 32, origin: 0.5 });
+    pixelText(this, width / 2, 280, "SVILUPPO", { size: 8, color: COLORS.textDim, origin: 0.5 });
+    bodyText(this, width / 2, 306, "Phaser + Elegoo Uno R3", { size: 32, origin: 0.5 });
+    pixelText(this, width / 2, 360, "FONT", { size: 8, color: COLORS.textDim, origin: 0.5 });
+    bodyText(this, width / 2, 384, "Press Start 2P · VT323 (SIL OFL)", { size: 24, color: COLORS.textDim, origin: 0.5 });
+
+    this.add.image(width / 2 - 200, 412, "pot_flower").setOrigin(0.5, 1).setScale(4);
+    this.add.image(width / 2 + 200, 412, "pot_plant").setOrigin(0.5, 1).setScale(4);
+
+    bodyText(this, width / 2, height - 72, "Grazie per aver visitato questo prototipo.", { size: 26, color: COLORS.steel, origin: 0.5 });
+    addCornerHints(this, null, "ESC  MENU");
+    this.input.keyboard.once("keydown-ESC", () => goTo(this, "MenuScene"));
   }
 }

@@ -1,0 +1,587 @@
+import Phaser from "../phaser.js";
+import { Player } from "../entities/Player.js";
+import { Npc } from "../entities/Npc.js";
+import { MockPlantInput } from "../input/MockPlantInput.js";
+import { getOrigin } from "../config/origins.js";
+import { completeEvent, currentEvent, failRun, getRun } from "../systems/RunManager.js";
+import { characterTexture } from "../ui/pixelSprites.js";
+import { buildBusStop, buildFoodTruck, buildOffice } from "../world/locations.js";
+import { addHud, addObjectiveBox, bodyText, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, pixelArrow, pixelText, showToast, textChip } from "../ui/theme.js";
+
+const BUILDERS = { office: buildOffice, foodtruck: buildFoodTruck, busstop: buildBusStop };
+const NEAR = 76;
+const STEP_BONUS = 0.08;
+const EVENT_BONUS = 0.3;
+
+// Scena generica di un evento: disegna la location, guida il giocatore tra le task (step)
+// e gestisce ossigeno, successo e game over.
+export class EventScene extends Phaser.Scene {
+  constructor() {
+    super("EventScene");
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    this.run = getRun(this.registry);
+    this.event = currentEvent(this.registry);
+    if (!this.run || !this.event) {
+      this.scene.start("MenuScene");
+      return;
+    }
+    this.origin = getOrigin(this.registry);
+    this.mode = "intro";
+    this.failed = false;
+    this.stepIndex = 0;
+    this.inventory = new Set();
+    this.holdProgress = 0;
+    this.carried = null;
+    fadeIn(this);
+
+    this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg);
+    const outdoor = this.event.location !== "office";
+    this.world = BUILDERS[this.event.location](this, this.origin.id, { evening: Boolean(this.event.evening) });
+
+    this.createNpcs(outdoor);
+    this.createItems();
+
+    this.player = new Player(this, this.world.spawn.x, this.world.spawn.y, {
+      texture: characterTexture(this.origin.id, outdoor),
+      withPack: true,
+      floor: this.world.floor,
+      obstacles: this.world.obstacles
+    });
+    this.inputProvider = new MockPlantInput(this);
+
+    this.hud = addHud(this, { oxygen: this.run.oxygen, location: this.origin.city, flag: this.origin.flag });
+    this.objective = addObjectiveBox(this, this.event.title);
+    textChip(this, 14, 72, `EVENTO ${this.run.index + 1}/${this.run.events.length} · ${this.event.title}`, { size: 20 });
+    textChip(this, width - 14, 72, this.event.time, { size: 20, originX: 1 });
+
+    this.marker = this.add.graphics().setDepth(950);
+    pixelArrow(this.marker, 0, 0, "down", COLORS.red, 4);
+    this.holdBar = this.add.graphics().setDepth(960);
+    this.createPrompt();
+
+    const keys = this.input.keyboard;
+    ["SPACE", "ENTER"].forEach((key) => keys.on(`keydown-${key}`, () => this.onAction()));
+    ["LEFT", "A"].forEach((key) => keys.on(`keydown-${key}`, () => this.onDirection(-1)));
+    ["RIGHT", "D"].forEach((key) => keys.on(`keydown-${key}`, () => this.onDirection(1)));
+    keys.once("keydown-ESC", () => goTo(this, "MenuScene"));
+
+    this.showIntroCard();
+  }
+
+  // ---------- Setup ----------
+
+  createNpcs(outdoor) {
+    this.npcs = [];
+    if (this.event.location === "busstop") {
+      const p = this.world.points.man;
+      this.man = new Npc(this, p.x + 20, p.y - 6, "Signore", { texture: "npc_old_mask", withPack: true });
+      this.man.scaleX = -1;
+      this.npcs.push(this.man);
+    }
+    if (outdoor) {
+      const texture = this.origin.id === "delhi" ? "npc_d_mask" : "npc_a_mask";
+      this.npcs.push(new Npc(this, -60, 478, "", { texture, speed: 34, direction: 1 }));
+      this.npcs.push(new Npc(this, 700, 482, "", { texture: "npc_b_mask", speed: 26, direction: -1 }));
+    }
+  }
+
+  createItems() {
+    this.itemSprites = {};
+    this.event.steps.forEach((step) => {
+      if (step.type === "pickup" && step.item === "can") {
+        const p = this.world.points[step.target];
+        const sprite = this.add.image(p.x, p.y, "can").setOrigin(0.5, 1).setScale(4).setDepth(p.y - 1);
+        this.tweens.add({ targets: sprite, y: p.y - 6, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        this.itemSprites.can = sprite;
+      }
+    });
+  }
+
+  createPrompt() {
+    this.prompt = this.add.container(0, 0).setDepth(970).setVisible(false);
+    this.promptBg = this.add.graphics();
+    this.promptText = bodyText(this, 0, 0, "", { size: 20, color: COLORS.paper, origin: 0.5 });
+    this.prompt.add([this.promptBg, this.promptText]);
+  }
+
+  setPrompt(text) {
+    if (this.promptText.text === text) return;
+    this.promptText.setText(text);
+    const w = this.promptText.width + 14;
+    this.promptBg.clear();
+    drawPanel(this.promptBg, -w / 2, -12, w, 24, { fill: COLORS.ink, border: COLORS.inkDeep });
+  }
+
+  // ---------- Overlay iniziale ----------
+
+  showIntroCard() {
+    const { width, height } = this.scale;
+    const card = this.add.container(0, 0).setDepth(2000);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.55);
+    const w = 580;
+    const h = 260;
+    const x = width / 2 - w / 2;
+    const y = height / 2 - h / 2;
+    const g = this.add.graphics();
+    dropShadow(g, x, y, w, h, 8);
+    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(x, y, w, 30);
+    const head = pixelText(this, x + 14, y + 11, `EVENTO ${this.run.index + 1}/${this.run.events.length}`, { size: 8, color: COLORS.paper });
+    const time = pixelText(this, x + w - 14, y + 11, this.event.time, { size: 8, color: COLORS.steelLight, origin: [1, 0] });
+    const title = pixelText(this, x + 20, y + 48, this.event.title, { size: 16 });
+    const desc = bodyText(this, x + 20, y + 76, this.event.description, { size: 24, color: COLORS.ink, wrap: w - 40, lineSpacing: -2 });
+    const list = bodyText(this, x + 20, y + 150, this.event.steps.map((s, i) => `${i + 1}. ${s.text}`).join("\n"), { size: 20, color: COLORS.steel });
+    const go = pixelText(this, width / 2, y + h - 22, "SPAZIO PER INIZIARE", { size: 8, color: COLORS.red, origin: 0.5 });
+    this.tweens.add({ targets: go, alpha: 0.3, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    card.add([dim, g, head, time, title, desc, list, go]);
+    card.setAlpha(0).y = 16;
+    this.tweens.add({ targets: card, alpha: 1, y: 0, duration: 300, ease: "Cubic.easeOut" });
+    this.introCard = card;
+  }
+
+  // ---------- Step ----------
+
+  get step() {
+    return this.event.steps[this.stepIndex];
+  }
+
+  startStep() {
+    const step = this.step;
+    this.holdProgress = 0;
+    this.objective.setText(`${this.stepIndex + 1}/${this.event.steps.length} · ${step.text}`);
+    if (step.type === "prune") this.openPrune();
+  }
+
+  targetPoint() {
+    const step = this.step;
+    if (!step || !step.target) return null;
+    return this.world.points[step.target];
+  }
+
+  isNear(point) {
+    return point && Phaser.Math.Distance.Between(this.player.x, this.player.y, point.x, point.y) < NEAR;
+  }
+
+  onAction() {
+    if (this.mode === "intro") {
+      this.mode = "play";
+      this.tweens.add({ targets: this.introCard, alpha: 0, y: -16, duration: 220, onComplete: () => this.introCard.destroy() });
+      this.startStep();
+      return;
+    }
+    if (this.mode === "confirm") return this.resolveConfirm();
+    if (this.mode === "prune") return this.cutLeaf();
+    if (this.mode !== "play") return;
+
+    const step = this.step;
+    const point = this.targetPoint();
+    const near = this.isNear(point);
+
+    if (step.type === "useSelf") {
+      this.mode = "busy";
+      this.dropCarried();
+      this.waterEffect(this.player.x - 30 * this.player.facing, this.player.y - 96);
+      this.time.delayedCall(900, () => this.completeStep());
+      return;
+    }
+    if (!near) {
+      if (step.type !== "hold") showToast(this, "Raggiungi la freccia per completare la task.", { duration: 1400 });
+      return;
+    }
+
+    switch (step.type) {
+      case "pickup":
+        this.itemSprites[step.item]?.destroy();
+        this.inventory.add(step.item);
+        this.carry(step.item);
+        showToast(this, step.line ?? "Raccolto!");
+        this.completeStep();
+        break;
+      case "use":
+        if (!this.inventory.has(step.item)) {
+          showToast(this, "Ti manca qualcosa...", { color: COLORS.red });
+          return;
+        }
+        this.mode = "busy";
+        this.dropCarried();
+        this.waterEffect(point.x, point.y - 110);
+        if (this.world.hub) this.tweens.add({ targets: this.world.hub.plant, scaleY: 3.4, duration: 300, yoyo: true, repeat: 1, ease: "Sine.easeInOut" });
+        this.time.delayedCall(1000, () => this.completeStep());
+        break;
+      case "talk":
+        this.man?.setMood("happy");
+        showToast(this, `Signore: ${step.line}`, { duration: 3200 });
+        this.completeStep();
+        break;
+      case "confirm":
+        this.openConfirm(step.question);
+        break;
+      case "sit":
+        this.sitAndEat(step.duration);
+        break;
+      case "exit":
+        this.mode = "busy";
+        this.tweens.add({ targets: this.player, alpha: 0, duration: 300 });
+        this.completeStep();
+        break;
+      default:
+        break;
+    }
+  }
+
+  onDirection(step) {
+    if (this.mode === "confirm") {
+      this.confirmChoice = Phaser.Math.Wrap(this.confirmChoice + step, 0, 2);
+      this.drawConfirmButtons();
+    }
+    if (this.mode === "prune") {
+      this.movePruneCursor(step);
+    }
+  }
+
+  completeStep() {
+    this.stepIndex += 1;
+    this.addOxygen(STEP_BONUS);
+    this.popCheck(this.player.x, this.player.y - 110);
+    if (this.stepIndex >= this.event.steps.length) {
+      this.finishEvent();
+    } else {
+      this.mode = "play";
+      this.startStep();
+    }
+  }
+
+  // ---------- Update ----------
+
+  update(time, delta) {
+    if (!this.player || this.failed) return;
+    this.player.frozen = this.mode !== "play";
+    this.player.update(this.inputProvider.getState(), delta, time);
+    this.npcs.forEach((npc) => {
+      npc.update(delta, time);
+      npc.setDepth(npc.y);
+    });
+
+    if (this.carried) {
+      this.carried.setPosition(this.player.x + 26 * this.player.facing, this.player.y - 30 + this.player.sprite.y);
+      this.carried.setDepth(this.player.depth + 1).setFlipX(this.player.facing < 0);
+    }
+
+    if (["play", "busy", "confirm", "prune"].includes(this.mode)) {
+      this.hud.setOxygen(this.hud.oxygen - delta / (this.origin.drainSeconds * 1000));
+      if (this.hud.oxygen <= 0) {
+        this.fail();
+        return;
+      }
+    }
+
+    this.updateMarker(time);
+    this.updateHold(delta);
+  }
+
+  updateMarker(time) {
+    const step = this.step;
+    const playing = this.mode === "play" && step;
+    let point = playing ? this.targetPoint() : null;
+    if (playing && step.type === "useSelf") point = { x: this.player.x, y: this.player.y };
+
+    this.marker.setVisible(Boolean(point));
+    if (point) {
+      this.marker.setPosition(point.x, point.y - 120 + Math.sin(time * 0.006) * 6);
+    }
+
+    const near = playing && (step.type === "useSelf" || this.isNear(point));
+    this.prompt.setVisible(Boolean(near));
+    if (near) {
+      this.setPrompt(step.type === "hold" ? "RESTA QUI..." : "SPAZIO");
+      this.prompt.setPosition(this.player.x, this.player.y - 104 + this.player.sprite.y);
+    }
+  }
+
+  updateHold(delta) {
+    this.holdBar.clear();
+    const step = this.step;
+    if (this.mode !== "play" || !step || step.type !== "hold") return;
+    const point = this.targetPoint();
+    if (this.isNear(point)) this.holdProgress += delta;
+    const ratio = Math.min(1, this.holdProgress / step.duration);
+    const x = point.x - 60;
+    const y = point.y - 150;
+    drawPanel(this.holdBar, x, y, 120, 18, { fill: COLORS.paper, border: COLORS.ink });
+    this.holdBar.fillStyle(COLORS.steel, 1);
+    this.holdBar.fillRect(x + 4, y + 4, Math.round(112 * ratio), 10);
+    if (ratio >= 1) {
+      this.holdBar.clear();
+      showToast(this, step.target === "charger" ? "Active Pack carico!" : "Caricamento completato.");
+      this.completeStep();
+    }
+  }
+
+  // ---------- Oggetti in mano ed effetti ----------
+
+  carry(item) {
+    this.carried?.destroy();
+    this.carried = this.add.image(this.player.x, this.player.y, item).setOrigin(0.5, 1).setScale(3);
+    this.carried.setScale(0);
+    this.tweens.add({ targets: this.carried, scale: 3, duration: 260, ease: "Back.easeOut" });
+  }
+
+  dropCarried() {
+    if (!this.carried) return;
+    const item = this.carried;
+    this.carried = null;
+    this.tweens.add({ targets: item, alpha: 0, scale: 2, duration: 900, delay: 400, onComplete: () => item.destroy() });
+  }
+
+  waterEffect(x, y) {
+    for (let i = 0; i < 10; i += 1) {
+      const drop = this.add.rectangle(x + Phaser.Math.Between(-18, 18), y, 4, 8, COLORS.steel).setDepth(990);
+      this.tweens.add({ targets: drop, y: y + Phaser.Math.Between(50, 80), alpha: 0, duration: 520, delay: i * 70, ease: "Quad.easeIn", onComplete: () => drop.destroy() });
+    }
+  }
+
+  popCheck(x, y) {
+    const badge = this.add.container(x, y).setDepth(990);
+    const bg = this.add.graphics();
+    drawPanel(bg, -14, -14, 28, 28, { fill: COLORS.ink, border: COLORS.inkDeep });
+    badge.add([bg, this.add.image(0, 0, "check").setScale(3)]);
+    badge.setScale(0);
+    this.tweens.add({ targets: badge, scale: 1, y: y - 20, duration: 300, ease: "Back.easeOut" });
+    this.tweens.add({ targets: badge, alpha: 0, duration: 300, delay: 700, onComplete: () => badge.destroy() });
+  }
+
+  addOxygen(amount) {
+    const from = this.hud.oxygen;
+    const to = Math.min(1, from + amount);
+    this.tweens.addCounter({ from, to, duration: 500, ease: "Cubic.easeOut", onUpdate: (tween) => this.hud.setOxygen(tween.getValue()) });
+  }
+
+  // ---------- Domanda SÌ / NO ----------
+
+  openConfirm(question) {
+    const { width, height } = this.scale;
+    this.mode = "confirm";
+    this.confirmChoice = 0;
+    const box = this.add.container(0, 0).setDepth(2000);
+    const g = this.add.graphics();
+    const w = 440;
+    const h = 150;
+    const x = width / 2 - w / 2;
+    const y = height / 2 - h / 2 - 20;
+    dropShadow(g, x, y, w, h, 8);
+    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(x, y, w, 26);
+    const head = pixelText(this, x + 12, y + 9, "HUB BIODOM", { size: 8, color: COLORS.paper });
+    const text = bodyText(this, width / 2, y + 52, question, { size: 28, color: COLORS.ink, origin: 0.5 });
+    this.confirmButtons = this.add.graphics();
+    this.confirmLabels = [
+      pixelText(this, width / 2 - 70, y + 108, "SÌ", { size: 16, origin: 0.5 }),
+      pixelText(this, width / 2 + 70, y + 108, "NO", { size: 16, origin: 0.5 })
+    ];
+    box.add([g, head, text, this.confirmButtons, ...this.confirmLabels]);
+    box.setScale(0.9).setAlpha(0);
+    this.tweens.add({ targets: box, scale: 1, alpha: 1, duration: 200, ease: "Back.easeOut" });
+    this.confirmBox = box;
+    this.drawConfirmButtons();
+  }
+
+  drawConfirmButtons() {
+    const { width, height } = this.scale;
+    const y = height / 2 - 75 - 20 + 92;
+    this.confirmButtons.clear();
+    [-70, 70].forEach((dx, i) => {
+      const selected = i === this.confirmChoice;
+      drawPanel(this.confirmButtons, width / 2 + dx - 50, y, 100, 32, { fill: selected ? COLORS.ink : COLORS.paper, border: COLORS.ink });
+      this.confirmLabels[i].setColor(hex(selected ? COLORS.paper : COLORS.ink));
+    });
+  }
+
+  resolveConfirm() {
+    const yes = this.confirmChoice === 0;
+    const box = this.confirmBox;
+    this.tweens.add({ targets: box, alpha: 0, duration: 160, onComplete: () => box.destroy() });
+    if (yes) {
+      // Lo schermo dell'hub passa in modalità notturna
+      const s = this.world.hub?.screen;
+      if (s) {
+        const night = this.add.graphics().setDepth(this.world.hub.g.depth + 1);
+        drawPanel(night, s.x, s.y, 60, 34, { fill: COLORS.inkDeep, border: COLORS.ink });
+        night.fillStyle(0xe8c66a, 1);
+        night.fillRect(s.x + 24, s.y + 8, 12, 12);
+        night.fillStyle(COLORS.inkDeep, 1);
+        night.fillRect(s.x + 30, s.y + 6, 10, 10);
+      }
+      this.completeStep();
+    } else {
+      this.mode = "play";
+      showToast(this, "L'hub resta in modalità giorno... consuma energia!", { color: COLORS.red });
+    }
+  }
+
+  // ---------- Minigioco potatura ----------
+
+  openPrune() {
+    const { width, height } = this.scale;
+    this.mode = "prune";
+    const overlay = this.add.container(0, 0).setDepth(2000);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.55);
+    const w = 420;
+    const h = 330;
+    const x = width / 2 - w / 2;
+    const y = 96;
+    const g = this.add.graphics();
+    dropShadow(g, x, y, w, h, 8);
+    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(x, y, w, 26);
+    const head = pixelText(this, x + 12, y + 9, "POTATURA", { size: 8, color: COLORS.paper });
+    const help = bodyText(this, width / 2, y + h - 22, "A / D scegli · SPAZIO taglia le foglie marroni", { size: 20, color: COLORS.steel, origin: 0.5 });
+
+    // Vaso e fusto
+    const cx = width / 2;
+    g.fillStyle(COLORS.stone, 1);
+    g.fillRect(cx - 50, y + 230, 100, 60);
+    g.fillStyle(0x6e7673, 1);
+    g.fillRect(cx - 56, y + 224, 112, 12);
+    g.fillStyle(0x3f6560, 1);
+    g.fillRect(cx - 4, y + 70, 8, 160);
+
+    const spots = [
+      [-70, 80], [70, 90], [-90, 130], [90, 140], [-60, 180], [60, 190], [-30, 60], [30, 120]
+    ];
+    const bad = Phaser.Utils.Array.Shuffle([...spots.keys()]).slice(0, 3);
+    this.leaves = spots.map(([dx, dy], i) => {
+      const isBad = bad.includes(i);
+      const leaf = this.add.image(cx + dx, y + dy, isBad ? "leaf_bad" : "leaf_good").setScale(7).setFlipX(dx < 0);
+      g.fillStyle(0x3f6560, 1);
+      g.fillRect(dx < 0 ? cx + dx + 16 : cx, y + dy, Math.abs(dx) - 16, 4);
+      this.tweens.add({ targets: leaf, angle: { from: -4, to: 4 }, duration: 800 + i * 60, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      return { sprite: leaf, bad: isBad, cut: false };
+    });
+    this.pruneCursor = this.add.graphics();
+    overlay.add([dim, g, head, help, ...this.leaves.map((l) => l.sprite), this.pruneCursor]);
+    overlay.setAlpha(0);
+    this.tweens.add({ targets: overlay, alpha: 1, duration: 220 });
+    this.pruneOverlay = overlay;
+    this.pruneIndex = 0;
+    this.drawPruneCursor();
+  }
+
+  movePruneCursor(step) {
+    const order = this.leaves.map((l, i) => i).filter((i) => !this.leaves[i].cut).sort((a, b) => this.leaves[a].sprite.x - this.leaves[b].sprite.x || this.leaves[a].sprite.y - this.leaves[b].sprite.y);
+    const pos = order.indexOf(this.pruneIndex);
+    this.pruneIndex = order[Phaser.Math.Wrap(pos + step, 0, order.length)];
+    this.drawPruneCursor();
+  }
+
+  drawPruneCursor() {
+    const leaf = this.leaves[this.pruneIndex].sprite;
+    this.pruneCursor.clear();
+    drawPanel(this.pruneCursor, leaf.x - 30, leaf.y - 22, 60, 44, { fillAlpha: 0, border: COLORS.red, borderWidth: 3 });
+  }
+
+  cutLeaf() {
+    const leaf = this.leaves[this.pruneIndex];
+    if (leaf.cut) return;
+    if (!leaf.bad) {
+      this.cameras.main.shake(120, 0.004);
+      this.hud.setOxygen(this.hud.oxygen - 0.08);
+      showToast(this, "Era una foglia sana! La pianta soffre.", { color: COLORS.red, duration: 1500 });
+      return;
+    }
+    leaf.cut = true;
+    this.tweens.killTweensOf(leaf.sprite);
+    this.tweens.add({ targets: leaf.sprite, y: leaf.sprite.y + 140, angle: 120, alpha: 0, duration: 700, ease: "Quad.easeIn" });
+    if (this.leaves.every((l) => !l.bad || l.cut)) {
+      this.pruneCursor.clear();
+      this.time.delayedCall(500, () => {
+        this.tweens.add({ targets: this.pruneOverlay, alpha: 0, duration: 220, onComplete: () => this.pruneOverlay.destroy() });
+        showToast(this, "Signore: Così va molto meglio!");
+        this.completeStep();
+      });
+      this.mode = "busy";
+    } else {
+      this.movePruneCursor(1);
+    }
+  }
+
+  // ---------- Pausa pranzo ----------
+
+  sitAndEat(duration) {
+    this.mode = "busy";
+    const seat = this.world.benchSeat;
+    this.player.velocity.set(0, 0);
+    this.tweens.add({
+      targets: this.player,
+      x: seat.x,
+      y: seat.y,
+      duration: 400,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        this.player.setDepth(460);
+        const food = this.add.rectangle(this.player.x + 20 * this.player.facing, this.player.y - 46, 14, 10, 0xd98a4b).setDepth(470);
+        this.tweens.add({ targets: food, scaleX: 0.2, duration: duration - 400, ease: "Stepped", easeParams: [4] });
+        ["gnam", "gnam!", "O2 +"].forEach((word, i) => {
+          this.time.delayedCall(400 + i * 650, () => {
+            const t = bodyText(this, this.player.x + Phaser.Math.Between(-30, 30), this.player.y - 110, word, { size: 22, color: COLORS.ink, origin: 0.5 }).setDepth(980);
+            this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 800, onComplete: () => t.destroy() });
+          });
+        });
+        this.time.delayedCall(duration, () => {
+          food.destroy();
+          this.tweens.add({ targets: this.player, y: this.world.points.bench.y, duration: 300, ease: "Sine.easeOut" });
+          this.completeStep();
+        });
+      }
+    });
+  }
+
+  // ---------- Esito ----------
+
+  banner(text, color) {
+    const { width, height } = this.scale;
+    const box = this.add.container(width / 2, height / 2 - 20).setDepth(2100);
+    const label = pixelText(this, 0, 0, text, { size: 24, color: COLORS.paper, origin: 0.5 });
+    const w = label.width + 60;
+    const g = this.add.graphics();
+    dropShadow(g, -w / 2, -30, w, 60, 8);
+    drawPanel(g, -w / 2, -30, w, 60, { fill: color, border: COLORS.inkDeep });
+    box.add([g, label]);
+    box.setScale(0.6).setAlpha(0);
+    this.tweens.add({ targets: box, scale: 1, alpha: 1, duration: 280, ease: "Back.easeOut" });
+  }
+
+  finishEvent() {
+    this.mode = "done";
+    this.marker.setVisible(false);
+    this.prompt.setVisible(false);
+    this.objective.setText("EVENTO COMPLETATO");
+    this.addOxygen(EVENT_BONUS);
+    this.banner("TASK COMPLETATE!", COLORS.ink);
+    this.time.delayedCall(1800, () => {
+      const finished = completeEvent(this.registry, Math.min(1, this.hud.oxygen));
+      goTo(this, finished ? "EndScene" : "EventScene", finished ? { result: "win" } : undefined);
+    });
+  }
+
+  fail() {
+    if (this.mode === "done") return;
+    this.mode = "done";
+    this.failed = true;
+    this.hud.setOxygen(0);
+    this.marker.setVisible(false);
+    this.prompt.setVisible(false);
+    failRun(this.registry);
+    this.cameras.main.shake(300, 0.006);
+    this.player.sprite.setTint(0x9fb4c2);
+    this.player.pack.setTint(0x9fb4c2);
+    this.tweens.add({ targets: this.player, scaleY: 0.82, duration: 500, ease: "Bounce.easeOut" });
+    this.banner("OSSIGENO ESAURITO", COLORS.red);
+    this.time.delayedCall(1800, () => goTo(this, "EndScene", { result: "lose" }));
+  }
+}

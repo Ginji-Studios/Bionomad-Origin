@@ -1,32 +1,22 @@
-import Phaser from "../phaser.js";
+import { addCornerHints, addHud, addObjectiveBox, bodyText, COLORS, fadeIn, goTo, hex } from "../ui/theme.js";
 
-export function addSceneChrome(scene, title, subtitle, backgroundColor) {
+// Cornice comune delle scene di gioco: sfondo, HUD ossigeno, obiettivo in basso, ESC per il menu.
+export function addSceneChrome(scene, { location = "ITALIA", flag = "flag_it", objective, oxygen = 1, background = COLORS.bg } = {}) {
   const { width, height } = scene.scale;
+  fadeIn(scene);
+  scene.add.rectangle(width / 2, height / 2, width, height, background);
 
-  scene.add.rectangle(width / 2, height / 2, width, height, backgroundColor);
-  scene.add.text(28, 22, title, {
-    color: "#d8f3dc",
-    fontFamily: "Georgia",
-    fontSize: "32px"
-  });
-  scene.add.text(30, 66, subtitle, {
-    color: "#95d5b2",
-    fontFamily: "Arial",
-    fontSize: "16px"
-  });
-  scene.add.text(width - 28, height - 26, "ESC  torna al menu", {
-    color: "#b7e4c7",
-    fontFamily: "Arial",
-    fontSize: "15px"
-  }).setOrigin(1, 0.5);
+  const hud = addHud(scene, { oxygen, location, flag });
+  const objectiveBox = objective ? addObjectiveBox(scene, objective) : null;
 
-  scene.input.keyboard.once("keydown-ESC", () => scene.scene.start("MenuScene"));
+  scene.input.keyboard.once("keydown-ESC", () => goTo(scene, "MenuScene"));
+  return { hud, objective: objectiveBox };
 }
 
-export function addLabel(scene, text, x, y, color = "#d8f3dc", size = "18px") {
-  return scene.add.text(x, y, text, {
-    color,
-    fontFamily: "Arial",
-    fontSize: size
-  });
+// Etichetta con il font pixel "VT323" (le dimensioni vecchie vengono ingrandite per restare leggibili).
+export function addLabel(scene, text, x, y, color = hex(COLORS.text), size = "18px") {
+  const px = Math.round(parseInt(size, 10) * 1.4);
+  return bodyText(scene, x, y, text, { size: px }).setColor(color);
 }
+
+export { addCornerHints };

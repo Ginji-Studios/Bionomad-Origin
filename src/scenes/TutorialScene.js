@@ -1,5 +1,18 @@
 import Phaser from "../phaser.js";
-import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { addCornerHints, addTopBar, goTo, bodyText, COLORS, dropShadow, drawPanel, paperGrid, pixelArrow, pixelDisc, pixelText } from "../ui/theme.js";
+
+// Gesti che i sensori della pianta riconosceranno (luce, soffio, calore / buio, scossa, sollevamento).
+const CARE_GESTURES = [
+  { title: "ILLUMINALA", description: "luce e crescita", art: "light" },
+  { title: "SOFFIACI SOPRA", description: "aria dolce", art: "blow" },
+  { title: "SCALDALA", description: "torcia termica", art: "heat" }
+];
+
+const NEGLECT_GESTURES = [
+  { title: "COPRILA", description: "toglie la luce", art: "cover" },
+  { title: "SCUOTILA", description: "la fa soffrire", art: "shake" },
+  { title: "SOLLEVALA", description: "senza sottovaso", art: "lift" }
+];
 
 export class TutorialScene extends Phaser.Scene {
   constructor() {
@@ -8,75 +21,160 @@ export class TutorialScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    addSceneChrome(this, "TUTORIAL", "Impara a leggere il mondo prima di cambiarlo.", 0x142536);
+    paperGrid(this);
+    addTopBar(this, "TUTORIAL", "BIODOM+");
 
-    this.add.grid(width / 2, height / 2 + 12, width - 58, height - 108, 16, 16, 0x142536, 1, 0x294052, 0.35);
-    this.add.rectangle(width / 2, 94, width - 58, 2, 0x829ab1);
-    addLabel(this, "WELCOME TO BIONOMAD", width / 2, 115, "#f1f5f9", "20px").setOrigin(0.5);
+    pixelText(this, width / 2, 66, "WELCOME TO BIODOM+", { size: 24, origin: 0.5, shadow: true });
+    bodyText(
+      this,
+      126,
+      88,
+      "Durante l'emergenza sanitaria, l'aria è irrespirabile. Per sopravvivere, il cittadino deve usare BIONOMAD+, lo zaino multifunzione contenente un ecosistema vegetale che produca aria respirabile.",
+      { size: 22, color: COLORS.text, wrap: 708, lineSpacing: -2 }
+    );
 
-    this.createSidePanel(70, "MUOVITI", "A / D", "SPOSTATI", 0xe7a33e, false);
-    this.createSidePanel(width - 70, "OSSERVA", "E", "INTERAGISCI", 0xe7a33e, true);
+    this.createSection(126, 156, "GESTI DI CURA", CARE_GESTURES, COLORS.green, true);
+    this.createSection(126, 334, "GESTI DI NEGLIGENZA", NEGLECT_GESTURES, COLORS.red, false);
 
-    addLabel(this, "GESTI DI CURA", width / 2, 142, "#5fe39a", "14px").setOrigin(0.5);
-    addLabel(this, "GESTI DI ROTTURA", width / 2, 292, "#f06b6b", "14px").setOrigin(0.5);
+    this.createSidePanel(16, "left");
+    this.createSidePanel(width - 16 - 96, "right");
 
-    const goodCards = [
-      ["ASCOLTA", "parla con gli NPC", "#5fe39a", 0],
-      ["OSSERVA", "cerca i segnali", "#5fe39a", 1],
-      ["COLTIVA", "cura la relazione", "#5fe39a", 2]
-    ];
-    const badCards = [
-      ["IGNORA", "taglia il dialogo", "#f06b6b", 3],
-      ["FORZA", "rompi l'equilibrio", "#f06b6b", 4],
-      ["SCORDA", "perdi il contatto", "#f06b6b", 5]
-    ];
-
-    goodCards.forEach((card, index) => this.createTutorialCard(card, 200 + index * 190, 190));
-    badCards.forEach((card, index) => this.createTutorialCard(card, 200 + index * 190, 340));
-
-    addLabel(this, "Input attuale: tastiera", width / 2 - 240, height - 48, "#a8c0d4", "14px");
-    addLabel(this, "Input futuro: pianta + ELEGoo UNO R3", width / 2 + 70, height - 48, "#a8c0d4", "14px");
+    addCornerHints(this, null, "ESC  MENU");
+    this.input.keyboard.once("keydown-ESC", () => goTo(this, "MenuScene"));
   }
 
-  createTutorialCard([title, description, color, icon], x, y) {
-    const tint = color === "#5fe39a" ? 0x214f48 : 0x572d3b;
-    const card = this.add.rectangle(x, y, 168, 112, 0x1d3444).setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(color).color);
-    this.add.rectangle(x, y - 51, 168, 4, tint);
-    this.createIcon(x, y - 10, icon, color);
-    addLabel(this, title, x, y + 31, color, "14px").setOrigin(0.5);
-    addLabel(this, description, x, y + 49, "#9fb5c7", "12px").setOrigin(0.5);
-    card.setInteractive({ useHandCursor: true });
-    card.on("pointerover", () => card.setStrokeStyle(3, 0xf4d35e));
-    card.on("pointerout", () => card.setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(color).color));
+  createSection(x, y, title, gestures, color, good) {
+    const w = 708;
+    const h = 166;
+    const g = this.add.graphics();
+    // Cura = carta con inchiostro; negligenza = schermo scuro "di errore" con bordo ruggine.
+    dropShadow(g, x, y, w, h);
+    drawPanel(g, x, y, w, h, { fill: good ? COLORS.paper : COLORS.inkDeep, border: color, borderWidth: 2 });
+
+    g.fillStyle(color, 1);
+    const label = pixelText(this, x + w / 2, y, title, { size: 8, color: COLORS.paper, origin: 0.5 });
+    g.fillRect(label.x - label.width / 2 - 8, y - 6, label.width + 16, 14);
+
+    gestures.forEach((gesture, index) => {
+      this.createCard(x + 18 + index * 230, y + 18, gesture, color, good);
+    });
   }
 
-  createSidePanel(x, title, key, description, color, right) {
-    this.add.rectangle(x, 270, 78, 260, 0x22394a).setStrokeStyle(2, 0x536d82);
-    addLabel(this, title, x, 178, "#7d92a5", "11px").setOrigin(0.5);
-    addLabel(this, key, x, 263, color, "18px").setOrigin(0.5);
-    addLabel(this, description, x, 295, "#c2d2df", "11px").setOrigin(0.5);
-    this.add.triangle(x + (right ? -30 : 30), 245, 0, 0, 0, 28, right ? 28 : 0, 14, color);
-    this.add.triangle(x + (right ? -30 : 30), 340, 0, 0, 0, 28, right ? 28 : 0, 14, color);
+  createCard(x, y, gesture, color, good) {
+    const w = 212;
+    const h = 96;
+    const g = this.add.graphics();
+    drawPanel(g, x, y, w, h, { fill: good ? COLORS.bg : 0x24344a, border: color, borderWidth: 2 });
+    g.fillStyle(good ? COLORS.panelLight : 0x2c3e52, 1);
+    g.fillRect(x + 2, y + h - 18, w - 4, 16);
+
+    // Badge ✓ / ✗ nell'angolo
+    g.fillStyle(color, 1);
+    g.fillRect(x + w - 24, y + 4, 20, 20);
+    this.add.image(x + w - 14, y + 14, good ? "check" : "cross").setScale(2);
+
+    this.drawGestureArt(gesture.art, x + w / 2, y + h - 8);
+
+    bodyText(this, x + w / 2, y + h + 4, gesture.title, { size: 24, color: good ? COLORS.ink : COLORS.paper, origin: [0.5, 0] });
+    bodyText(this, x + w / 2, y + h + 24, gesture.description, { size: 20, color: good ? COLORS.steel : COLORS.steelLight, origin: [0.5, 0] });
+
+    const hit = this.add.zone(x + w / 2, y + h / 2, w, h).setInteractive({ useHandCursor: true });
+    const hover = this.add.graphics();
+    hit.on("pointerover", () => drawPanel(hover.clear(), x - 4, y - 4, w + 8, h + 8, { fillAlpha: 0, border: COLORS.steel, borderWidth: 2 }));
+    hit.on("pointerout", () => hover.clear());
   }
 
-  createIcon(x, y, icon, color) {
-    const iconColor = Phaser.Display.Color.HexStringToColor(color).color;
+  // Piccole illustrazioni animate, disegnate con rettangoli "a pixel".
+  drawGestureArt(type, cx, baseY) {
+    const plant = this.add.image(cx, baseY, "pot_plant").setOrigin(0.5, 1).setScale(5);
+    const fx = this.add.graphics();
 
-    if (icon === 0) {
-      this.add.circle(x, y - 12, 12, iconColor);
-      this.add.rectangle(x, y + 8, 24, 8, iconColor);
-    } else if (icon === 1) {
-      this.add.circle(x, y - 8, 13, iconColor, 0.25).setStrokeStyle(2, iconColor);
-      this.add.circle(x, y - 8, 4, iconColor);
-      this.add.line(x, y + 4, -15, 0, 15, 0, iconColor, 1).setLineWidth(2);
-    } else if (icon === 2) {
-      this.add.rectangle(x, y + 7, 28, 12, iconColor);
-      this.add.line(x, y + 4, 0, 5, 0, -22, iconColor, 1).setLineWidth(3);
-      this.add.ellipse(x - 9, y - 12, 17, 9, iconColor);
-      this.add.ellipse(x + 9, y - 4, 17, 9, iconColor);
-    } else {
-      this.add.line(x - 12, y - 12, 0, 0, 24, 24, iconColor, 1).setLineWidth(3);
-      this.add.line(x + 12, y - 12, 0, 0, -24, 24, iconColor, 1).setLineWidth(3);
+    if (type === "light") {
+      pixelDisc(fx, cx - 60, baseY - 62, 14, COLORS.ink, 1, 4);
+      pixelDisc(fx, cx - 60, baseY - 62, 8, COLORS.paper, 1, 4);
+      fx.fillStyle(COLORS.ink, 0.8);
+      for (let i = 0; i < 5; i += 1) fx.fillRect(cx - 42 + i * 8, baseY - 46 + i * 6, 4, 4);
+      this.tweens.add({ targets: fx, alpha: 0.45, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     }
+
+    if (type === "blow") {
+      fx.fillStyle(0xe8dccd, 1);
+      fx.fillRect(cx - 82, baseY - 56, 24, 28);
+      fx.fillStyle(COLORS.inkDeep, 1);
+      fx.fillRect(cx - 66, baseY - 48, 4, 4);
+      fx.fillRect(cx - 62, baseY - 38, 6, 4);
+      const puff = this.add.graphics();
+      puff.fillStyle(COLORS.steel, 1);
+      [0, 1, 2].forEach((i) => puff.fillRect(cx - 50 + i * 10, baseY - 40 + (i % 2) * 6, 6, 4));
+      this.tweens.add({ targets: puff, x: 10, alpha: 0.2, duration: 700, repeat: -1 });
+    }
+
+    if (type === "heat") {
+      fx.fillStyle(COLORS.stone, 1);
+      fx.fillRect(cx + 46, baseY - 50, 30, 12);
+      fx.fillRect(cx + 66, baseY - 40, 8, 16);
+      fx.fillStyle(COLORS.steel, 1);
+      fx.fillRect(cx + 40, baseY - 48, 6, 8);
+      const flame = this.add.graphics();
+      flame.fillStyle(COLORS.red, 1);
+      flame.fillRect(cx + 28, baseY - 50, 10, 8);
+      flame.fillStyle(0xe8b04a, 1);
+      flame.fillRect(cx + 22, baseY - 48, 6, 4);
+      this.tweens.add({ targets: flame, alpha: 0.4, duration: 180, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    }
+
+    if (type === "cover") {
+      const cover = this.add.graphics();
+      drawPanel(cover, cx - 34, baseY - 78, 68, 70, { fill: COLORS.paper, fillAlpha: 1, border: COLORS.steelLight, borderWidth: 2 });
+      this.tweens.add({ targets: cover, y: -6, duration: 600, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    }
+
+    if (type === "shake") {
+      plant.setOrigin(0.5, 1);
+      this.tweens.add({ targets: plant, angle: { from: -8, to: 8 }, duration: 120, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      fx.fillStyle(COLORS.red, 1);
+      [-1, 1].forEach((side) => {
+        fx.fillRect(cx + side * 46 - 2, baseY - 56, 4, 10);
+        fx.fillRect(cx + side * 54 - 2, baseY - 46, 4, 14);
+        fx.fillRect(cx + side * 46 - 2, baseY - 30, 4, 10);
+      });
+    }
+
+    if (type === "lift") {
+      plant.y -= 8;
+      this.tweens.add({ targets: plant, y: baseY - 18, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      pixelArrow(fx, cx - 64, baseY - 64, "up", COLORS.paper, 3);
+      fx.fillStyle(COLORS.steelLight, 1);
+      fx.fillRect(cx + 44, baseY - 8, 36, 6);
+      fx.fillStyle(COLORS.stone, 1);
+      fx.fillRect(cx + 48, baseY - 12, 28, 4);
+    }
+  }
+
+  createSidePanel(x, side) {
+    const y = 156;
+    const w = 96;
+    const h = 344;
+    const g = this.add.graphics();
+    dropShadow(g, x, y, w, h);
+    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.line, borderWidth: 2 });
+    const cx = x + w / 2;
+
+    pixelText(this, cx, y + 16, "MUOVITI", { size: 8, color: COLORS.textDim, origin: 0.5 });
+
+    const plant = this.add.image(cx, y + 150, "plant_tall").setOrigin(0.5, 1).setScale(4);
+    const hand = this.add.graphics();
+    hand.fillStyle(0xe8dccd, 1);
+    const handX = side === "left" ? cx - 36 : cx + 20;
+    hand.fillRect(handX, y + 74, 16, 10);
+    hand.fillRect(side === "left" ? handX + 14 : handX - 6, y + 76, 8, 4);
+    this.tweens.add({ targets: hand, x: side === "left" ? 4 : -4, duration: 400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: plant, angle: side === "left" ? -6 : 6, duration: 400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+
+    const arrow = this.add.graphics();
+    pixelArrow(arrow, side === "left" ? cx - 22 : cx + 22, y + 210, side, COLORS.ink, 6);
+
+    bodyText(this, cx, y + 252, "TOCCA LA\nFOGLIA A", { size: 22, color: COLORS.text, align: "center", origin: [0.5, 0] });
+    bodyText(this, cx, y + 296, side === "left" ? "SINISTRA" : "DESTRA", { size: 22, color: COLORS.red, origin: [0.5, 0] });
   }
 }

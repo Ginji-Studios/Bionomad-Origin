@@ -1,61 +1,108 @@
 import Phaser from "../phaser.js";
-import { addLabel, addSceneChrome } from "./SceneUi.js";
+import { ORIGINS } from "../config/origins.js";
+import { startRun } from "../systems/RunManager.js";
+import { characterTexture } from "../ui/pixelSprites.js";
+import { addTopBar, bodyText, COLORS, dropShadow, drawPanel, goTo, paperGrid, pixelArrow, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
+const CARD_W = 210;
+const CARD_H = 296;
+const GAP = 34;
+
+// Selezione dell'origine: la città di partenza determina la difficoltà (inquinamento PM2.5).
 export class CharacterSelectScene extends Phaser.Scene {
   constructor() {
     super("CharacterSelectScene");
-    this.selectedIndex = 0;
-    this.cards = [];
   }
 
-  create() {
+  create(data = {}) {
     const { width, height } = this.scale;
-    addSceneChrome(this, "Scegli il protagonista", "Seleziona il personaggio con cui iniziare il viaggio.", 0x16213e);
+    this.next = data.next ?? "IntroScene";
+    this.cards = [];
+    this.confirming = false;
+    const saved = ORIGINS.findIndex((origin) => origin.id === this.registry.get("origin"));
+    this.selectedIndex = saved >= 0 ? saved : 1;
 
-    this.add.text(width / 2, 112, "A / D oppure frecce   |   INVIO per confermare", {
-      color: "#a8dadc",
-      fontFamily: "Arial",
-      fontSize: "17px"
-    }).setOrigin(0.5);
+    paperGrid(this);
+    addTopBar(this, "ORIGINE", "GIOCATORE 1");
 
-    const characters = [
-      { name: "Nara", trait: "La curiosa", color: 0xe9c46a, detail: "Osserva ogni dettaglio del mondo." },
-      { name: "Lio", trait: "Il sensibile", color: 0x90be6d, detail: "Sente i cambiamenti prima degli altri." },
-      { name: "Sela", trait: "La pratica", color: 0xf4a261, detail: "Trasforma i problemi in percorsi." }
-    ];
+    pixelText(this, width / 2, 74, "SCEGLI LA TUA ORIGINE", { size: 24, origin: 0.5, shadow: true });
+    pixelText(this, width / 2, 100, "SELEZIONANE UNA SOLA", { size: 8, color: COLORS.steel, origin: 0.5 });
 
-    characters.forEach((character, index) => this.createCard(character, index));
-    this.selectionText = addLabel(this, "", width / 2, height - 72, "#f4d35e", "18px").setOrigin(0.5);
-    this.updateSelection();
+    const startX = width / 2 - (ORIGINS.length * CARD_W + (ORIGINS.length - 1) * GAP) / 2;
+    ORIGINS.forEach((origin, index) => this.createCard(origin, index, startX + index * (CARD_W + GAP), 140));
 
-    this.input.keyboard.on("keydown-LEFT", () => this.changeSelection(-1));
-    this.input.keyboard.on("keydown-A", () => this.changeSelection(-1));
-    this.input.keyboard.on("keydown-RIGHT", () => this.changeSelection(1));
-    this.input.keyboard.on("keydown-D", () => this.changeSelection(1));
-    this.input.keyboard.on("keydown-ENTER", () => this.confirmSelection());
+    // Indicatore sopra la carta scelta
+    this.pointer = this.add.graphics();
+    this.pointer.fillStyle(COLORS.red, 1);
+    this.pointer.fillRect(-12, -12, 24, 4);
+    this.pointer.fillRect(-8, -8, 16, 4);
+    this.pointer.fillRect(-4, -4, 8, 4);
+
+    this.createSideArrow(56, "left", -1);
+    this.createSideArrow(width - 56, "right", 1);
+
+    bodyText(this, width / 2, height - 62, "DIFFICOLTÀ = INQUINAMENTO DELL'ARIA (PM2.5 µg/m³, media annua)", { size: 22, color: COLORS.ink, origin: 0.5 });
+    bodyText(this, width / 2, height - 40, "FONTE: IQAir 2024 · LIMITE OMS: 5 µg/m³", { size: 20, color: COLORS.steel, origin: 0.5 });
+    textChip(this, 14, height - 16, "A / D scegli · INVIO conferma", { size: 18 });
+    textChip(this, width - 14, height - 16, "ESC  MENU", { size: 18, originX: 1 });
+
+    this.updateSelection(true);
+
+    const keys = this.input.keyboard;
+    ["LEFT", "A"].forEach((key) => keys.on(`keydown-${key}`, () => this.changeSelection(-1)));
+    ["RIGHT", "D"].forEach((key) => keys.on(`keydown-${key}`, () => this.changeSelection(1)));
+    ["ENTER", "SPACE"].forEach((key) => keys.on(`keydown-${key}`, () => this.confirmSelection()));
+    keys.once("keydown-ESC", () => goTo(this, "MenuScene"));
   }
 
-  createCard(character, index) {
-    const x = 210 + index * 270;
-    const y = 300;
+  createCard(origin, index, x, y) {
     const container = this.add.container(x, y);
-    const panel = this.add.rectangle(0, 0, 220, 270, 0x213a5a);
-    const frame = this.add.rectangle(0, 0, 230, 280, 0xf4d35e, 0).setStrokeStyle(3, 0xf4d35e);
-    const head = this.add.circle(0, -72, 44, 0xf2c6a0);
-    const body = this.add.rectangle(0, 15, 88, 110, character.color);
-    const name = this.add.text(0, 82, character.name, {
-      color: "#f1faee",
-      fontFamily: "Georgia",
-      fontSize: "26px"
-    }).setOrigin(0.5);
-    const trait = this.add.text(0, 112, character.trait, {
-      color: "#a8dadc",
-      fontFamily: "Arial",
-      fontSize: "16px"
-    }).setOrigin(0.5);
+    const shadow = dropShadow(this.add.graphics(), 0, 0, CARD_W, CARD_H, 8);
+    const bg = drawPanel(this.add.graphics(), 0, 0, CARD_W, CARD_H, { fill: COLORS.paper, border: COLORS.ink });
+    const frame = drawPanel(this.add.graphics(), -6, -6, CARD_W + 12, CARD_H + 12, { fillAlpha: 0, border: COLORS.red, borderWidth: 4 });
+    const cx = CARD_W / 2;
 
-    container.add([panel, frame, head, body, name, trait]);
-    this.cards.push({ container, frame, character });
+    const number = pixelText(this, 12, 12, `[#${String(index + 1).padStart(2, "0")}]`, { size: 8, color: COLORS.steel });
+    const flagFrame = drawPanel(this.add.graphics(), cx - 64, 34, 128, 98, { fill: COLORS.bg, border: COLORS.ink });
+    const flag = this.add.image(cx, 83, origin.flag).setScale(10);
+    // Il cittadino di quella città (cambia aspetto in base all'origine)
+    const citizen = this.add.image(CARD_W - 30, 136, characterTexture(origin.id, true)).setOrigin(0.5, 1).setScale(2.5);
+
+    const city = pixelText(this, cx, 150, origin.city, { size: 16, origin: 0.5 });
+    const country = bodyText(this, cx, 174, origin.country, { size: 22, color: COLORS.steel, origin: 0.5 });
+
+    const info = this.add.graphics();
+    info.fillStyle(COLORS.panelLight, 1);
+    info.fillRect(14, 192, CARD_W - 28, 2);
+    const pm = bodyText(this, cx, 212, `PM2.5  ${origin.pm25.toFixed(1)}`, { size: 26, color: COLORS.ink, origin: 0.5 });
+
+    // Barra di difficoltà a 4 tacche
+    for (let i = 0; i < 4; i += 1) {
+      drawPanel(info, cx - 70 + i * 36, 230, 32, 18, { fill: i < origin.level ? origin.color : COLORS.paper, border: COLORS.ink, borderWidth: 2 });
+    }
+    const difficulty = pixelText(this, cx, 262, origin.difficulty, { size: 8, color: origin.color, origin: 0.5 });
+
+    const radio = this.add.graphics();
+    container.add([shadow, bg, frame, number, flagFrame, flag, citizen, city, country, info, pm, difficulty, radio]);
+
+    const zone = this.add.zone(x + CARD_W / 2, y + CARD_H / 2, CARD_W, CARD_H).setInteractive({ useHandCursor: true });
+    zone.on("pointerover", () => {
+      if (this.selectedIndex !== index) {
+        this.selectedIndex = index;
+        this.updateSelection();
+      }
+    });
+    zone.on("pointerdown", () => this.confirmSelection());
+
+    this.cards.push({ container, frame, radio, flag, citizen, baseY: y, origin });
+  }
+
+  createSideArrow(x, direction, step) {
+    const g = this.add.graphics();
+    pixelArrow(g, x + (direction === "left" ? -14 : 14), 286, direction, COLORS.ink, 7);
+    this.tweens.add({ targets: g, x: step * 6, duration: 520, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    const zone = this.add.zone(x, 286, 70, 90).setInteractive({ useHandCursor: true });
+    zone.on("pointerdown", () => this.changeSelection(step));
   }
 
   changeSelection(direction) {
@@ -63,25 +110,53 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.updateSelection();
   }
 
-  updateSelection() {
+  updateSelection(instant = false) {
     this.cards.forEach((card, index) => {
       const selected = index === this.selectedIndex;
-      card.frame.setAlpha(selected ? 1 : 0);
-      this.tweens.add({
-        targets: card.container,
-        scale: selected ? 1.08 : 1,
-        duration: 220,
-        ease: "Sine.easeOut"
-      });
+      card.frame.setVisible(selected);
+      card.radio.clear();
+      pixelDisc(card.radio, CARD_W / 2, 282, 10, COLORS.ink, 1, 2);
+      pixelDisc(card.radio, CARD_W / 2, 282, 7, COLORS.paper, 1, 2);
+      if (selected) pixelDisc(card.radio, CARD_W / 2, 282, 4, COLORS.red, 1, 2);
+
+      this.tweens.killTweensOf(card.container);
+      const target = { y: card.baseY - (selected ? 10 : 0), alpha: selected ? 1 : 0.72 };
+      if (instant) {
+        card.container.setPosition(card.container.x, target.y).setAlpha(target.alpha);
+      } else {
+        this.tweens.add({ targets: card.container, ...target, duration: 260, ease: "Back.easeOut" });
+      }
+
+      this.tweens.killTweensOf([card.flag, card.citizen]);
+      card.flag.setAngle(0);
+      card.citizen.y = 136;
+      if (selected) {
+        this.tweens.add({ targets: card.citizen, y: 128, duration: 300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        this.tweens.add({ targets: card.flag, angle: { from: -3, to: 3 }, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      }
     });
 
-    const selected = this.cards[this.selectedIndex].character;
-    this.selectionText?.setText(`${selected.name}: ${selected.detail}`);
+    const card = this.cards[this.selectedIndex];
+    const targetX = card.container.x + CARD_W / 2;
+    this.tweens.killTweensOf(this.pointer);
+    if (instant) {
+      this.pointer.setPosition(targetX, 124);
+    } else {
+      this.tweens.add({ targets: this.pointer, x: targetX, duration: 240, ease: "Cubic.easeOut" });
+    }
+    this.tweens.add({ targets: this.pointer, y: { from: 122, to: 128 }, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
   }
 
   confirmSelection() {
-    const selected = this.cards[this.selectedIndex].character;
-    this.registry.set("selectedCharacter", selected.name);
-    this.scene.start("CharacterScene");
+    if (this.transitioning || this.confirming) return;
+    this.confirming = true;
+    const card = this.cards[this.selectedIndex];
+    startRun(this.registry, card.origin.id);
+    this.cameras.main.flash(160, 241, 240, 237);
+    this.tweens.add({ targets: card.container, scale: 1.04, duration: 120, yoyo: true, ease: "Sine.easeOut" });
+    this.time.delayedCall(240, () => {
+      this.confirming = false;
+      goTo(this, this.next);
+    });
   }
 }
