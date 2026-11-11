@@ -1,7 +1,6 @@
 import { EVENTS, EVENTS_PER_RUN } from "../config/events.js";
 
-// Stato della run salvato nel registry di Phaser (condiviso tra le scene).
-// run = { origin, events: [id, id, id], index, oxygen, results: ["ok" | "fail"] }
+// la run vive nel registry di Phaser, così la vedono tutte le scene
 
 function shuffle(list) {
   const copy = [...list];
@@ -13,7 +12,7 @@ function shuffle(list) {
 }
 
 export function startRun(registry, originId) {
-  // Gli eventi vengono poi giocati in ordine di orario (mattina → sera).
+  // gli eventi vengono poi giocati in ordine di orario (mattina → sera)
   const events = shuffle(Object.keys(EVENTS))
     .slice(0, EVENTS_PER_RUN)
     .sort((a, b) => EVENTS[a].time.localeCompare(EVENTS[b].time));
@@ -33,11 +32,12 @@ export function currentEvent(registry) {
   return id ? { id, ...EVENTS[id] } : null;
 }
 
-// Ritorna true se la run è finita (tutti gli eventi completati).
+// ritorna true se la run è finita (tutti gli eventi completati)
 export function completeEvent(registry, oxygen) {
   const run = getRun(registry);
   run.results.push("ok");
-  run.lastLocation = EVENTS[run.events[run.index]].location;
+  const done = EVENTS[run.events[run.index]];
+  run.lastLocation = done.endsAt ?? done.location;
   run.index += 1;
   run.oxygen = oxygen;
   registry.set("run", run);
@@ -51,7 +51,7 @@ export function failRun(registry) {
   registry.set("run", run);
 }
 
-// Prossima tappa del viaggio: la location del prossimo evento, oppure casa a fine giornata.
+// prossima tappa del viaggio
 export function nextDestination(registry) {
   const run = getRun(registry);
   const id = run?.events[run.index];

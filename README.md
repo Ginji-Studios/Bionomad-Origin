@@ -14,10 +14,28 @@ npm run dev
 1. **Menu** → GIOCA
 2. **Origine**: Nuova Delhi (estremo), Milano (difficile), Reykjavík (facile). La difficoltà è l'inquinamento (PM2.5): più è alto, più in fretta cala l'ossigeno. Cambia anche l'aspetto del personaggio.
 3. **Cutscene**: il cittadino indossa BIONOMAD+ ed esce di casa.
-4. **3 eventi** pescati a caso da `src/config/events.js`, giocati in ordine di orario.
+4. **3 eventi** pescati a caso tra 10 in `src/config/events.js` (5 nel gioco, 5 sulla pianta vera), giocati in ordine di orario. Tra un evento e l'altro si attraversa la città a piedi.
 5. **Fine giornata** (tutte le task completate) oppure **Task fallite · Game over** (ossigeno a zero).
 
 Comandi: WASD / frecce per muoversi, SPAZIO per interagire, ESC per il menu.
+
+## Pianta vera (Elegoo UNO R3)
+
+Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial API.
+
+1. Carica `arduino/o2rigin_plant/o2rigin_plant.ino` sull'Elegoo (serve la libreria **CapacitiveSensor** di Paul Stoffregen). Lo schema dei collegamenti è in cima allo sketch.
+2. Avvia il gioco con `npm run dev` e aprilo in **Chrome o Edge** (`http://localhost:...`).
+3. Nel menu scegli **COLLEGA PIANTA** e seleziona la porta dell'Elegoo.
+
+| Sensore | Pin | Usato in |
+| --- | --- | --- |
+| Fotoresistenza (luce) | A0 | Bus mattina (copri), emergenza (illumina) |
+| Termistore NTC 10k | A1 | Ufficio condizionatore, bus perso, emergenza (scalda) |
+| Contatti fiale | D2, D3 | Casa sera (fertilizzante) |
+| Foglie capacitive sx / dx | D4 → D5 / D6 | Movimento del personaggio, emergenza |
+| LED rossi / verde | D9, D10 / D11 | Emergenza / task riuscita |
+
+Senza pianta collegata si gioca da tastiera: **C** copri, **I** illumina, **H** scalda, **V** inserisci fiala, **Q / E** tocca foglia sinistra / destra.
 
 ## Struttura
 

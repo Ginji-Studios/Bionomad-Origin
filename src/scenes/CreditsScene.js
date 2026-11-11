@@ -1,7 +1,9 @@
 import Phaser from "../phaser.js";
+import { TEAM } from "../ui/teamSprites.js";
+import { TITLE_WORD } from "../ui/pixelSprites.js";
 import { addTopBar, bodyText, COLORS, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
-// Crediti in due pagine: 1) chi è BIODOM e i suoi prodotti, 2) chi ha fatto il gioco.
+// crediti in due pagine
 const BIODOM_TEXT =
   "BIODOM è un'istituzione laboratoriale, farmaceutica e biotecnologica di diritto privato che opera in partenariato diretto con le Nazioni Unite e le autorità sanitarie europee per la gestione dei protocolli di biosicurezza atmosferica.";
 
@@ -40,7 +42,8 @@ export class CreditsScene extends Phaser.Scene {
     this.pages = [this.createBiodomPage(), this.createTeamPage()];
     this.pages[1].setAlpha(0).setX(width);
 
-    this.dots = this.add.graphics();
+    // indicatore di pagina con il nome della sezione successiva
+    this.pageLabel = bodyText(this, width / 2, height - 24, "", { size: 20, color: COLORS.ink, origin: 0.5 });
     this.drawDots();
 
     textChip(this, 14, height - 24, "A / D cambia pagina", { size: 20 });
@@ -67,27 +70,23 @@ export class CreditsScene extends Phaser.Scene {
   }
 
   drawDots() {
-    const { width, height } = this.scale;
-    this.dots.clear();
-    this.pages.forEach((_, i) => {
-      this.dots.fillStyle(i === this.page ? COLORS.ink : COLORS.stone, 1);
-      this.dots.fillRect(width / 2 - 20 + i * 28, height - 30, 12, 12);
-    });
+    const names = ["BIONOMAD SYSTEM", "CREDITI"];
+    this.pageLabel.setText(`PAGINA ${this.page + 1} DI ${this.pages.length} · ${names[this.page]}`);
   }
 
-  // ---------- Pagina 1: BIODOM ----------
+  // pagina 1
 
   createBiodomPage() {
     const page = this.add.container(0, 0);
     const items = [];
     items.push(pixelText(this, 40, 62, "BIONOMAD SYSTEM", { size: 24, color: COLORS.ink, shadow: true }));
-    items.push(bodyText(this, 40, 96, BIODOM_TEXT, { size: 22, color: COLORS.steel, wrap: 880, lineSpacing: -2 }));
+    items.push(bodyText(this, 40, 102, BIODOM_TEXT, { size: 22, color: COLORS.steel, wrap: 880, lineSpacing: -2 }));
 
     PRODUCTS.forEach((product, i) => {
       const x = 40 + i * 300;
-      const y = 166;
+      const y = 172;
       const w = 280;
-      const h = 322;
+      const h = 316;
       const g = this.add.graphics();
       dropShadow(g, x, y, w, h, 6);
       drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
@@ -96,12 +95,9 @@ export class CreditsScene extends Phaser.Scene {
       items.push(g);
       items.push(pixelText(this, x + 10, y + 9, `${product.code} ${product.name}`, { size: 8, color: COLORS.paper }));
 
-      // Riquadro illustrazione con mirino "+" come nelle tavole BIODOM
+      // riquadro illustrazione
       const art = this.add.graphics();
       drawPanel(art, x + 14, y + 38, w - 28, 128, { fill: COLORS.bg, border: COLORS.panelLight });
-      art.fillStyle(COLORS.steel, 1);
-      art.fillRect(x + w - 30, y + 46, 2, 10);
-      art.fillRect(x + w - 34, y + 50, 10, 2);
       items.push(art, ...this.drawProductArt(product.art, x + w / 2, y + 160));
 
       items.push(bodyText(this, x + 14, y + 174, product.text, { size: 20, color: COLORS.ink, wrap: w - 28, lineSpacing: -3 }));
@@ -118,7 +114,7 @@ export class CreditsScene extends Phaser.Scene {
       const pack = this.add.image(-30, -24, "pack").setOrigin(0.5, 1).setScale(4);
       const body = this.add.image(0, 0, "hero_milano_mask").setOrigin(0.5, 1).setScale(4);
       hero.add([pack, body]);
-      // Tubo dallo zaino alla mascherina
+      // tubo dallo zaino alla mascherina
       const tube = this.add.graphics();
       tube.fillStyle(COLORS.paper, 1);
       tube.fillRect(cx - 20, baseY - 68, 4, 14);
@@ -132,7 +128,7 @@ export class CreditsScene extends Phaser.Scene {
       const pack = this.add.image(cx, baseY - 56, "active_pack").setScale(7);
       this.tweens.add({ targets: pack, y: baseY - 62, duration: 1000, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       out.push(pack);
-      // Bollicine di micro-alghe
+      // bollicine di micro-alghe
       for (let i = 0; i < 4; i += 1) {
         const b = this.add.graphics();
         pixelDisc(b, 0, 0, 6, COLORS.ink, 1, 2);
@@ -151,40 +147,54 @@ export class CreditsScene extends Phaser.Scene {
     return out;
   }
 
-  // ---------- Pagina 2: team ----------
+  // pagina 2
 
   createTeamPage() {
     const { width } = this.scale;
     const page = this.add.container(0, 0);
+    const x = width / 2 - 340;
     const g = this.add.graphics();
-    const x = width / 2 - 280;
-    dropShadow(g, x, 74, 560, 380, 8);
-    drawPanel(g, x, 74, 560, 380, { fill: COLORS.paper, border: COLORS.ink });
+    dropShadow(g, x, 64, 680, 412, 8);
+    drawPanel(g, x, 64, 680, 412, { fill: COLORS.paper, border: COLORS.ink });
     g.fillStyle(COLORS.ink, 1);
-    g.fillRect(x, 74, 560, 28);
+    g.fillRect(x, 64, 680, 28);
+    const items = [g, pixelText(this, x + 14, 72, "CREDITI", { size: 8, color: COLORS.paper })];
 
-    const items = [g, pixelText(this, x + 14, 84, "O2RIGIN · CREDITI", { size: 8, color: COLORS.paper })];
-    items.push(pixelText(this, width / 2, 138, "O2RIGIN", { size: 32, color: COLORS.ink, origin: 0.5, shadow: true }));
-    items.push(bodyText(this, width / 2, 172, "una macchina comunicativa del progetto BIODOM+", { size: 22, color: COLORS.steel, origin: 0.5 }));
+    // logotipo pixel, con il 2 a pedice
+    const scale = 5;
+    const widths = TITLE_WORD.map((name) => this.textures.get(`title_${name}`).getSourceImage().width);
+    const total = widths.reduce((sum, w, i) => sum + (w + (TITLE_WORD[i] === "two" ? 1 : 2)) * scale, 0);
+    let lx = width / 2 - total / 2;
+    TITLE_WORD.forEach((name, i) => {
+      items.push(this.add.image(lx + scale, 104 + scale, `title_${name}_sh`).setOrigin(0, 0).setScale(scale));
+      items.push(this.add.image(lx, 104, `title_${name}`).setOrigin(0, 0).setScale(scale));
+      lx += (widths[i] + (name === "two" ? 1 : 2)) * scale;
+    });
+    items.push(bodyText(this, width / 2, 194, "una macchina comunicativa del progetto BIODOM+", { size: 22, color: COLORS.steel, origin: 0.5 }));
 
-    const rows = [
-      ["UN PROGETTO DI", "BIODOM"],
-      ["CONTESTO", "Laboratorio di Sintesi · Politecnico di Milano"],
-      ["SVILUPPO", "Phaser + Elegoo UNO R3"],
-      ["FONT", "Press Start 2P · VT323 (SIL OFL)"]
-    ];
-    rows.forEach(([label, value], i) => {
-      const y = 214 + i * 54;
-      items.push(pixelText(this, width / 2, y, label, { size: 8, color: COLORS.steel, origin: 0.5 }));
-      items.push(bodyText(this, width / 2, y + 22, value, { size: 28, color: COLORS.ink, origin: 0.5, fit: 520 }));
+    // il team
+    items.push(pixelText(this, width / 2, 226, "IL TEAM", { size: 8, color: COLORS.steel, origin: 0.5 }));
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(x + 60, 322, 560, 6);
+    TEAM.forEach(({ key }, i) => {
+      const px = width / 2 - 250 + i * 100;
+      const sprite = this.add.image(px, 322, key).setOrigin(0.5, 1).setScale(4);
+      this.tweens.add({ targets: sprite, y: 318, duration: 500 + i * 40, delay: i * 120, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      items.push(sprite);
     });
 
-    const plantL = this.add.image(x + 50, 444, "pot_flower").setOrigin(0.5, 1).setScale(4);
-    const plantR = this.add.image(x + 510, 444, "pot_plant").setOrigin(0.5, 1).setScale(4);
-    this.tweens.add({ targets: [plantL, plantR], scaleY: 4.2, duration: 1200, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    items.push(plantL, plantR);
-    items.push(bodyText(this, width / 2, 482, "Grazie per aver giocato.", { size: 26, color: COLORS.steel, origin: 0.5 }));
+    const rows = [
+      ["UN PROGETTO DI", "BIODOM · Laboratorio di Sintesi, Politecnico di Milano"],
+      ["SVILUPPO", "Phaser + Elegoo UNO R3"],
+      ["FONT", "VT323 (SIL Open Font License)"]
+    ];
+    rows.forEach(([label, value], i) => {
+      const y = 348 + i * 42;
+      items.push(pixelText(this, width / 2, y, label, { size: 8, color: COLORS.steel, origin: 0.5 }));
+      items.push(bodyText(this, width / 2, y + 20, value, { size: 24, color: COLORS.ink, origin: 0.5, fit: 640 }));
+    });
 
+    items.push(bodyText(this, width / 2, 494, "Grazie per aver giocato.", { size: 20, color: COLORS.steel, origin: 0.5 }));
     page.add(items);
     return page;
   }

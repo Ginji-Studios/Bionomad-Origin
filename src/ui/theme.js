@@ -1,8 +1,6 @@
-// Tema grafico condiviso: palette, font pixel e componenti UI (HUD, pannelli, frecce).
-// Ispirato alle tavole di riferimento di BIODOM+: blu notte, bordi netti, verde = cura, rosso = negligenza.
+// tema grafico condiviso
 
-// Palette dal branding BIODOM: carta, grigi pietra, blu acciaio, inchiostro navy.
-// Un solo accento caldo (ruggine) per pericolo / negligenza / ossigeno basso.
+// palette dal branding BIODOM
 export const COLORS = {
   paper: 0xf1f0ed,
   bg: 0xe9eae6,
@@ -36,8 +34,7 @@ export const FONTS = {
 
 export const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;
 
-// Riduce la dimensione del font finché il testo non sta nella larghezza indicata
-// (utile se il font cambia o se un testo è più lungo del previsto).
+// rimpicciolisce il font finché il testo non entra in `fit`
 function fitWidth(label, fit, size, step) {
   let current = size;
   while (fit && label.width > fit && current > step * 2) {
@@ -54,16 +51,22 @@ function applyOrigin(text, origin) {
   return text;
 }
 
+// titoli ed etichette
 export function pixelText(scene, x, y, text, { size = 16, color = COLORS.text, align = "left", origin, shadow = false, fit } = {}) {
-  const label = scene.add.text(x, y, text, {
-    fontFamily: FONTS.pixel,
-    fontSize: `${size}px`,
+  const real = Math.round(size * 1.55 + 8);
+  const originY = origin === undefined ? 0 : Array.isArray(origin) ? origin[1] : origin;
+  // le posizioni erano pensate per il vecchio font
+  const shiftY = originY === 0 ? -Math.round((real - size) / 2) : 0;
+  const label = scene.add.text(x, y + shiftY, text, {
+    fontFamily: FONTS.body,
+    fontSize: `${real}px`,
     color: hex(color),
-    align
+    align,
+    letterSpacing: size >= 16 ? 2 : 1
   });
-  fitWidth(label, fit, size, 8);
+  fitWidth(label, fit, real, 2);
   if (shadow) {
-    label.setShadow(Math.max(2, size / 8), Math.max(2, size / 8), "#9fb4c2", 0, false, true);
+    label.setShadow(3, 3, "#9fb4c2", 0, false, true);
   }
   return applyOrigin(label, origin);
 }
@@ -81,7 +84,7 @@ export function bodyText(scene, x, y, text, { size = 24, color = COLORS.text, al
   return applyOrigin(label, origin);
 }
 
-// Rettangolo con bordo netto (niente angoli arrotondati, niente antialias).
+// rettangolo con bordo netto, niente angoli arrotondati
 export function drawPanel(graphics, x, y, w, h, { fill = COLORS.panel, fillAlpha = 1, border = COLORS.line, borderWidth = 2 } = {}) {
   graphics.fillStyle(fill, fillAlpha);
   graphics.fillRect(x, y, w, h);
@@ -99,7 +102,7 @@ export function panel(scene, x, y, w, h, options) {
   return drawPanel(scene.add.graphics(), x, y, w, h, options);
 }
 
-// Cerchio "a gradini", come un disco disegnato a mano in pixel-art.
+// cerchio "a gradini", come un disco disegnato a mano in pixel-art
 export function pixelDisc(graphics, cx, cy, radius, color, alpha = 1, unit = 4) {
   graphics.fillStyle(color, alpha);
   for (let dy = -radius; dy < radius; dy += unit) {
@@ -112,8 +115,7 @@ export function pixelDisc(graphics, cx, cy, radius, color, alpha = 1, unit = 4) 
   return graphics;
 }
 
-// Retino a dithering (matrice di Bayer 4x4): level 0..16 = da vuoto a pieno.
-// Dà l'effetto "stampa / ascii" delle tavole di riferimento.
+// retino a dithering (matrice di Bayer 4x4)
 const BAYER = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -121,7 +123,7 @@ const BAYER = [
   [15, 7, 13, 5]
 ];
 
-export function ditherRect(graphics, x, y, w, h, color, level, cell = 4, alpha = 1) {
+export function ditherRect(graphics, x, y, w, h, color, level, cell = 2, alpha = 1) {
   graphics.fillStyle(color, alpha);
   for (let row = 0; row * cell < h; row += 1) {
     for (let col = 0; col * cell < w; col += 1) {
@@ -133,15 +135,14 @@ export function ditherRect(graphics, x, y, w, h, color, level, cell = 4, alpha =
   return graphics;
 }
 
-// Ombra piena e morbida (niente retino): pannelli "staccati" dalla carta.
+// ombra piena e morbida (niente retino)
 export function dropShadow(graphics, x, y, w, h, offset = 6) {
   graphics.fillStyle(COLORS.inkDeep, 0.22);
   graphics.fillRect(x + offset, y + offset, w, h);
   return graphics;
 }
 
-// Sfumatura a fasce piene; solo il bordo tra una fascia e l'altra è a retino
-// (effetto "ascii" leggero, senza riempire tutto di puntini).
+// sfumatura a fasce piene
 export function bandGradient(graphics, x, y, w, h, colors) {
   const bandH = Math.ceil(h / colors.length);
   colors.forEach((color, i) => {
@@ -157,7 +158,7 @@ export function bandGradient(graphics, x, y, w, h, colors) {
   return graphics;
 }
 
-// Sfumatura verticale a retino, da levelTop a levelBottom.
+// sfumatura verticale a retino, da levelTop a levelBottom
 export function ditherGradient(graphics, x, y, w, h, color, levelTop, levelBottom, bands = 8, cell = 4) {
   const bandH = Math.ceil(h / bands / cell) * cell;
   for (let i = 0; i < bands; i += 1) {
@@ -167,7 +168,7 @@ export function ditherGradient(graphics, x, y, w, h, color, levelTop, levelBotto
   return graphics;
 }
 
-// Sfondo "carta a quadretti" come nelle tavole BIODOM.
+// sfondo "carta a quadretti" come nelle tavole BIODOM
 export function paperGrid(scene, { color = COLORS.bg, lines = COLORS.bgSoft, step = 48 } = {}) {
   const { width, height } = scene.scale;
   const g = scene.add.graphics();
@@ -176,19 +177,10 @@ export function paperGrid(scene, { color = COLORS.bg, lines = COLORS.bgSoft, ste
   g.fillStyle(lines, 1);
   for (let x = 0; x < width; x += step) g.fillRect(x, 0, 8, height);
   for (let y = 0; y < height; y += step) g.fillRect(0, y, width, 8);
-  // Crocini "+" da tavola tecnica, uno ogni tanto
-  g.fillStyle(COLORS.stone, 1);
-  for (let x = step * 2; x < width; x += step * 4) {
-    for (let y = step * 2; y < height; y += step * 3) {
-      const cx = x + 4 + ((y / step) % 2) * step * 2;
-      g.fillRect(cx - 5, y + 3, 12, 2);
-      g.fillRect(cx, y - 2, 2, 12);
-    }
-  }
   return g;
 }
 
-// Freccia pixel-art. direction: "left" | "right" | "up" | "down"
+// freccia pixel-art
 export function pixelArrow(graphics, x, y, direction, color, unit = 6) {
   graphics.fillStyle(color, 1);
   const steps = 4;
@@ -210,7 +202,7 @@ export function pixelArrow(graphics, x, y, direction, color, unit = 6) {
   return graphics;
 }
 
-// Barra superiore delle schermate di menu (es. "TUTORIAL ........ BIODOM+").
+// barra superiore delle schermate di menu (es
 export function addTopBar(scene, left, right = "BIODOM+") {
   const { width } = scene.scale;
   fadeIn(scene);
@@ -222,7 +214,7 @@ export function addTopBar(scene, left, right = "BIODOM+") {
   return g;
 }
 
-// HUD di gioco: cuore + barra OSSIGENO a segmenti + bandiera e luogo.
+// HUD di gioco
 export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it" } = {}) {
   const { width } = scene.scale;
   const depth = 1000;
@@ -270,7 +262,7 @@ export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it
   return hud;
 }
 
-// Riquadro obiettivo in basso al centro (es. "1 · RACCOGLI LO ZAINO").
+// riquadro obiettivo in basso al centro (es
 export function addObjectiveBox(scene, text) {
   const { width, height } = scene.scale;
   const g = scene.add.graphics().setDepth(1000).setScrollFactor(0);
@@ -296,7 +288,7 @@ export function addObjectiveBox(scene, text) {
   return box;
 }
 
-// Messaggio temporaneo sotto l'HUD (dialoghi brevi, feedback di interazione).
+// messaggio temporaneo sotto l'HUD
 export function showToast(scene, text, { duration = 2600, color = COLORS.text } = {}) {
   scene.toast?.destroy();
   const { width } = scene.scale;
@@ -326,7 +318,7 @@ export function addCornerHints(scene, leftText, rightText = "ESC  MENU") {
   if (rightText) textChip(scene, width - 14, height - 30, rightText, { size: 20, originX: 1 });
 }
 
-// Etichetta su "chip" di carta: leggibile su qualsiasi sfondo (chiaro o scuro).
+// etichetta su "chip" di carta
 export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COLORS.paper, color = COLORS.ink, depth = 1000 } = {}) {
   const label = bodyText(scene, 0, 0, text, { size, color }).setDepth(depth + 1).setScrollFactor(0);
   const w = Math.round(label.width + 14);
@@ -338,7 +330,7 @@ export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COL
   return { g, label };
 }
 
-// Transizioni morbide tra scene (dissolvenza sul blu inchiostro).
+// transizioni morbide tra scene (dissolvenza sul blu inchiostro)
 export function fadeIn(scene, duration = 280) {
   scene.transitioning = false;
   scene.cameras.main.fadeIn(duration, 28, 40, 57);

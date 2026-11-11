@@ -1,19 +1,6 @@
-// Eventi della run: ogni run ne pesca 3 a caso.
-// Ogni evento ha una location e una sequenza di task (step) da completare in ordine.
-//
-// Tipi di step:
-//   pickup  – raggiungi `target` e premi SPAZIO per raccogliere `item`
-//   use     – raggiungi `target` con `item` e premi SPAZIO (animazione `effect`)
-//   useSelf – premi SPAZIO ovunque per usare `item` sulla tua pianta
-//   talk    – raggiungi `target` e premi SPAZIO (mostra `line`)
-//   confirm – raggiungi `target`, premi SPAZIO e conferma la domanda `question`
-//   hold    – resta vicino a `target` finché la barra non si riempie (`duration` ms)
-//   prune   – minigioco: taglia le foglie rovinate della pianta
-//   sit     – raggiungi `target`, premi SPAZIO: piccola scena (`duration` ms)
-//   exit    – raggiungi `target` e premi SPAZIO per uscire
-//
-// Le altre 5 idee (task sulla pianta fisica) si aggiungono qui con gli stessi tipi.
-
+// eventi della run (ne escono 3 a caso, in ordine di orario).
+// tipi di step: pickup, use, useSelf, talk, confirm, hold, prune, sit, exit, reach,
+// plant (sensore: light / temperature / vials / touch), busLeaves, emergency
 export const EVENTS = {
   ufficio_mattina: {
     title: "UFFICIO · MATTINA",
@@ -69,5 +56,112 @@ export const EVENTS = {
     ]
   }
 };
+
+// eventi sulla pianta vera
+Object.assign(EVENTS, {
+  bus_mattina: {
+    title: "BUS · MATTINA",
+    time: "08:10",
+    location: "bus",
+    plant: true,
+    description: "Sulla via per il lavoro il bus è affollatissimo: copri il BIONOMAD per proteggerlo finché non si libera spazio.",
+    steps: [
+      {
+        type: "plant",
+        sensor: "light",
+        below: 0.2,
+        holdMs: 5000,
+        malus: true,
+        drainBoost: 2,
+        text: "COPRI IL BIONOMAD",
+        hint: "Copri la pianta con la mano (buio sul sensore di luce) finché la barra non si riempie. Coprirla costa ossigeno!",
+        key: "C"
+      }
+    ]
+  },
+  ufficio_freddo: {
+    title: "UFFICIO · CONDIZIONATORE",
+    time: "10:30",
+    location: "office",
+    ac: true,
+    noPack: true,
+    plant: true,
+    description: "Hai lasciato il BIONOMAD vicino al condizionatore e la pianta si è raffreddata: recuperalo e riscaldala.",
+    steps: [
+      { type: "pickup", target: "ac", item: "pack", text: "RECUPERA IL BIONOMAD", line: "Brr... è gelido!" },
+      {
+        type: "plant",
+        sensor: "temperature",
+        riseBy: 3,
+        holdMs: 1500,
+        baseTemperature: 16,
+        text: "RISCALDA LA PIANTA",
+        hint: "Scalda la pianta con le mani o la torcia termica: la temperatura deve salire di 3 °C.",
+        key: "H"
+      }
+    ]
+  },
+  casa_fertilizzante: {
+    title: "CASA · SERA",
+    time: "20:00",
+    location: "home",
+    evening: true,
+    plant: true,
+    endsAt: "home",
+    description: "Alla pianta serve il fertilizzante: raggiungi l'Home Hub e inserisci le fiale nel terriccio dove indicato.",
+    steps: [
+      { type: "reach", target: "hub", text: "RAGGIUNGI L'HOME HUB" },
+      {
+        type: "plant",
+        sensor: "vials",
+        atLeast: 2,
+        holdMs: 600,
+        text: "INSERISCI LE FIALE",
+        hint: "Inserisci le 2 fiale di fertilizzante nei punti segnati sul vaso.",
+        key: "V"
+      }
+    ]
+  },
+  bus_perso: {
+    title: "BUS PERSO · A PIEDI",
+    time: "19:30",
+    location: "busstop",
+    evening: true,
+    plant: true,
+    description: "Hai perso il bus: si torna a casa a piedi e fa freddo. Scalda la pianta prima di incamminarti.",
+    steps: [
+      { type: "busLeaves", text: "IL BUS È PARTITO..." },
+      {
+        type: "plant",
+        sensor: "temperature",
+        riseBy: 3,
+        holdMs: 2000,
+        baseTemperature: 8,
+        text: "SCALDA LA PIANTA",
+        hint: "Fa freddo: scalda la pianta con le mani o la torcia termica.",
+        key: "H"
+      }
+    ]
+  },
+  emergenza: {
+    title: "EMERGENZA · PARASSITA",
+    time: "17:45",
+    location: "street",
+    evening: true,
+    plant: true,
+    emergency: true,
+    drainMultiplier: 2,
+    endsAt: "home",
+    description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Torna a casa il prima possibile: la pianta chiederà cure improvvise e l'ossigeno cala più in fretta.",
+    steps: [{ type: "emergency", target: "home", actionEveryMs: 5500, text: "TORNA A CASA!" }]
+  }
+});
+
+// azioni di cura casuali durante l'emergenza
+export const EMERGENCY_ACTIONS = [
+  { type: "plant", sensor: "light", above: 0.8, holdMs: 1200, text: "ILLUMINALA!", hint: "Dai luce alla pianta.", key: "I", timeoutMs: 6000 },
+  { type: "plant", sensor: "temperature", riseBy: 2, holdMs: 800, text: "SCALDALA!", hint: "Scalda la pianta.", key: "H", timeoutMs: 6000 },
+  { type: "plant", sensor: "touch", holdMs: 900, text: "TOCCA UNA FOGLIA!", hint: "Tocca una foglia della pianta.", key: "Q / E", timeoutMs: 6000 }
+];
 
 export const EVENTS_PER_RUN = 3;

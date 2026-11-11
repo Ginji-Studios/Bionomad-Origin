@@ -24,7 +24,7 @@ export class HouseScene extends Phaser.Scene {
     this.drawGreenhouse(40, 104);
     this.drawDoor(820, 250);
 
-    // Lo zaino BIONOMAD+ da raccogliere, segnalato dalla freccia gialla.
+    // lo zaino BIONOMAD+ da raccogliere, segnalato dalla freccia gialla
     this.packItem = this.add.image(700, 432, "plant_tall").setOrigin(0.5, 1).setScale(4).setDepth(430);
     const marker = this.add.graphics().setDepth(431);
     pixelArrow(marker, 700, 340, "down", COLORS.red, 5);
@@ -59,13 +59,13 @@ export class HouseScene extends Phaser.Scene {
 
   drawRoom(width) {
     const g = this.add.graphics();
-    // Parete: carta con ombra a retino verso il basso
+    // parete
     ditherGradient(g, 0, 52, width, 366, COLORS.panelLight, 0, 8, 8);
     g.fillStyle(COLORS.panelLight, 1);
     for (let x = 0; x < width; x += 64) g.fillRect(x, 52, 2, 366);
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(0, 418, width, 14);
-    // Pavimento
+    // pavimento
     g.fillStyle(COLORS.stone, 1);
     g.fillRect(0, 432, width, 108);
     ditherRect(g, 0, 432, width, 108, COLORS.steel, 3);
@@ -78,7 +78,7 @@ export class HouseScene extends Phaser.Scene {
     const h = 326;
     const g = this.add.graphics();
 
-    // Lampada sopra la serra
+    // lampada sopra la serra
     g.fillStyle(COLORS.inkDeep, 1);
     g.fillRect(x + 100, y - 6, 100, 12);
 
@@ -97,7 +97,7 @@ export class HouseScene extends Phaser.Scene {
       }
     });
 
-    // Riflessi sul vetro
+    // riflessi sul vetro
     const glare = this.add.graphics();
     glare.fillStyle(COLORS.steelLight, 1);
     for (let i = 0; i < 10; i += 1) {

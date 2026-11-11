@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { animateWalker, playAction, SPRITE_SCALE } from "./Player.js";
 
-// Cittadino che cammina in loop da un lato all'altro della scena (opzionalmente con zaino).
+// passante che attraversa la scena in loop
 export class Npc extends Phaser.GameObjects.Container {
   constructor(scene, x, y, name, { texture = "npc_a", withPack = true, speed = 0, direction = 1 } = {}) {
     super(scene, x, y);

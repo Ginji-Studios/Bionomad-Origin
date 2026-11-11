@@ -20,7 +20,7 @@ export class OfficeScene extends Phaser.Scene {
     });
 
     const g = this.add.graphics();
-    // Parete a pannelli e pavimento
+    // parete a pannelli e pavimento
     ditherGradient(g, 0, 52, width, 362, COLORS.panelLight, 0, 8, 8);
     g.fillStyle(COLORS.panelLight, 1);
     for (let x = 0; x < width; x += 96) g.fillRect(x, 52, 2, 362);
@@ -31,7 +31,7 @@ export class OfficeScene extends Phaser.Scene {
     g.fillStyle(COLORS.stone, 1);
     for (let col = 0; col * 32 < width; col += 1) for (let row = 0; row * 32 < 112; row += 1) if ((col + row) % 2 === 0) g.fillRect(col * 32, 428 + row * 32, 32, 32);
 
-    // Finestra sulla città nello smog
+    // finestra sulla città nello smog
     drawPanel(g, 330, 84, 300, 150, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 6 });
     ditherGradient(g, 336, 90, 288, 138, COLORS.steelLight, 2, 10, 6);
     pixelDisc(g, 560, 130, 22, COLORS.paper, 1, 4);
@@ -43,7 +43,7 @@ export class OfficeScene extends Phaser.Scene {
     this.drawDesk(g, 60, 330);
     this.drawDesk(g, 690, 330);
 
-    // Archivio
+    // archivio
     drawPanel(g, 880, 236, 64, 180, { fill: COLORS.stone, border: COLORS.ink, borderWidth: 3 });
     g.fillStyle(COLORS.ink, 1);
     for (let y = 280; y < 416; y += 44) g.fillRect(884, y, 56, 3);
@@ -64,13 +64,13 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   drawDesk(g, x, y) {
-    // Monitor con schermo verde
+    // monitor con schermo verde
     drawPanel(g, x + 60, y - 70, 100, 64, { fill: COLORS.inkDeep, border: COLORS.ink, borderWidth: 4 });
     g.fillStyle(COLORS.steelLight, 1);
     for (let i = 0; i < 4; i += 1) g.fillRect(x + 72, y - 58 + i * 10, 40 + ((i * 23) % 30), 4);
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(x + 104, y - 6, 12, 8);
-    // Piano e gambe
+    // piano e gambe
     g.fillStyle(COLORS.steel, 1);
     g.fillRect(x, y, 220, 18);
     g.fillStyle(COLORS.ink, 1);

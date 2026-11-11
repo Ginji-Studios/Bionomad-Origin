@@ -66,7 +66,7 @@ export class CityScene extends Phaser.Scene {
 
   drawSky(width) {
     const g = this.add.graphics();
-    // Cielo di smog: carta che si scurisce a retino verso l'orizzonte
+    // cielo di smog
     ditherGradient(g, 0, 52, width, 332, COLORS.steelLight, 1, 11, 10);
     pixelDisc(g, 700, 150, 46, COLORS.paper, 1, 4);
     pixelDisc(g, 700, 150, 46, COLORS.steelLight, 0.35, 4);
@@ -82,13 +82,13 @@ export class CityScene extends Phaser.Scene {
     const midColor = COLORS.steel;
     mid.fillStyle(midColor, 1);
 
-    // Galleria (arco)
+    // galleria (arco)
     mid.fillRect(40, base - 110, 150, 110);
     pixelDisc(mid, 115, base - 110, 52, midColor, 1, 4);
     mid.fillStyle(COLORS.ink, 1);
     mid.fillRect(95, base - 80, 40, 80);
 
-    // Duomo con guglie
+    // duomo con guglie
     mid.fillStyle(midColor, 1);
     mid.fillRect(220, base - 96, 190, 96);
     for (let x = 224; x < 410; x += 14) {
@@ -99,7 +99,7 @@ export class CityScene extends Phaser.Scene {
     mid.fillStyle(COLORS.paper, 1);
     mid.fillRect(310, base - 194, 8, 8);
 
-    // Torre Velasca (a fungo)
+    // torre Velasca (a fungo)
     mid.fillStyle(midColor, 1);
     mid.fillRect(452, base - 190, 56, 190);
     mid.fillRect(440, base - 250, 80, 60);
@@ -108,7 +108,7 @@ export class CityScene extends Phaser.Scene {
     mid.fillRect(640, base - 150, 100, 150);
     mid.fillRect(800, base - 120, 120, 120);
 
-    // Finestre a "caratteri": righe di punti come in una schermata ascii
+    // finestre a "caratteri"
     mid.fillStyle(COLORS.steelLight, 1);
     for (let y = base - 140; y < base - 10; y += 18) {
       for (let x = 650; x < 730; x += 16) mid.fillRect(x, y, 6, 8);
@@ -122,7 +122,7 @@ export class CityScene extends Phaser.Scene {
     for (let x = 228; x < 404; x += 20) mid.fillRect(x, base - 70, 8, 40);
     ditherRect(mid, 220, base - 24, 190, 24, COLORS.ink, 6);
 
-    // Lampioni
+    // lampioni
     const lamps = this.add.graphics();
     [150, 420, 690].forEach((x) => {
       lamps.fillStyle(COLORS.inkDeep, 1);
@@ -157,7 +157,7 @@ export class CityScene extends Phaser.Scene {
     });
 
     if (!this.hasPack && this.hud.oxygen > 0.05) {
-      // Più la città è inquinata, più in fretta finisce l'ossigeno senza zaino.
+      // più la città è inquinata, più in fretta finisce l'ossigeno senza zaino
       this.hud.setOxygen(this.hud.oxygen - delta / (this.origin.drainSeconds * 1000));
     }
   }

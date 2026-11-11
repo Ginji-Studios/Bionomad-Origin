@@ -6,7 +6,7 @@ import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse } from "../world/locations.js";
 import { addHud, addObjectiveBox, bodyText, COLORS, drawPanel, fadeIn, goTo, textChip } from "../ui/theme.js";
 
-// Cutscene di inizio run: il cittadino indossa BIONOMAD+ ed esce di casa.
+// cutscene di inizio run
 export class IntroScene extends Phaser.Scene {
   constructor() {
     super("IntroScene");
@@ -24,13 +24,13 @@ export class IntroScene extends Phaser.Scene {
     this.walking = false;
     fadeIn(this, 500);
 
-    this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg);
+    this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg).setDepth(-100);
     this.world = buildHouse(this);
     const hud = addHud(this, { oxygen: 0.3, location: this.origin.city, flag: this.origin.flag });
     const caption = addObjectiveBox(this, "07:30 · CASA");
     textChip(this, width - 14, height - 30, "SPAZIO  salta", { size: 20, originX: 1 });
 
-    // Lo zaino BIONOMAD+ appoggiato a terra
+    // lo zaino BIONOMAD+ appoggiato a terra
     const pack = this.add.image(this.world.points.pack.x, 432, "pack").setOrigin(0.5, 1).setScale(4).setDepth(431);
     this.tweens.add({ targets: pack, y: 426, duration: 600, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
@@ -44,7 +44,7 @@ export class IntroScene extends Phaser.Scene {
         this.tweens.add({ targets: player, x, y, duration, ease: "Sine.easeInOut", onComplete: () => { this.walking = false; resolve(); } });
       });
     this.wait = (ms) => new Promise((resolve) => this.time.delayedCall(ms, resolve));
-    // Fumetto sopra la testa
+    // fumetto sopra la testa
     this.say = (text) => {
       const bubble = this.add.container(player.x, player.y - 118).setDepth(980);
       const label = bodyText(this, 0, 0, text, { size: 22, color: COLORS.ink, origin: 0.5 });
@@ -84,7 +84,7 @@ export class IntroScene extends Phaser.Scene {
     await this.wait(1300);
     caption.setText("ESCI DI CASA");
     await this.walk(this.world.points.door.x, 410, 1300);
-    // La porta si apre e il cittadino esce
+    // la porta si apre e il cittadino esce
     const opening = this.add.rectangle(this.world.door.x + 42, (this.world.door.top + 380) / 2, 72, 380 - this.world.door.top - 12, COLORS.inkDeep).setDepth(5);
     opening.setScale(0, 1);
     this.tweens.add({ targets: opening, scaleX: 1, duration: 300 });
@@ -96,7 +96,7 @@ export class IntroScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.player) return;
-    // Camminata "pilotata" dalla cutscene: stessa animazione del gioco, senza input.
+    // camminata "pilotata" dalla cutscene
     this.player.scaleX = Phaser.Math.Linear(this.player.scaleX, this.player.facing, 0.25);
     this.player.setDepth(this.player.y);
     animateWalker(this.player, delta, this.walking ? 0.8 : 0, time);

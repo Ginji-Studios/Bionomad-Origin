@@ -1,22 +1,17 @@
-// Location disegnate via codice con campiture piene (stile pulito, pochi retini).
-// Ogni funzione restituisce:
-//   floor     – [yMin, yMax] dei piedi del giocatore
-//   obstacles – rettangoli sul pavimento (coordinate dei piedi) per le collisioni
-//   points    – punti interattivi { x, y } usati dalle task degli eventi
-//   spawn     – posizione iniziale
+// location del gioco: ognuna ritorna floor, obstacles, points e spawn
 import { COLORS, bandGradient, ditherRect, drawPanel, pixelDisc } from "../ui/theme.js";
+import { drawCityscape } from "./cityscape.js";
 
 const W = 960;
 const HORIZON = 380;
 export const FLOOR = [400, 482];
 
-// Oggetto "in piedi" sul pavimento: si disegna con profondità = base, così il giocatore
-// può passarci davanti o dietro.
+// oggetto "in piedi" sul pavimento
 function standing(scene, baseY) {
   return scene.add.graphics().setDepth(baseY);
 }
 
-// ---------- Cielo e skyline per origine ----------
+// cielo e skyline per origine
 
 const SKY = {
   delhi: [0xe2d6bd, 0xd8c9a9, 0xcdbb98],
@@ -25,109 +20,34 @@ const SKY = {
 };
 const SKY_EVENING = [0x2c3e52, 0x25354a, 0x1f2c40];
 
-export function drawBackdrop(scene, originId, { evening = false, sun = true } = {}) {
+export function drawBackdrop(scene, originId, { evening = false, sun = true, zone = "centro" } = {}) {
+  drawCityscape(scene, originId, { evening, sun, zone });
+}
+
+// pavimenti
+
+export function drawStreetFloor(scene, evening, width = W) {
   const g = scene.add.graphics();
-  bandGradient(g, 0, 46, W, HORIZON - 46, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
-
-  const sunColor = evening ? 0xdadfda : originId === "delhi" ? 0xeee2c4 : COLORS.paper;
-  if (sun) pixelDisc(g, 760, 140, evening ? 26 : 42, sunColor, 1, 4);
-
-  const far = evening ? 0x34485e : originId === "delhi" ? 0xbfae8c : COLORS.steelLight;
-  const near = evening ? 0x1c2839 : originId === "delhi" ? 0x8f8064 : COLORS.steel;
-  const lit = evening ? 0xe8c66a : null;
-
-  g.fillStyle(far, 1);
-  [[0, 90, 130], [120, 70, 180], [430, 80, 150], [640, 60, 210], [840, 120, 160]].forEach(([x, w, h]) => g.fillRect(x, HORIZON - h, w, h));
-
-  g.fillStyle(near, 1);
-  if (originId === "delhi") drawDelhi(g, near);
-  else if (originId === "reykjavik") drawReykjavik(g, near, far);
-  else drawMilano(g, near);
-
-  // Finestre accese di sera, poche e calde
-  if (lit) {
-    g.fillStyle(lit, 1);
-    [[70, 300], [86, 330], [520, 280], [700, 250], [716, 300], [880, 320], [900, 290]].forEach(([x, y]) => g.fillRect(x, y, 6, 8));
-  }
-  return g;
-}
-
-function drawMilano(g, color) {
-  const b = HORIZON;
-  // Duomo
-  g.fillRect(200, b - 90, 190, 90);
-  for (let x = 204; x < 390; x += 14) {
-    const tall = (x - 204) % 42 === 0;
-    g.fillRect(x, b - 90 - (tall ? 50 : 28), 4, tall ? 50 : 28);
-  }
-  g.fillRect(290, b - 176, 8, 86);
-  // Torre Velasca
-  g.fillRect(470, b - 180, 52, 180);
-  g.fillRect(458, b - 236, 76, 56);
-  // Pirelli
-  g.fillRect(600, b - 260, 40, 260);
-  g.fillRect(40, b - 110, 120, 110);
-  g.fillRect(800, b - 120, 120, 120);
-}
-
-function drawDelhi(g, color) {
-  const b = HORIZON;
-  // India Gate
-  g.fillRect(230, b - 150, 36, 150);
-  g.fillRect(334, b - 150, 36, 150);
-  g.fillRect(222, b - 176, 156, 30);
-  g.fillRect(246, b - 190, 108, 14);
-  // Cupole
-  g.fillRect(470, b - 80, 140, 80);
-  pixelDisc(g, 540, b - 80, 46, color, 1, 4);
-  g.fillRect(536, b - 140, 8, 20);
-  // Minareto (Qutub Minar)
-  for (let i = 0; i < 6; i += 1) g.fillRect(680 + i * 2, b - 60 - i * 40, 32 - i * 4, 44);
-  g.fillRect(40, b - 100, 130, 100);
-  g.fillRect(820, b - 110, 120, 110);
-}
-
-function drawReykjavik(g, color, far) {
-  const b = HORIZON;
-  // Montagne lontane (Esja)
-  g.fillStyle(far, 1);
-  for (let i = 0; i < 24; i += 1) {
-    const h = 50 + Math.max(0, 100 - Math.abs(i - 9) * 12);
-    g.fillRect(i * 40, b - h, 40, h);
-  }
-  g.fillStyle(color, 1);
-  // Hallgrímskirkja: torre a gradoni
-  g.fillRect(430, b - 70, 160, 70);
-  for (let i = 0; i < 7; i += 1) {
-    const w = 140 - i * 20;
-    g.fillRect(510 - w / 2, b - 88 - i * 18, w, 18);
-  }
-  g.fillRect(500, b - 250, 20, 60);
-  g.fillRect(506, b - 270, 8, 20);
-  // Casette con tetto a punta
-  [[60, 0xb4553f], [150, COLORS.paper], [700, 0x7e9c8c], [800, COLORS.steelLight], [880, 0xb4553f]].forEach(([x, roof]) => {
-    g.fillStyle(color, 1);
-    g.fillRect(x, b - 60, 70, 60);
-    g.fillStyle(roof, 1);
-    for (let i = 0; i < 5; i += 1) g.fillRect(x + i * 7, b - 64 - i * 6, 70 - i * 14, 6);
-    g.fillStyle(COLORS.paper, 1);
-    g.fillRect(x + 14, b - 44, 10, 12);
-    g.fillRect(x + 44, b - 44, 10, 12);
-  });
-}
-
-// ---------- Pavimenti ----------
-
-function drawStreetFloor(scene, evening) {
-  const g = scene.add.graphics();
+  // marciapiede a lastre
   g.fillStyle(evening ? 0x6e7673 : COLORS.stone, 1);
-  g.fillRect(0, HORIZON, W, 160);
+  g.fillRect(0, HORIZON, width, 160);
   g.fillStyle(evening ? 0x5f6663 : 0x959c99, 1);
-  for (let x = 0; x < W; x += 64) g.fillRect(x, HORIZON, 2, 160);
-  for (let y = HORIZON + 40; y < 540; y += 40) g.fillRect(0, y, W, 2);
+  for (let y = HORIZON + 40; y < 540; y += 40) g.fillRect(0, y, width, 2);
+  for (let y = HORIZON; y < 540; y += 40) {
+    const offset = ((y - HORIZON) / 40) % 2 ? 32 : 0;
+    for (let x = offset; x < width; x += 64) g.fillRect(x, y, 2, 40);
+  }
+  // tombini e piccoli dettagli
+  for (let x = 140; x < width; x += 420) {
+    g.fillStyle(evening ? 0x4f5654 : 0x7f8784, 1);
+    g.fillRect(x, 500, 28, 12);
+    g.fillStyle(evening ? 0x6e7673 : COLORS.stone, 1);
+    for (let i = 0; i < 3; i += 1) g.fillRect(x + 4, 502 + i * 4, 20, 2);
+  }
+  // cordolo e ombra all'orizzonte
   g.fillStyle(COLORS.ink, 1);
-  g.fillRect(0, HORIZON - 4, W, 4);
-  ditherRect(g, 0, HORIZON, W, 8, COLORS.inkDeep, 4);
+  g.fillRect(0, HORIZON - 4, width, 4);
+  ditherRect(g, 0, HORIZON, width, 10, COLORS.inkDeep, 4);
   return g;
 }
 
@@ -147,10 +67,10 @@ function drawRoom(scene, evening) {
   return g;
 }
 
-// ---------- Elementi ----------
+// elementi
 
 function drawHub(scene, x, baseY, evening) {
-  // Hub BIODOM: bancone in acciaio con schermo e pianta sopra.
+  // hub BIODOM
   const g = standing(scene, baseY);
   ditherRect(g, x - 74, baseY - 2, 148, 8, COLORS.inkDeep, 6);
   drawPanel(g, x - 70, baseY - 70, 140, 70, { fill: COLORS.paper, border: COLORS.ink });
@@ -188,13 +108,13 @@ function drawDesk(scene, x, evening) {
   g.fillRect(x + 202, HORIZON - 8, 10, 30);
 }
 
-// ---------- Location ----------
+// location
 
-export function buildOffice(scene, originId, { evening = false } = {}) {
+export function buildOffice(scene, originId, { evening = false, ac = false } = {}) {
   drawRoom(scene, evening);
   const g = scene.add.graphics();
 
-  // Finestra sulla città
+  // finestra sulla città
   const win = { x: 320, y: 80, w: 320, h: 170 };
   drawPanel(g, win.x, win.y, win.w, win.h, { fill: evening ? 0x1f2c40 : COLORS.paper, border: COLORS.ink, borderWidth: 6 });
   bandGradient(g, win.x + 6, win.y + 6, win.w - 12, win.h - 12, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
@@ -211,10 +131,24 @@ export function buildOffice(scene, originId, { evening = false } = {}) {
   drawDesk(scene, 150, evening);
   drawDesk(scene, 690, evening);
 
-  // Archivio
+  // archivio
   drawPanel(g, 900, 230, 52, HORIZON - 230, { fill: COLORS.stone, border: COLORS.ink, borderWidth: 3 });
 
   const hub = drawHub(scene, 480, 456, evening);
+
+  // condizionatore a parete con aria fredda animata
+  let acPoint = null;
+  if (ac) {
+    const a = scene.add.graphics().setDepth(HORIZON - 1);
+    drawPanel(a, 740, 60, 150, 44, { fill: COLORS.paper, border: COLORS.ink });
+    a.fillStyle(COLORS.steel, 1);
+    for (let i = 0; i < 5; i += 1) a.fillRect(752 + i * 26, 92, 20, 4);
+    for (let i = 0; i < 6; i += 1) {
+      const wind = scene.add.rectangle(760 + i * 22, 112, 4, 14, COLORS.steelLight).setDepth(HORIZON);
+      scene.tweens.add({ targets: wind, y: 190, alpha: 0, duration: 1100, delay: i * 180, repeat: -1 });
+    }
+    acPoint = { x: 815, y: 420 };
+  }
 
   return {
     floor: FLOOR,
@@ -228,41 +162,42 @@ export function buildOffice(scene, originId, { evening = false } = {}) {
     points: {
       door: { x: 72, y: 410 },
       hub: { x: 480, y: 470 },
-      can: { x: 790, y: 450 }
+      can: { x: 790, y: 450 },
+      ...(acPoint ? { ac: acPoint } : {})
     }
   };
 }
 
 export function buildFoodTruck(scene, originId, { evening = false } = {}) {
-  drawBackdrop(scene, originId, { evening });
+  drawBackdrop(scene, originId, { evening, zone: "parco" });
   drawStreetFloor(scene, evening);
 
-  // Food truck
+  // food truck
   const t = standing(scene, 412);
   const tx = 540;
   ditherRect(t, tx - 8, 404, 336, 12, COLORS.inkDeep, 6);
   drawPanel(t, tx, 228, 320, 170, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 4 });
   t.fillStyle(COLORS.steel, 1);
   t.fillRect(tx + 4, 340, 312, 54);
-  // Tendalino a strisce
+  // tendalino a strisce
   for (let i = 0; i < 10; i += 1) {
     t.fillStyle(i % 2 ? COLORS.paper : COLORS.red, 1);
     t.fillRect(tx + 30 + i * 22, 240, 22, 22);
   }
   t.fillStyle(COLORS.ink, 1);
   t.fillRect(tx + 30, 262, 220, 4);
-  // Finestra di servizio + bancone
+  // finestra di servizio + bancone
   drawPanel(t, tx + 40, 268, 200, 70, { fill: COLORS.inkDeep, border: COLORS.ink });
   t.fillStyle(COLORS.stone, 1);
   t.fillRect(tx + 30, 336, 220, 10);
-  // Insegna
+  // insegna
   drawPanel(t, tx + 70, 200, 140, 30, { fill: COLORS.ink, border: COLORS.ink });
-  // Ruote
+  // ruote
   [tx + 60, tx + 250].forEach((wx) => {
     pixelDisc(t, wx, 400, 22, COLORS.inkDeep, 1, 4);
     pixelDisc(t, wx, 400, 8, COLORS.stone, 1, 4);
   });
-  // Colonnina di ricarica
+  // colonnina di ricarica
   drawPanel(t, tx + 274, 300, 30, 60, { fill: COLORS.ink, border: COLORS.inkDeep });
   t.fillStyle(0x7e9c8c, 1);
   t.fillRect(tx + 282, 310, 14, 8);
@@ -270,7 +205,7 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
   const vendor = scene.add.image(tx + 140, 338, "npc_vendor").setOrigin(0.5, 1).setScale(3).setDepth(413);
   vendor.setCrop(0, 0, 14, 16);
 
-  // Panchina
+  // panchina
   const b = standing(scene, 452);
   ditherRect(b, 106, 448, 168, 8, COLORS.inkDeep, 5);
   b.fillStyle(COLORS.ink, 1);
@@ -298,18 +233,18 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
   };
 }
 
-// Strada generica (usata nella sequenza di game over).
-export function buildStreet(scene, originId, { evening = false, sun = true } = {}) {
-  drawBackdrop(scene, originId, { evening, sun });
+// strada generica (usata nella sequenza di game over)
+export function buildStreet(scene, originId, { evening = false, sun = true, zone = "industriale" } = {}) {
+  drawBackdrop(scene, originId, { evening, sun, zone });
   drawStreetFloor(scene, evening);
   return { floor: FLOOR, spawn: { x: 60, y: 450 }, obstacles: [], points: {} };
 }
 
 export function buildBusStop(scene, originId, { evening = true } = {}) {
-  drawBackdrop(scene, originId, { evening });
+  drawBackdrop(scene, originId, { evening, zone: "residenziale" });
   drawStreetFloor(scene, evening);
 
-  // Pensilina
+  // pensilina
   const s = standing(scene, 410);
   ditherRect(s, 296, 404, 288, 10, COLORS.inkDeep, 5);
   s.fillStyle(COLORS.ink, 1);
@@ -326,14 +261,10 @@ export function buildBusStop(scene, originId, { evening = true } = {}) {
   s.fillRect(340, 380, 8, 28);
   s.fillRect(512, 380, 8, 28);
 
-  // Palina BUS
-  const p = standing(scene, 430);
-  p.fillStyle(COLORS.ink, 1);
-  p.fillRect(660, 250, 6, 180);
-  drawPanel(p, 640, 228, 48, 40, { fill: COLORS.paper, border: COLORS.ink });
-  scene.add.text(664, 248, "BUS", { fontFamily: '"Press Start 2P"', fontSize: "8px", color: "#163c4d" }).setOrigin(0.5).setDepth(431);
+  // palina BUS
+  drawSign(scene, 663, "BUS", { sub: "linea 92", depth: 430, top: 214, ground: 430 });
 
-  // Lampione acceso
+  // lampione acceso
   const l = scene.add.graphics();
   l.fillStyle(COLORS.inkDeep, 1);
   l.fillRect(150, 220, 6, 160);
@@ -363,7 +294,7 @@ export function buildHouse(scene, { evening = false } = {}) {
   drawRoom(scene, evening);
   const g = scene.add.graphics();
 
-  // Serra domestica
+  // serra domestica
   const x = 40;
   const y = 96;
   const w = 300;
@@ -397,4 +328,131 @@ export function buildHouse(scene, { evening = false } = {}) {
     },
     door: { x: 840, top: 196 }
   };
+}
+
+// location per gli eventi sulla pianta
+
+// interno del bus
+export function buildBus(scene, originId, { evening = false } = {}) {
+  const g = scene.add.graphics();
+  g.fillStyle(evening ? 0xb9c2c4 : COLORS.bgSoft, 1);
+  g.fillRect(0, 46, W, HORIZON - 46);
+
+  // città che scorre fuori dai finestrini (parallasse)
+  const outside = scene.add.container(0, 0);
+  const strip = scene.add.graphics();
+  bandGradient(strip, 0, 90, W * 2, 170, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
+  strip.fillStyle(evening ? 0x34485e : COLORS.steelLight, 1);
+  for (let x = 0; x < W * 2; x += 70) strip.fillRect(x, 260 - ((x * 37) % 90) - 40, 56, 140);
+  strip.fillStyle(evening ? 0x1c2839 : COLORS.steel, 1);
+  for (let x = 30; x < W * 2; x += 110) strip.fillRect(x, 260 - ((x * 53) % 60) - 20, 70, 140);
+  outside.add(strip);
+  scene.tweens.add({ targets: outside, x: -W, duration: 9000, repeat: -1 });
+
+  // cornice con i finestrini (copre la città tra un finestrino e l'altro)
+  const frame = scene.add.graphics();
+  frame.fillStyle(evening ? 0xb9c2c4 : COLORS.bgSoft, 1);
+  frame.fillRect(0, 46, W, 44);
+  frame.fillRect(0, 250, W, HORIZON - 250);
+  for (let x = 0; x < W; x += 240) frame.fillRect(x, 90, 24, 160);
+  frame.fillStyle(COLORS.ink, 1);
+  for (let x = 0; x < W; x += 240) {
+    frame.fillRect(x + 24, 86, 216, 4);
+    frame.fillRect(x + 24, 250, 216, 4);
+  }
+  // mancorrente e pali
+  frame.fillRect(0, 70, W, 6);
+  for (let x = 120; x < W; x += 240) frame.fillRect(x, 76, 6, HORIZON - 76);
+  // sedili
+  for (let x = 40; x < W; x += 240) {
+    drawPanel(frame, x, 300, 70, 50, { fill: COLORS.steel, border: COLORS.ink });
+    frame.fillStyle(COLORS.ink, 1);
+    frame.fillRect(x + 6, 350, 6, 30);
+    frame.fillRect(x + 58, 350, 6, 30);
+  }
+  frame.fillStyle(COLORS.ink, 1);
+  frame.fillRect(0, HORIZON - 4, W, 4);
+
+  const floor = scene.add.graphics();
+  floor.fillStyle(evening ? 0x6e7673 : COLORS.stone, 1);
+  floor.fillRect(0, HORIZON, W, 160);
+  floor.fillStyle(0x8e9693, 1);
+  for (let y = HORIZON + 24; y < 540; y += 24) floor.fillRect(0, y, W, 2);
+  ditherRect(floor, 0, HORIZON, W, 8, COLORS.inkDeep, 4);
+
+  return {
+    floor: [430, 470],
+    spawn: { x: 480, y: 452 },
+    crowd: [180, 270, 360, 590, 680, 770, 860],
+    obstacles: [],
+    points: {}
+  };
+}
+
+// casa con l'Home Hub (stazione di ricarica e fertilizzazione)
+export function buildHome(scene, originId, { evening = true } = {}) {
+  const world = buildHouse(scene, { evening });
+  const hub = scene.add.image(560, 424, "home_hub").setOrigin(0.5, 1).setScale(6).setDepth(424);
+  ditherRect(scene.add.graphics().setDepth(423), 508, 420, 104, 8, COLORS.inkDeep, 6);
+  return {
+    ...world,
+    spawn: { x: 880, y: 450 },
+    homeHub: hub,
+    obstacles: [...world.obstacles, { x: 512, y: 408, w: 96, h: 18 }],
+    points: { ...world.points, hub: { x: 560, y: 450 } }
+  };
+}
+
+// strada di corsa verso casa (emergenza)
+export function buildRunHome(scene, originId, { evening = true } = {}) {
+  const world = buildStreet(scene, originId, { evening });
+  drawSign(scene, 870, "CASA", { dir: "right", sub: "50 m" });
+  return { ...world, points: { home: { x: 910, y: 450 } } };
+}
+
+// cartello stradale a freccia (stile segnaletica)
+export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390, top = 236, ground = 392 } = {}) {
+  const text = scene.add.text(0, 0, label, { fontFamily: '"VT323", monospace', fontSize: "30px", color: "#f1f0ed", letterSpacing: 2 }).setDepth(depth + 1);
+  const subText = sub ? scene.add.text(0, 0, sub, { fontFamily: '"VT323", monospace', fontSize: "18px", color: "#9fb4c2" }).setDepth(depth + 1) : null;
+  const w = Math.max(text.width, subText?.width ?? 0) + 36;
+  const h = sub ? 58 : 44;
+  const tip = dir ? 22 : 0;
+  const left = Math.round(x - w / 2 - (dir === "left" ? tip / 2 : 0) + (dir === "right" ? -tip / 2 : 0));
+  const g = scene.add.graphics().setDepth(depth);
+
+  // palo e base
+  g.fillStyle(0x1c2839, 1);
+  g.fillRect(x - 3, top + h, 6, ground - top - h);
+  g.fillRect(x - 12, ground - 4, 24, 4);
+  ditherRect(g, x - 16, ground, 32, 4, 0x1c2839, 6);
+
+  // ombra
+  g.fillStyle(0x1c2839, 0.22);
+  g.fillRect(left + 5, top + 5, w + tip, h);
+
+  // targa con punta a freccia
+  g.fillStyle(0x163c4d, 1);
+  const bodyX = dir === "left" ? left + tip : left;
+  g.fillRect(bodyX, top, w, h);
+  if (dir) {
+    for (let i = 0; i < h / 2; i += 2) {
+      const len = Math.round(tip * (1 - i / (h / 2)));
+      const ty1 = top + h / 2 - i - 2;
+      const ty2 = top + h / 2 + i;
+      if (dir === "right") {
+        g.fillRect(bodyX + w, ty1, len, 2);
+        g.fillRect(bodyX + w, ty2, len, 2);
+      } else {
+        g.fillRect(bodyX - len, ty1, len, 2);
+        g.fillRect(bodyX - len, ty2, len, 2);
+      }
+    }
+  }
+  // filetto interno chiaro
+  g.lineStyle(2, 0xf1f0ed, 1);
+  g.strokeRect(bodyX + 4, top + 4, w - 8, h - 8);
+
+  text.setPosition(Math.round(bodyX + w / 2 - text.width / 2), top + (sub ? 6 : Math.round(h / 2 - text.height / 2)));
+  subText?.setPosition(Math.round(bodyX + w / 2 - subText.width / 2), top + 34);
+  return g;
 }

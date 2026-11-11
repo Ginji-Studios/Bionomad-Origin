@@ -15,12 +15,16 @@ export const gameConfig = {
   width: 960,
   height: 540,
   backgroundColor: "#1c2839",
-  // Stile pixel-art: niente sfocature quando il canvas viene scalato
+  // stile pixel-art
   pixelArt: true,
   roundPixels: true,
+  // si adatta a qualsiasi schermo mantenendo il 16:9; il resto è la trama ai lati
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  input: {
+    activePointers: 3
   },
   scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, IntroScene, TravelScene, EventScene, EndScene, TutorialScene, CreditsScene]
 };

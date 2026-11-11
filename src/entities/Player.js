@@ -2,10 +2,7 @@ import Phaser from "../phaser.js";
 
 export const SPRITE_SCALE = 4;
 
-// Animazione condivisa da giocatore e NPC:
-// - camminata: alterna i frame delle gambe (w1 / w2) con un rimbalzo morbido, lo zaino segue in ritardo
-// - da fermo: respiro, sbattere di ciglia casuale
-// - azioni: frame "act" (braccio teso) o "cheer" (braccia in alto) per un breve tempo, con saltello
+// animazione condivisa da giocatore e NPC
 function frameKey(walker, frame) {
   const key = frame ? `${walker.baseTexture}_${frame}` : walker.baseTexture;
   return walker.scene.textures.exists(key) ? key : walker.baseTexture;
@@ -22,8 +19,9 @@ export function animateWalker(walker, delta, speedRatio, time) {
     walker.pack.y = -24 + hop;
   } else if (speedRatio > 0.05) {
     walker.walkPhase += delta * 0.013 * Math.max(0.6, speedRatio);
+    // ciclo
     const step = Math.floor(walker.walkPhase / (Math.PI / 2)) % 4;
-    frame = step === 0 || step === 2 ? "w1" : "w2";
+    frame = step === 0 ? "w1" : step === 2 ? "w2" : null;
     const bob = Math.abs(Math.sin(walker.walkPhase)) * 5 * speedRatio;
     walker.sprite.y = -bob + hop;
     walker.pack.y = -24 - Math.abs(Math.sin(walker.walkPhase - 0.5)) * 5 * speedRatio + hop;
@@ -41,7 +39,7 @@ export function animateWalker(walker, delta, speedRatio, time) {
   if (walker.sprite.texture.key !== key) walker.sprite.setTexture(key);
 }
 
-// Avvia un'azione: frame dedicato + piccolo saltello.
+// avvia un'azione
 export function playAction(walker, frame = "act", duration = 420, hop = 8) {
   walker.actionFrame = frame;
   walker.actionUntil = walker.scene.time.now + duration;
@@ -51,14 +49,14 @@ export function playAction(walker, frame = "act", duration = 420, hop = 8) {
   }
 }
 
-// Protagonista: sprite + zaino BIONOMAD+ opzionale, movimento con accelerazione.
+// protagonista
 export class Player extends Phaser.GameObjects.Container {
   constructor(scene, x, y, { texture = "hero", withPack = false, floor = [430, 490], obstacles = [], worldWidth } = {}) {
     super(scene, x, y);
     this.pack = scene.add.image(-30, -24, "pack").setOrigin(0.5, 1).setScale(SPRITE_SCALE);
     this.sprite = scene.add.image(0, 0, texture).setOrigin(0.5, 1).setScale(SPRITE_SCALE);
     this.baseTexture = texture;
-    // Ombra a retino sotto i piedi
+    // ombra a retino sotto i piedi
     this.shadow = scene.add.graphics();
     this.shadow.fillStyle(0x1c2839, 0.5);
     for (let i = 0; i < 12; i += 1) this.shadow.fillRect(-24 + i * 4 + ((i % 2) * 0), (i % 2) * 2 - 2, 4, 2);
@@ -77,7 +75,7 @@ export class Player extends Phaser.GameObjects.Container {
     this.frozen = false;
   }
 
-  // Ingombro dei piedi sul pavimento (vista 2.5D): largo come il corpo, basso.
+  // ingombro dei piedi sul pavimento (vista 2.5D)
   collides(x, y) {
     const left = x - 18;
     const right = x + 18;
@@ -109,7 +107,7 @@ export class Player extends Phaser.GameObjects.Container {
     this.velocity.x += (moveX * this.speed - this.velocity.x) * smoothing;
     this.velocity.y += (moveY * this.speed * 0.6 - this.velocity.y) * smoothing;
 
-    // Collisioni: si prova a muoversi su X e su Y separatamente, così si "scivola" lungo gli ostacoli.
+    // collisioni
     const nextX = Phaser.Math.Clamp(this.x + this.velocity.x * seconds, 20, this.worldWidth - 20);
     if (!this.collides(nextX, this.y)) this.x = nextX;
     else this.velocity.x = 0;
@@ -117,7 +115,7 @@ export class Player extends Phaser.GameObjects.Container {
     if (!this.collides(this.x, nextY)) this.y = nextY;
     else this.velocity.y = 0;
 
-    // Da fermo ogni tanto si gira a controllare la pianta nello zaino.
+    // da fermo ogni tanto si gira a controllare la pianta nello zaino
     const moving = moveX !== 0 || moveY !== 0;
     this.idleTime = moving || this.frozen ? 0 : (this.idleTime ?? 0) + delta;
     if (this.idleTime > 3200 && !this.glancing) {
@@ -131,7 +129,7 @@ export class Player extends Phaser.GameObjects.Container {
       });
     }
 
-    // Girata morbida: lo sprite si "schiaccia" e si riapre dall'altro lato.
+    // girata morbida
     if (moveX !== 0) {
       this.facing = moveX > 0 ? 1 : -1;
       this.glancing = false;

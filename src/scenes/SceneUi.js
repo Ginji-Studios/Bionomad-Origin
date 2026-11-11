@@ -1,6 +1,6 @@
 import { addCornerHints, addHud, addObjectiveBox, bodyText, COLORS, fadeIn, goTo, hex } from "../ui/theme.js";
 
-// Cornice comune delle scene di gioco: sfondo, HUD ossigeno, obiettivo in basso, ESC per il menu.
+// cornice comune delle scene di gioco
 export function addSceneChrome(scene, { location = "ITALIA", flag = "flag_it", objective, oxygen = 1, background = COLORS.bg } = {}) {
   const { width, height } = scene.scale;
   fadeIn(scene);
@@ -13,7 +13,7 @@ export function addSceneChrome(scene, { location = "ITALIA", flag = "flag_it", o
   return { hud, objective: objectiveBox };
 }
 
-// Etichetta con il font pixel "VT323" (le dimensioni vecchie vengono ingrandite per restare leggibili).
+// etichetta in VT323 (le vecchie dimensioni vengono ingrandite)
 export function addLabel(scene, text, x, y, color = hex(COLORS.text), size = "18px") {
   const px = Math.round(parseInt(size, 10) * 1.4);
   return bodyText(scene, x, y, text, { size: px }).setColor(color);

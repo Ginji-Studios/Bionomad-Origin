@@ -1,9 +1,6 @@
-// Sprite pixel-art generati via codice (nessun file immagine necessario).
-// Ogni riga è una stringa: ogni carattere è un pixel, "." = trasparente.
-// Quando avrete gli sprite definitivi (es. da Aseprite) basta caricarli in PreloadScene
-// con le stesse chiavi ("hero", "pack", ...) e il resto del gioco continua a funzionare.
+// sprite pixel-art generati via codice (nessun file immagine necessario)
 
-// Proporzioni "chibi" come nelle tavole: testa grande (metà altezza), corpo compatto.
+// proporzioni "chibi" come nelle tavole
 const HERO = [
   "....hhhhhh....",
   "..hhhhhhhhhh..",
@@ -28,23 +25,22 @@ const HERO = [
   "..kkkk..kkkk.."
 ];
 
-// Frame di animazione: si sostituiscono solo alcune righe dello sprite base.
+// frame di animazione
 const withRows = (rows, changes) =>
   rows.map((row, y) => (typeof changes[y] === "function" ? changes[y](row) : changes[y] ?? row));
 const FRAME_ROWS = {
-  // Passo: gambe divaricate
-  w1: { 17: "..bbbb..bbbb..", 18: "..bbb....bbb..", 19: ".bbb......bbb.", 20: ".kkkk....kkkk." },
-  // Passaggio: una gamba sollevata
-  w2: { 18: "....bbbbbb....", 19: "....bbb.bbb...", 20: "...kkkk.kkk..." },
-  // Azione: braccio teso in avanti (raccogliere, annaffiare, premere)
+  // passo visto di fronte
+  w1: { 13: ".srrrrrrrrrrr.", 14: "..RRRRRRRRRRs.", 19: "..kkkk..bbb...", 20: "........kkkk.." },
+  w2: { 13: ".rrrrrrrrrrrs.", 14: ".sRRRRRRRRRR..", 19: "...bbb..kkkk..", 20: "..kkkk........" },
+  // azione
   act: { 12: "..rrrrrrrrrrss", 13: "..rrrrrrrrrr..", 14: "..RRRRRRRRRR.." },
-  // Esulta: braccia in alto
+  // esulta
   cheer: { 9: (row) => `s${row.slice(1, -1)}s`, 10: (row) => `s${row.slice(1, -1)}s`, 11: "srrrrrrrrrrrrs", 13: "..rrrrrrrrrr..", 14: "..RRRRRRRRRR.." },
-  // Occhi chiusi
+  // occhi chiusi
   blink: { 6: ".hssssssssssh." }
 };
 
-// Variante con mascherina filtrante, usata all'aperto (aria irrespirabile).
+// variante con mascherina, per quando si è all'aperto
 const HERO_MASKED = HERO.map((row, y) => {
   if (y === 8) return "..sMMMMMMMMs..";
   if (y === 9) return "...MMFMMFMM...";
@@ -52,7 +48,7 @@ const HERO_MASKED = HERO.map((row, y) => {
   return row;
 });
 
-// Palette persone: quasi monocromatica (navy / pietra / acciaio), ruggine solo sul protagonista.
+// palette persone
 const HERO_PALETTE = {
   h: "#1c2839",
   s: "#e8dccd",
@@ -67,10 +63,10 @@ const HERO_PALETTE = {
   F: "#5e7f94"
 };
 
-// Varianti: cambiano solo capelli / maglia / pantaloni.
+// varianti
 const HERO_VARIANTS = {
   hero: {},
-  // Protagonisti per origine
+  // protagonisti per origine
   hero_delhi: { h: "#16181c", s: "#b98a6a", S: "#9a6e52", r: "#d98a4b", R: "#b06a35", b: "#dadfda", B: "#a3a9a6" },
   hero_milano: {},
   hero_reykjavik: { h: "#d8c48f", s: "#f3e6da", S: "#dcc8b6", r: "#5e7f94", R: "#163c4d", b: "#3b4f5c", B: "#2a3a45" },
@@ -125,7 +121,7 @@ const POT_PLANT = [
   "....pppp...."
 ];
 
-// Vasi in "pietra" chiara come nei disegni tecnici BIODOM, foglie salvia.
+// vasi in "pietra" chiara come nei disegni tecnici BIODOM, foglie salvia
 const PLANT_PALETTE = {
   g: "#7e9c8c",
   G: "#3f6560",
@@ -189,7 +185,7 @@ const LEAF = [".gg...", "gGGgg.", ".gGGGg", "...gg."];
 
 const BATTERY = ["kkkkkkkkk.", "kgggggggkk", "kgggggggkk", "kkkkkkkkk."];
 
-// Active Pack: cartuccia a micro-alghe ad aggancio rapido
+// active Pack
 const ACTIVE_PACK = [
   ".kkkkkkkkkk.",
   "kwwyywwwwwwk",
@@ -201,7 +197,7 @@ const ACTIVE_PACK = [
   ".kkkkkkkkkk."
 ];
 
-// Home Hub: serra domestica con stazione di ricarica alla base
+// home Hub
 const HOME_HUB = [
   "kkkkkkkkkkkkkkkk",
   "kwwwwwwwwwwwwwwk",
@@ -220,6 +216,24 @@ const HOME_HUB = [
   "kkkkkkkkkkkkkkkk",
   ".kk..........kk."
 ];
+
+// logotipo "o₂rigin"
+const TITLE_GLYPHS = {
+  o: ["", "", "..####..", ".######.", "##....##", "##....##", "##....##", ".######.", "..####.."],
+  two: ["", "", "", "", "", "", ".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+  r: ["", "", "##.####", "#######", "###....", "##.....", "##.....", "##.....", "##....."],
+  i: ["##", "##", "", "##", "##", "##", "##", "##", "##"],
+  g: ["", "", "..######", ".#######", "##....##", "##....##", "##....##", ".#######", "..######", "......##", "#######.", ".#####.."],
+  n: ["", "", "##.####.", "########", "###...##", "##....##", "##....##", "##....##", "##....##"]
+};
+export const TITLE_WORD = ["o", "two", "r", "i", "g", "i", "n"];
+
+function glyphRows(rows) {
+  const width = Math.max(...rows.map((r) => r.length), 1);
+  const out = [];
+  for (let y = 0; y < 13; y += 1) out.push((rows[y] ?? "").padEnd(width, "."));
+  return out;
+}
 
 const HEART = [
   ".rr.rr.",
@@ -257,7 +271,7 @@ const FLAG_IS = [
 const CHECK = ["......w", ".....w.", "w...w..", ".w.w...", "..w...."];
 const CROSS = ["w...w", ".w.w.", "..w..", ".w.w.", "w...w"];
 
-function makeTexture(scene, key, rows, palette) {
+export function makeTexture(scene, key, rows, palette) {
   if (scene.textures.exists(key)) {
     return;
   }
@@ -297,6 +311,13 @@ export function registerPixelTextures(scene) {
   makeTexture(scene, "battery", BATTERY, { k: "#163c4d", g: "#7e9c8c" });
   makeTexture(scene, "active_pack", ACTIVE_PACK, { k: "#163c4d", w: "#dfe7ea", g: "#7e9c8c", G: "#3f6560", y: "#e8c66a" });
   makeTexture(scene, "home_hub", HOME_HUB, { k: "#163c4d", w: "#dfe7ea", g: "#7e9c8c", G: "#3f6560", t: "#6e5434", p: "#a3a9a6", P: "#6e7673", s: "#5e7f94", b: "#163c4d", r: "#b4553f" });
+  for (const [name, rows] of Object.entries(TITLE_GLYPHS)) {
+    const full = glyphRows(rows);
+    makeTexture(scene, `title_${name}`, full, { "#": name === "two" ? "#5e7f94" : "#163c4d" });
+    // ombra a retino (un pixel sì e uno no)
+    const shadow = full.map((row, y) => [...row].map((ch, x) => (ch === "#" && (x + y) % 2 === 0 ? "#" : ".")).join(""));
+    makeTexture(scene, `title_${name}_sh`, shadow, { "#": "#9fb4c2" });
+  }
   makeTexture(scene, "heart", HEART, { r: "#b4553f" });
   makeTexture(scene, "flag_it", FLAG_IT, { g: "#5c7a6b", w: "#f1f0ed", r: "#b4553f" });
   makeTexture(scene, "flag_in", FLAG_IN, { o: "#d98a4b", w: "#f1f0ed", b: "#163c4d", g: "#5c7a6b" });
@@ -305,7 +326,7 @@ export function registerPixelTextures(scene) {
   makeTexture(scene, "cross", CROSS, { w: "#f1f0ed" });
 }
 
-// Sprite del protagonista in base all'origine (delhi / milano / reykjavik).
+// sprite del protagonista in base all'origine
 export function characterTexture(originId, masked = false) {
   const key = HERO_VARIANTS[`hero_${originId}`] ? `hero_${originId}` : "hero_milano";
   return masked ? `${key}_mask` : key;

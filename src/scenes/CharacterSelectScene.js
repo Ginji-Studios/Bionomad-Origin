@@ -8,7 +8,7 @@ const CARD_W = 210;
 const CARD_H = 296;
 const GAP = 34;
 
-// Selezione dell'origine: la città di partenza determina la difficoltà (inquinamento PM2.5).
+// selezione dell'origine
 export class CharacterSelectScene extends Phaser.Scene {
   constructor() {
     super("CharacterSelectScene");
@@ -16,7 +16,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create(data = {}) {
     const { width, height } = this.scale;
-    this.next = data.next ?? "IntroScene";
+    this.next = data.next ?? "TutorialScene";
     this.cards = [];
     this.confirming = false;
     const saved = ORIGINS.findIndex((origin) => origin.id === this.registry.get("origin"));
@@ -26,12 +26,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     addTopBar(this, "ORIGINE", "GIOCATORE 1");
 
     pixelText(this, width / 2, 70, "SCEGLI LA TUA ORIGINE", { size: 24, origin: 0.5, shadow: true, fit: 760 });
-    pixelText(this, width / 2, 98, "SELEZIONANE UNA SOLA", { size: 8, color: COLORS.steel, origin: 0.5 });
+    pixelText(this, width / 2, 106, "SELEZIONANE UNA SOLA", { size: 8, color: COLORS.steel, origin: 0.5 });
 
     const startX = width / 2 - (ORIGINS.length * CARD_W + (ORIGINS.length - 1) * GAP) / 2;
     ORIGINS.forEach((origin, index) => this.createCard(origin, index, startX + index * (CARD_W + GAP), 140));
 
-    // Indicatore sopra la carta scelta
+    // indicatore sopra la carta scelta
     this.pointer = this.add.graphics();
     this.pointer.fillStyle(COLORS.red, 1);
     this.pointer.fillRect(-12, -12, 24, 4);
@@ -65,7 +65,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const number = pixelText(this, 12, 12, `[#${String(index + 1).padStart(2, "0")}]`, { size: 8, color: COLORS.steel });
     const flagFrame = drawPanel(this.add.graphics(), cx - 64, 34, 128, 98, { fill: COLORS.bg, border: COLORS.ink });
     const flag = this.add.image(cx, 83, origin.flag).setScale(10);
-    // Il cittadino di quella città (cambia aspetto in base all'origine)
+    // il cittadino di quella città (cambia aspetto in base all'origine)
     const citizen = this.add.image(CARD_W - 30, 136, characterTexture(origin.id, true)).setOrigin(0.5, 1).setScale(2.5);
 
     const city = pixelText(this, cx, 152, origin.city, { size: 16, origin: 0.5, fit: CARD_W - 20 });
@@ -76,7 +76,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     info.fillRect(14, 192, CARD_W - 28, 2);
     const pm = bodyText(this, cx, 212, `PM2.5  ${origin.pm25.toFixed(1)}`, { size: 26, color: COLORS.ink, origin: 0.5 });
 
-    // Barra di difficoltà a 4 tacche
+    // barra di difficoltà a 4 tacche
     for (let i = 0; i < 4; i += 1) {
       drawPanel(info, cx - 70 + i * 36, 230, 32, 18, { fill: i < origin.level ? origin.color : COLORS.paper, border: COLORS.ink, borderWidth: 2 });
     }
@@ -128,11 +128,11 @@ export class CharacterSelectScene extends Phaser.Scene {
       }
 
       this.tweens.killTweensOf([card.flag, card.citizen]);
-      card.flag.setAngle(0);
+      card.flag.setScale(10);
       card.citizen.y = 136;
       if (selected) {
         this.tweens.add({ targets: card.citizen, y: 128, duration: 300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-        this.tweens.add({ targets: card.flag, angle: { from: -3, to: 3 }, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        this.tweens.add({ targets: card.flag, scaleY: 10.6, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       }
     });
 

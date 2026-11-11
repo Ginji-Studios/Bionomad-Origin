@@ -1,14 +1,16 @@
 import Phaser from "../phaser.js";
-import { bodyText, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
+import { PlantSensors } from "../input/PlantSensors.js";
+import { TITLE_WORD } from "../ui/pixelSprites.js";
+import { bodyText, COLORS, showToast, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
 
-// Menu principale in stile "schermata di avvio": voci navigabili con W/S, frecce o mouse.
+// menu principale in stile "schermata di avvio"
 const MENU_ITEMS = [
-  { label: "GIOCA", hint: "Scegli l'origine e affronta una giornata.", target: "CharacterSelectScene" },
-  { label: "TUTORIAL", hint: "Impara i gesti di cura (e quelli da evitare).", target: "TutorialScene" },
-  { label: "CREDITI", hint: "Chi ha costruito BIODOM+.", target: "CreditsScene" }
+  { label: "GIOCA", hint: "Indossa BIONOMAD+ e sopravvivi alla giornata.", target: "CharacterSelectScene", cursor: "pot_flower", scale: 2 },
+  { label: "CREDITI", hint: "Scopri BIODOM e i suoi dispositivi.", target: "CreditsScene", cursor: "pot_plant", scale: 2 },
+  { label: "COLLEGA PIANTA", hint: "Collega l'Elegoo via USB (Chrome o Edge).", action: "plant", cursor: "active_pack", scale: 2.4 }
 ];
 
-const PANEL = { x: 70, y: 196, w: 380, h: 216 };
+const PANEL = { x: 70, y: 210, w: 380, h: 218 };
 const ROW_H = 44;
 
 export class MenuScene extends Phaser.Scene {
@@ -22,7 +24,7 @@ export class MenuScene extends Phaser.Scene {
     this.rows = [];
     fadeIn(this, 400);
 
-    // Sfondo a quadretti che scorre lentamente
+    // sfondo a quadretti che scorre lentamente
     const grid = paperGrid(this, { step: 48 });
     grid.setScale(1.12).setPosition(-48, -48);
     this.tweens.add({ targets: grid, x: 0, y: 0, duration: 7000, repeat: -1 });
@@ -40,15 +42,43 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createTitle() {
-    const title = this.add.container(PANEL.x, 76);
-    const o = pixelText(this, 0, 0, "O", { size: 48, color: COLORS.ink, shadow: true });
-    const two = pixelText(this, 48, 32, "2", { size: 16, color: COLORS.red });
-    const rigin = pixelText(this, 68, 0, "RIGIN", { size: 48, color: COLORS.ink, shadow: true });
-    title.add([o, two, rigin]);
+    const x0 = PANEL.x;
+    const scale = 7;
+    const baseY = 54;
 
-    title.setAlpha(0).y = 46;
-    this.tweens.add({ targets: title, y: 76, alpha: 1, duration: 650, ease: "Back.easeOut" });
-    this.tweens.add({ targets: two, y: 26, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    // etichetta "bionomad" con filetto, come una testata
+    const brand = pixelText(this, x0 + 2, baseY - 10, "B I O N O M A D", { size: 16, color: COLORS.steel });
+    brand.setAlpha(0);
+    this.tweens.add({ targets: brand, alpha: 1, duration: 400 });
+
+    // lettere del logotipo
+    let x = x0;
+    const top = baseY + 18;
+    this.titleLetters = [];
+    TITLE_WORD.forEach((name, i) => {
+      const tex = this.textures.get(`title_${name}`).getSourceImage();
+      const shadow = this.add.image(x + scale, top + scale, `title_${name}_sh`).setOrigin(0, 0).setScale(scale);
+      const letter = this.add.image(x, top, `title_${name}`).setOrigin(0, 0).setScale(scale);
+      [shadow, letter].forEach((img) => {
+        img.y -= 60;
+        img.setAlpha(0);
+        this.tweens.add({ targets: img, y: img.y + 60, alpha: 1, duration: 520, delay: 200 + i * 90, ease: "Bounce.easeOut" });
+      });
+      this.titleLetters.push({ letter, shadow, baseY: top, phase: i * 0.7 });
+      x += (tex.width + (name === "two" ? 1 : 2)) * scale;
+    });
+
+    this.titleWaveStart = this.time.now + 200 + TITLE_WORD.length * 90 + 600;
+  }
+
+  update(time) {
+    // onda leggera sulle lettere del titolo (un "respiro" di 1 pixel)
+    if (!this.titleLetters || time < this.titleWaveStart) return;
+    this.titleLetters.forEach(({ letter, shadow, baseY, phase }) => {
+      const offset = Math.round(Math.sin(time * 0.003 + phase) * 1.5) * 2;
+      letter.y = baseY + offset;
+      shadow.y = baseY + 7 + offset / 2;
+    });
   }
 
   createMenuPanel() {
@@ -63,13 +93,13 @@ export class MenuScene extends Phaser.Scene {
     this.highlight.setPosition(x + 14, y + 18);
 
     this.leaf = this.add.image(x + 32, y + 18, "pot_plant").setScale(2);
-    this.tweens.add({ targets: this.leaf, angle: { from: -8, to: 8 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
     panel.add([g, this.highlight, this.leaf]);
 
     MENU_ITEMS.forEach((item, index) => {
       const rowY = y + 18 + index * ROW_H;
-      const label = pixelText(this, x + 58, rowY + 10, item.label, { size: 16, color: COLORS.ink });
+      const text = item.action === "plant" && PlantSensors.state.connected ? "PIANTA OK" : item.label;
+      const label = pixelText(this, x + 58, rowY + 10, text, { size: 16, color: COLORS.ink });
       const zone = this.add.zone(x + w / 2, rowY + ROW_H / 2 - 4, w - 28, ROW_H).setInteractive({ useHandCursor: true });
       zone.on("pointerover", () => this.select(index));
       zone.on("pointerdown", () => {
@@ -82,7 +112,7 @@ export class MenuScene extends Phaser.Scene {
 
     g.fillStyle(COLORS.panelLight, 1);
     g.fillRect(x + 14, y + h - 62, w - 28, 2);
-    // Il suggerimento va a capo dentro al riquadro
+    // il suggerimento va a capo dentro al riquadro
     this.hint = bodyText(this, x + 16, y + h - 54, "", { size: 22, color: COLORS.steel, wrap: w - 32, lineSpacing: -4 });
     panel.add(this.hint);
 
@@ -91,7 +121,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createStage(width, height) {
-    // Sole velato, città in silhouette e il cittadino con lo zaino che respira
+    // sole velato, skyline e il cittadino con lo zaino
     const g = this.add.graphics();
     pixelDisc(g, 700, 250, 110, COLORS.panelLight, 1, 6);
     pixelDisc(g, 700, 250, 86, COLORS.bgSoft, 1, 6);
@@ -107,9 +137,9 @@ export class MenuScene extends Phaser.Scene {
     const body = this.add.image(0, 0, "hero_milano_mask").setOrigin(0.5, 1).setScale(6);
     hero.add([pack, body]);
     this.tweens.add({ targets: body, y: -4, duration: 1100, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    this.tweens.add({ targets: pack, y: -40, angle: -3, duration: 1100, delay: 150, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: pack, y: -40, duration: 1100, delay: 150, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
-    // Bollicine di ossigeno che escono dalle piante dello zaino
+    // bollicine di ossigeno che escono dalle piante dello zaino
     this.time.addEvent({
       delay: 380,
       loop: true,
@@ -124,7 +154,7 @@ export class MenuScene extends Phaser.Scene {
       }
     });
 
-    // Etichetta "O2+" fluttuante
+    // etichetta "O2+" fluttuante
     const tag = this.add.container(800, 170);
     const tagBg = drawPanel(this.add.graphics(), -34, -16, 68, 32, { fill: COLORS.paper, border: COLORS.ink });
     tag.add([tagBg, pixelText(this, 0, 0, "O2+", { size: 8, color: COLORS.ink, origin: 0.5 })]);
@@ -149,13 +179,45 @@ export class MenuScene extends Phaser.Scene {
       r.label.setColor(hex(i === index ? COLORS.paper : COLORS.ink));
       this.tweens.add({ targets: r.label, x: PANEL.x + (i === index ? 66 : 58), duration, ease: "Cubic.easeOut" });
     });
-    this.leaf.setTexture(index === 0 ? "pot_flower" : "pot_plant");
-    this.hint.setText(MENU_ITEMS[index].hint);
+    // ogni voce ha la sua piantina-cursore, che "spunta" quando cambia
+    const item = MENU_ITEMS[index];
+    if (this.leaf.texture.key !== item.cursor || instant) {
+      this.leaf.setTexture(item.cursor);
+      this.leaf.setScale(instant ? item.scale : 0.4);
+      this.tweens.add({ targets: this.leaf, scale: item.scale, duration: 260, ease: "Back.easeOut" });
+    }
+    // il suggerimento deve stare nel riquadro
+    this.hint.setFontSize(22).setText(MENU_ITEMS[index].hint);
+    let size = 22;
+    while (this.hint.height > 44 && size > 14) {
+      size -= 2;
+      this.hint.setFontSize(size);
+    }
+  }
+
+  async connectPlant() {
+    const row = this.rows[MENU_ITEMS.findIndex((item) => item.action === "plant")];
+    if (PlantSensors.state.connected) {
+      showToast(this, "La pianta è già collegata.");
+      return;
+    }
+    try {
+      await PlantSensors.connect();
+      row.label.setText("PIANTA OK");
+      showToast(this, "Pianta collegata! I sensori sono attivi.", { color: 0x5c7a6b });
+      PlantSensors.send("G");
+    } catch (error) {
+      showToast(this, PlantSensors.supported ? "Collegamento annullato o porta occupata." : "Serve Chrome o Edge su localhost.", { color: COLORS.red });
+    }
   }
 
   confirm() {
     const item = MENU_ITEMS[this.selectedIndex];
+    if (item.action === "plant") {
+      this.connectPlant();
+      return;
+    }
     this.tweens.add({ targets: this.rows[this.selectedIndex].label, scale: 1.08, duration: 90, yoyo: true });
-    goTo(this, item.target, item.target === "CharacterSelectScene" ? { next: "IntroScene" } : undefined);
+    goTo(this, item.target);
   }
 }

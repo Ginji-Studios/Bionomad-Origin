@@ -1,8 +1,8 @@
 import Phaser from "../phaser.js";
-import { registerPixelTextures } from "../ui/pixelSprites.js";
+import { makeTexture, registerPixelTextures } from "../ui/pixelSprites.js";
+import { registerTeamTextures } from "../ui/teamSprites.js";
 
-// I font pixel vengono caricati da JS provando più percorsi, così funzionano sia con
-// "npm run dev" (Vite serve /public alla radice) sia con un server statico sulla cartella del progetto.
+// i font si caricano da js provando più cartelle (vite o server statico)
 const FONTS = [
   { family: "Press Start 2P", file: "PressStart2P.woff2" },
   { family: "VT323", file: "VT323.woff2" }
@@ -30,9 +30,10 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   async create() {
-    // I testi Phaser vengono disegnati su canvas: i font devono essere pronti prima.
+    // I testi Phaser vengono disegnati su canvas
     await Promise.all(FONTS.map(loadFont));
     registerPixelTextures(this);
+    registerTeamTextures(this, makeTexture);
     this.scene.start("MenuScene");
   }
 }

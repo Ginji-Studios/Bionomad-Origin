@@ -7,9 +7,7 @@ import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse, buildStreet } from "../world/locations.js";
 import { addHud, addObjectiveBox, bodyText, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
-// Esito della run.
-// A = Fine giornata: il cittadino rientra a casa, aggancia lo zaino all'Home Hub e l'O2 si riempie.
-// B = Task fallite · Game over: l'ossigeno finisce in strada, lo schermo si spegne.
+// esito della run
 export class EndScene extends Phaser.Scene {
   constructor() {
     super("EndScene");
@@ -26,7 +24,7 @@ export class EndScene extends Phaser.Scene {
     fadeIn(this, 500);
 
     const { width, height } = this.scale;
-    this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg);
+    this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg).setDepth(-100);
 
     this.wait = (ms) => new Promise((resolve) => this.time.delayedCall(ms, resolve));
     this.walk = (x, duration) =>
@@ -59,7 +57,7 @@ export class EndScene extends Phaser.Scene {
     animateWalker(this.player, delta, this.walking ? this.walkSpeed : 0, time);
   }
 
-  // ---------- Fine giornata ----------
+  // fine giornata
 
   async playWin() {
     const world = buildHouse(this, { evening: true });
@@ -67,12 +65,12 @@ export class EndScene extends Phaser.Scene {
     const caption = addObjectiveBox(this, "20:30 · RITORNO A CASA");
     this.caption = caption;
 
-    // Home Hub accanto alla serra: stazione di ricarica dello zaino
+    // home Hub accanto alla serra
     const hubX = 560;
     const hub = this.add.image(hubX, 420, "home_hub").setOrigin(0.5, 1).setScale(6).setDepth(420);
     const glow = this.add.rectangle(hubX, 420 - 6 * 10.5, 6 * 14, 6 * 9, COLORS.paper, 0).setDepth(421);
 
-    // La porta è aperta: il cittadino entra
+    // la porta è aperta
     const door = world.door;
     const opening = this.add.rectangle(door.x + 42, (door.top + 380) / 2, 72, 380 - door.top - 12, COLORS.inkDeep).setDepth(5);
     this.player = new Player(this, world.points.door.x, 440, { texture: characterTexture(this.origin.id, true), withPack: true, floor: world.floor });
@@ -89,7 +87,7 @@ export class EndScene extends Phaser.Scene {
     if (this.summaryShown) return;
     await this.wait(300);
 
-    // Lo zaino viene agganciato all'Home Hub
+    // lo zaino viene agganciato all'Home Hub
     caption.setText("AGGANCIA LO ZAINO ALL'HOME HUB");
     this.player.act("act", 600, 0);
     const pack = this.add.image(this.player.x + 30, this.player.y - 24, "pack").setOrigin(0.5, 1).setScale(4).setDepth(450).setFlipX(true);
@@ -114,7 +112,7 @@ export class EndScene extends Phaser.Scene {
     this.showSummary();
   }
 
-  // ---------- Game over ----------
+  // game over
 
   async playLose() {
     const { width, height } = this.scale;
@@ -126,17 +124,17 @@ export class EndScene extends Phaser.Scene {
     this.player = new Player(this, 80, 450, { texture: characterTexture(this.origin.id, true), withPack: true, floor: [400, 482] });
     this.player.frozen = true;
 
-    // Allarme rosso a impulsi
+    // allarme rosso a impulsi
     const alarm = this.add.rectangle(width / 2, height / 2, width, height, COLORS.red, 0).setDepth(900);
     this.tweens.add({ targets: alarm, fillAlpha: 0.22, duration: 300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
-    // Cammina sempre più lento mentre l'O2 scende
+    // cammina sempre più lento mentre l'O2 scende
     this.tweens.add({ targets: this, walkSpeed: 0.2, duration: 2400 });
     this.tweens.addCounter({ from: this.hud.oxygen, to: 0, duration: 2600, ease: "Sine.easeIn", onUpdate: (t) => this.hud.setOxygen(t.getValue()) });
     await this.walk(width / 2, 2600);
     if (this.summaryShown) return;
 
-    // Il cittadino si accascia
+    // il cittadino si accascia
     caption.setText("OSSIGENO ESAURITO");
     this.cameras.main.shake(400, 0.008);
     this.player.sprite.setTint(0x9fb4c2);
@@ -167,7 +165,7 @@ export class EndScene extends Phaser.Scene {
     this.showSummary();
   }
 
-  // ---------- Effetti ----------
+  // effetti
 
   bubble(x, y) {
     const b = this.add.graphics().setDepth(950);
@@ -192,9 +190,9 @@ export class EndScene extends Phaser.Scene {
     this.tweens.add({ targets: bubble, alpha: 0, duration: 250, delay: 1800, onComplete: () => bubble.destroy() });
   }
 
-  // ---------- Recap animato ----------
+  // recap animato
 
-  // Testo che compare lettera per lettera
+  // testo che compare lettera per lettera
   typewrite(label, full, speed = 18) {
     label.setText("");
     let i = 0;
@@ -237,11 +235,11 @@ export class EndScene extends Phaser.Scene {
     box.add(pixelText(this, x + 14, y + 11, "RECAP DELLA GIORNATA", { size: 8, color: COLORS.paper }));
     box.add(pixelText(this, x + w - 14, y + 11, this.origin.city, { size: 8, color: COLORS.steelLight, origin: [1, 0] }));
 
-    // Il pannello si "apre" dal centro
+    // il pannello si "apre" dal centro
     box.setScale(1, 0.02).setY(y + h / 2 - (y + h / 2) * 0.02);
     await new Promise((resolve) => this.tweens.add({ targets: box, scaleY: 1, y: 0, duration: 380, ease: "Cubic.easeOut", onComplete: resolve }));
 
-    // Badge A / B che "timbra"
+    // badge A / B che "timbra"
     const badge = this.add.container(x + 50, y + 70);
     const bg = pixelDisc(this.add.graphics(), 0, 0, 24, win ? 0x5c7a6b : COLORS.red, 1, 2);
     badge.add([bg, pixelText(this, 0, 0, win ? "A" : "B", { size: 16, color: COLORS.paper, origin: 0.5 })]);
@@ -266,7 +264,7 @@ export class EndScene extends Phaser.Scene {
     g.fillRect(x + 24, y + 156, w - 48, 2);
     box.add(pixelText(this, x + 24, y + 172, "TAPPE DELLA RUN", { size: 8, color: COLORS.steel }));
 
-    // Le tappe compaiono una alla volta, con il timbro ✓ / ✗
+    // le tappe compaiono una alla volta, con il timbro ✓ / ✗
     const events = this.run?.events ?? [];
     for (let i = 0; i < events.length; i += 1) {
       const id = events[i];
@@ -294,7 +292,7 @@ export class EndScene extends Phaser.Scene {
       await this.wait(220);
     }
 
-    // Barra O2 finale con percentuale che conta
+    // barra O2 finale con percentuale che conta
     const o2 = { value: 0 };
     const bar = this.add.graphics();
     const percent = pixelText(this, x + w - 30, y + 194, "0%", { size: 8, color: COLORS.ink, origin: [1, 0] });
@@ -318,7 +316,7 @@ export class EndScene extends Phaser.Scene {
     );
     if (!win) percent.setText("0%");
 
-    // Il cittadino saluta (o resta a terra)
+    // il cittadino saluta (o resta a terra)
     const hero = this.add.image(x + w - 145, y + 350, characterTexture(this.origin.id, !win)).setOrigin(0.5, 1).setScale(4).setAlpha(0);
     box.add(hero);
     this.tweens.add({ targets: hero, alpha: 1, duration: 300 });
