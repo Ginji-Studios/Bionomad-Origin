@@ -1,8 +1,9 @@
 # Bionomad Origin · O₂RIGIN
 
-Videogioco 2D realizzato con Phaser. Durante lo sviluppo l'input della pianta è simulato da tastiera; in seguito verrà sostituito da `SerialPlantInput`.
+Videogioco 2D per il Laboratorio di Sintesi C1 di Design della Comunicazione per il Politecnico di Milano, realizzato con Phaser. 
+Durante lo sviluppo l'input della pianta è simulato da tastiera; in seguito verrà sostituito da `SerialPlantInput`.
 
-## Avvio
+## Avvio del gioco
 
 ```bash
 npm install
@@ -17,28 +18,35 @@ npm run dev
    - **Medio**: + una task di cura in più (illuminala, scaldala, nutrila, dalle un sorso).
    - **Difficile**: + una cura e + un rimedio a una negligenza (leva lasciata aperta, fiala sbagliata nel pozzetto, pianta surriscaldata o rimasta al buio).
 3. **Cutscene**: il cittadino indossa BIONOMAD+ ed esce di casa.
-4. **3 eventi** pescati a caso tra 11 in `src/config/events.js` (5 nel gioco, 5 sulla pianta vera), giocati in ordine di orario. Tra un evento e l'altro si attraversa la città a piedi.
+4. **3 eventi** pescati a caso tra 10 in `src/config/events.js` (5 nel gioco, 5 sulla pianta vera), giocati in ordine di orario. Tra un evento e l'altro si attraversa la città a piedi.
 5. **Fine giornata** (tutte le task completate) oppure **Task fallite · Game over** (ossigeno a zero).
 
-Comandi: WASD / frecce per muoversi, SPAZIO per interagire, ESC per il menu.
+Comandi: WASD / frecce per muoversi, SPAZIO per interagire, ESC per il menu. (in attesa del collegamento con la pianta che farà da controller)
+
+### Gesti di cura
+Ogni gesto di cura aumenta il livello di ossigeno del giocatore e permette di terminare il gioco arrivando al giusto finale:
+
+- **Illuminazione**: l'utente punta la torcia per prendersi cura della pianta e farla crescere.
+- **Idratazione**: attivazione della leva per permettere l'idratazione della pianta.
+- **Termo-regolazione**: utilizzo della torcia termica per scaldare e occuparsi della temperatura della pianta.
+- **Nutrizione**: inserire la giusta fiala nel momento del bisogno per fertilizzare correttamente la pianta.
 
 ### Negligenze
 
 Ogni negligenza costa ossigeno e viene contata nel recap finale:
 
-- **Scordarsela**: non scaldarla / raffreddarla entro il tempo indicato (la richiesta resta e il conto si ripete).
-- **Scottarla**: scaldarla molto oltre il richiesto.
-- **Allagarla**: lasciare aperta la leva dell'acqua (in qualsiasi momento, non solo durante l'irrigazione).
-- **Fiala sbagliata**: inserire nel pozzetto una fiala del colore che non corrisponde.
-- **Coprirla troppo**: tenerla al buio costa ossigeno.
+- **Shock Termico**: non scaldarla / raffreddarla entro il tempo indicato (la richiesta resta e il conto si ripete).
+- **Iper-Idratazione**: lasciare aperta la leva dell'acqua (in qualsiasi momento, non solo durante l'irrigazione).
+- **Intossicazione**: inserire nel pozzetto una fiala del colore che non corrisponde.
+- **Privazione di luce**: tenerla al buio costa ossigeno.
 
-## Pianta vera (Elegoo UNO R3)
+## Pianta vera collegata al microcontrollore tramite elettrodi (Elegoo UNO R3)
 
 Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial API.
 
-1. Carica `arduino/o2rigin_plant/o2rigin_plant.ino` sull'Elegoo (serve la libreria **CapacitiveSensor** di Paul Stoffregen). Lo schema dei collegamenti è in cima allo sketch.
-2. Avvia il gioco con `npm run dev` e aprilo in **Chrome o Edge** (`http://localhost:...`).
-3. Nel menu scegli **COLLEGA PIANTA** e seleziona la porta dell'Elegoo.
+1. Caricamento di `arduino/o2rigin_plant/o2rigin_plant.ino` sull'Elegoo (utilizzo della libreria **CapacitiveSensor** di Paul Stoffregen). Lo schema dei collegamenti è in cima allo sketch.
+2. Avvio del gioco con `npm run dev` e apertura in **Chrome o Edge** (`http://localhost:...`).
+3. Nel menu vi è **COLLEGA PIANTA** per selezionare la seriale a cui collegarsi (prove).
 
 | Azione sulla pianta | Sensore | Pin | Usato in |
 | --- | --- | --- | --- |
@@ -49,9 +57,9 @@ Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial 
 | Fiale colorate nel pozzetto | Resistenza nel tappo (verde 1k, blu 4.7k, rossa 10k) | A2, A3 | Casa sera (fertilizzante), task extra |
 | LED rossi / verde | — | D9, D10 / D11 | Emergenza / task riuscita |
 
-Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** scalda, **F** raffredda, **R** apre / chiude la leva dell'acqua, **1 / 2 / 3** inserisci fiala verde / blu / rossa, **0** togli fiala, **Q / E** tocca foglia sinistra / destra. Su telefono e tablet compaiono solo i tasti dell'azione richiesta.
+Senza pianta collegata si gioca da tastiera (solo ora - si giocherà solo usando al pianta come controller): **C** copri, **I** torcia, **H** scalda, **F** raffredda, **R** apre / chiude la leva dell'acqua, **1 / 2 / 3** inserisci fiala verde / blu / rossa, **0** togli fiala, **Q / E** tocca foglia sinistra / destra. Su telefono e tablet compaiono solo i tasti dell'azione richiesta.
 
-## Struttura
+## Struttura del codice
 
 - `src/config/events.js`: eventi e task. Per aggiungere un evento basta una nuova voce con `location` e `steps` (tipi: pickup, use, useSelf, talk, confirm, hold, prune, sit, exit).
 - `src/config/origins.js`: città, PM2.5 e velocità di consumo dell'ossigeno.
@@ -62,4 +70,4 @@ Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** sc
 - `src/ui/pixelSprites.js`: sprite pixel-art generati da codice (personaggi, zaino, piante, oggetti).
 - `src/input`: input simulato e futura connessione Arduino.
 
-Font: Press Start 2P e VT323 (SIL Open Font License, vedi `public/fonts`).
+Font utilizzati: Press Start 2P e VT323 (SIL Open Font License, vedi `public/fonts`).
