@@ -251,10 +251,10 @@ export class EventScene extends Phaser.Scene {
   // gesti di negligenza: costano ossigeno e vengono contati nel recap
   negligence(type) {
     const messages = {
-      forgot: "te ne sei dimenticato, la pianta ha sofferto!",
-      overheat: "troppo calore, l'hai scottata!",
-      flood: "leva dell'acqua aperta, si sta allagando!",
-      wrongVial: "fiala sbagliata! Toglila e metti quella giusta."
+      forgot: "SHOCK TERMICO · non l'hai curata in tempo!",
+      overheat: "SHOCK TERMICO · troppo calore, l'hai scottata!",
+      flood: "IPER-IDRATAZIONE · leva dell'acqua aperta!",
+      wrongVial: "INTOSSICAZIONE · fiala sbagliata, toglila!"
     };
     const cost = { forgot: 0.18, overheat: 0.12, flood: 0.2, wrongVial: 0.12 }[type] ?? 0.1;
     this.hud.setOxygen(this.hud.oxygen - cost);
@@ -262,7 +262,7 @@ export class EventScene extends Phaser.Scene {
     this.cameras.main.flash(160, 180, 85, 63);
     // sotto il pannello della pianta, sopra a tutto
     const y = this.mode === "plant" ? 420 : 116;
-    showToast(this, `NEGLIGENZA · ${messages[type] ?? "la pianta soffre"}`, { color: COLORS.red, duration: 2400, y, depth: 2100 });
+    showToast(this, messages[type] ?? "NEGLIGENZA · la pianta soffre", { color: COLORS.red, duration: 2400, y, depth: 2100 });
     this.run.negligence = (this.run.negligence ?? 0) + 1;
     this.registry.set("run", this.run);
   }
