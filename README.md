@@ -1,4 +1,4 @@
-# Bionomad Origin · O₂RIGIN
+# Bionomad · O₂RIGIN
 
 Videogioco 2D per il Laboratorio di Sintesi C1 di Design della Comunicazione per il Politecnico di Milano, realizzato con Phaser. 
 Durante lo sviluppo l'input della pianta è simulato da tastiera; in seguito verrà sostituito da `SerialPlantInput`.
