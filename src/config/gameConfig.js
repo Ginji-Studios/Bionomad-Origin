@@ -5,6 +5,7 @@ import { MenuScene } from "../scenes/MenuScene.js";
 import { CharacterSelectScene } from "../scenes/CharacterSelectScene.js";
 import { IntroScene } from "../scenes/IntroScene.js";
 import { EventScene } from "../scenes/EventScene.js";
+import { TravelScene } from "../scenes/TravelScene.js";
 import { EndScene } from "../scenes/EndScene.js";
 import { TutorialScene } from "../scenes/TutorialScene.js";
 import { CreditsScene } from "../scenes/CreditsScene.js";
@@ -21,5 +22,5 @@ export const gameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, IntroScene, EventScene, EndScene, TutorialScene, CreditsScene]
+  scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, IntroScene, TravelScene, EventScene, EndScene, TutorialScene, CreditsScene]
 };

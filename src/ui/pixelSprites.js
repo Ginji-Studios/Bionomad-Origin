@@ -28,6 +28,22 @@ const HERO = [
   "..kkkk..kkkk.."
 ];
 
+// Frame di animazione: si sostituiscono solo alcune righe dello sprite base.
+const withRows = (rows, changes) =>
+  rows.map((row, y) => (typeof changes[y] === "function" ? changes[y](row) : changes[y] ?? row));
+const FRAME_ROWS = {
+  // Passo: gambe divaricate
+  w1: { 17: "..bbbb..bbbb..", 18: "..bbb....bbb..", 19: ".bbb......bbb.", 20: ".kkkk....kkkk." },
+  // Passaggio: una gamba sollevata
+  w2: { 18: "....bbbbbb....", 19: "....bbb.bbb...", 20: "...kkkk.kkk..." },
+  // Azione: braccio teso in avanti (raccogliere, annaffiare, premere)
+  act: { 12: "..rrrrrrrrrrss", 13: "..rrrrrrrrrr..", 14: "..RRRRRRRRRR.." },
+  // Esulta: braccia in alto
+  cheer: { 9: (row) => `s${row.slice(1, -1)}s`, 10: (row) => `s${row.slice(1, -1)}s`, 11: "srrrrrrrrrrrrs", 13: "..rrrrrrrrrr..", 14: "..RRRRRRRRRR.." },
+  // Occhi chiusi
+  blink: { 6: ".hssssssssssh." }
+};
+
 // Variante con mascherina filtrante, usata all'aperto (aria irrespirabile).
 const HERO_MASKED = HERO.map((row, y) => {
   if (y === 8) return "..sMMMMMMMMs..";
@@ -173,6 +189,38 @@ const LEAF = [".gg...", "gGGgg.", ".gGGGg", "...gg."];
 
 const BATTERY = ["kkkkkkkkk.", "kgggggggkk", "kgggggggkk", "kkkkkkkkk."];
 
+// Active Pack: cartuccia a micro-alghe ad aggancio rapido
+const ACTIVE_PACK = [
+  ".kkkkkkkkkk.",
+  "kwwyywwwwwwk",
+  "kwggGgggGgwk",
+  "kwgGgggGggwk",
+  "kwggggGgggwk",
+  "kwgGgggggGwk",
+  "kwwwwwwwwwwk",
+  ".kkkkkkkkkk."
+];
+
+// Home Hub: serra domestica con stazione di ricarica alla base
+const HOME_HUB = [
+  "kkkkkkkkkkkkkkkk",
+  "kwwwwwwwwwwwwwwk",
+  "kwwwwwgGgwwwwwwk",
+  "kwwwwgGGGgwwwwwk",
+  "kwwwgGGgGGgwwwwk",
+  "kwwwwgGGGgwwwwwk",
+  "kwwwwwwtwwwwwwwk",
+  "kwwwwwwtwwwwwwwk",
+  "kwwwwppppppwwwwk",
+  "kwwwwwPPPPwwwwwk",
+  "kkkkkkkkkkkkkkkk",
+  "kssssssssssssssk",
+  "ksbbsbbsbbssrrsk",
+  "kssssssssssssssk",
+  "kkkkkkkkkkkkkkkk",
+  ".kk..........kk."
+];
+
 const HEART = [
   ".rr.rr.",
   "rrrrrrr",
@@ -230,8 +278,13 @@ function makeTexture(scene, key, rows, palette) {
 
 export function registerPixelTextures(scene) {
   for (const [key, overrides] of Object.entries(HERO_VARIANTS)) {
-    makeTexture(scene, key, HERO, { ...HERO_PALETTE, ...overrides });
-    makeTexture(scene, `${key}_mask`, HERO_MASKED, { ...HERO_PALETTE, ...overrides });
+    const palette = { ...HERO_PALETTE, ...overrides };
+    makeTexture(scene, key, HERO, palette);
+    makeTexture(scene, `${key}_mask`, HERO_MASKED, palette);
+    for (const [frame, changes] of Object.entries(FRAME_ROWS)) {
+      makeTexture(scene, `${key}_${frame}`, withRows(HERO, changes), palette);
+      makeTexture(scene, `${key}_mask_${frame}`, withRows(HERO_MASKED, changes), palette);
+    }
   }
   makeTexture(scene, "pack", PACK, PACK_PALETTE);
   makeTexture(scene, "pot_plant", POT_PLANT, PLANT_PALETTE);
@@ -242,6 +295,8 @@ export function registerPixelTextures(scene) {
   makeTexture(scene, "leaf_good", LEAF, { g: "#7e9c8c", G: "#3f6560" });
   makeTexture(scene, "leaf_bad", LEAF, { g: "#a88a5a", G: "#6e5434" });
   makeTexture(scene, "battery", BATTERY, { k: "#163c4d", g: "#7e9c8c" });
+  makeTexture(scene, "active_pack", ACTIVE_PACK, { k: "#163c4d", w: "#dfe7ea", g: "#7e9c8c", G: "#3f6560", y: "#e8c66a" });
+  makeTexture(scene, "home_hub", HOME_HUB, { k: "#163c4d", w: "#dfe7ea", g: "#7e9c8c", G: "#3f6560", t: "#6e5434", p: "#a3a9a6", P: "#6e7673", s: "#5e7f94", b: "#163c4d", r: "#b4553f" });
   makeTexture(scene, "heart", HEART, { r: "#b4553f" });
   makeTexture(scene, "flag_it", FLAG_IT, { g: "#5c7a6b", w: "#f1f0ed", r: "#b4553f" });
   makeTexture(scene, "flag_in", FLAG_IN, { o: "#d98a4b", w: "#f1f0ed", b: "#163c4d", g: "#5c7a6b" });

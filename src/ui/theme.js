@@ -36,6 +36,17 @@ export const FONTS = {
 
 export const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;
 
+// Riduce la dimensione del font finché il testo non sta nella larghezza indicata
+// (utile se il font cambia o se un testo è più lungo del previsto).
+function fitWidth(label, fit, size, step) {
+  let current = size;
+  while (fit && label.width > fit && current > step * 2) {
+    current -= step;
+    label.setFontSize(current);
+  }
+  return label;
+}
+
 function applyOrigin(text, origin) {
   if (origin !== undefined) {
     Array.isArray(origin) ? text.setOrigin(origin[0], origin[1]) : text.setOrigin(origin);
@@ -43,20 +54,21 @@ function applyOrigin(text, origin) {
   return text;
 }
 
-export function pixelText(scene, x, y, text, { size = 16, color = COLORS.text, align = "left", origin, shadow = false } = {}) {
+export function pixelText(scene, x, y, text, { size = 16, color = COLORS.text, align = "left", origin, shadow = false, fit } = {}) {
   const label = scene.add.text(x, y, text, {
     fontFamily: FONTS.pixel,
     fontSize: `${size}px`,
     color: hex(color),
     align
   });
+  fitWidth(label, fit, size, 8);
   if (shadow) {
     label.setShadow(Math.max(2, size / 8), Math.max(2, size / 8), "#9fb4c2", 0, false, true);
   }
   return applyOrigin(label, origin);
 }
 
-export function bodyText(scene, x, y, text, { size = 24, color = COLORS.text, align = "left", wrap, origin, lineSpacing = 0 } = {}) {
+export function bodyText(scene, x, y, text, { size = 24, color = COLORS.text, align = "left", wrap, origin, lineSpacing = 0, fit } = {}) {
   const label = scene.add.text(x, y, text, {
     fontFamily: FONTS.body,
     fontSize: `${size}px`,
@@ -65,6 +77,7 @@ export function bodyText(scene, x, y, text, { size = 24, color = COLORS.text, al
     lineSpacing,
     wordWrap: wrap ? { width: wrap } : undefined
   });
+  fitWidth(label, fit, size, 2);
   return applyOrigin(label, origin);
 }
 
@@ -127,12 +140,19 @@ export function dropShadow(graphics, x, y, w, h, offset = 6) {
   return graphics;
 }
 
-// Sfumatura a fasce piene (look pulito, senza puntini).
+// Sfumatura a fasce piene; solo il bordo tra una fascia e l'altra è a retino
+// (effetto "ascii" leggero, senza riempire tutto di puntini).
 export function bandGradient(graphics, x, y, w, h, colors) {
   const bandH = Math.ceil(h / colors.length);
   colors.forEach((color, i) => {
     graphics.fillStyle(color, 1);
     graphics.fillRect(x, y + i * bandH, w, Math.min(bandH, h - i * bandH));
+  });
+  colors.forEach((color, i) => {
+    if (i === 0) return;
+    const edge = y + i * bandH;
+    ditherRect(graphics, x, edge, w, 4, colors[i - 1], 8);
+    ditherRect(graphics, x, edge - 4, w, 4, color, 4);
   });
   return graphics;
 }
@@ -156,6 +176,15 @@ export function paperGrid(scene, { color = COLORS.bg, lines = COLORS.bgSoft, ste
   g.fillStyle(lines, 1);
   for (let x = 0; x < width; x += step) g.fillRect(x, 0, 8, height);
   for (let y = 0; y < height; y += step) g.fillRect(0, y, width, 8);
+  // Crocini "+" da tavola tecnica, uno ogni tanto
+  g.fillStyle(COLORS.stone, 1);
+  for (let x = step * 2; x < width; x += step * 4) {
+    for (let y = step * 2; y < height; y += step * 3) {
+      const cx = x + 4 + ((y / step) % 2) * step * 2;
+      g.fillRect(cx - 5, y + 3, 12, 2);
+      g.fillRect(cx, y - 2, 2, 12);
+    }
+  }
   return g;
 }
 
@@ -197,23 +226,23 @@ export function addTopBar(scene, left, right = "BIODOM+") {
 export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it" } = {}) {
   const { width } = scene.scale;
   const depth = 1000;
-  const g = scene.add.graphics().setDepth(depth);
+  const g = scene.add.graphics().setDepth(depth).setScrollFactor(0);
   g.fillStyle(COLORS.inkDeep, 1);
   g.fillRect(0, 0, width, 44);
 
-  const heart = scene.add.image(26, 22, "heart").setScale(3).setDepth(depth);
+  const heart = scene.add.image(26, 22, "heart").setScale(3).setDepth(depth).setScrollFactor(0);
   scene.tweens.add({ targets: heart, scale: 3.6, duration: 260, yoyo: true, repeat: -1, repeatDelay: 520, ease: "Sine.easeOut" });
 
-  pixelText(scene, 48, 14, "OSSIGENO", { size: 16, color: COLORS.steelLight }).setDepth(depth);
+  pixelText(scene, 48, 14, "OSSIGENO", { size: 16, color: COLORS.steelLight }).setDepth(depth).setScrollFactor(0);
 
   const bar = { x: 186, y: 9, w: 340, h: 26 };
-  const frame = scene.add.graphics().setDepth(depth);
+  const frame = scene.add.graphics().setDepth(depth).setScrollFactor(0);
   drawPanel(frame, bar.x, bar.y, bar.w, bar.h, { fill: COLORS.inkDeep, border: COLORS.paper, borderWidth: 2 });
-  const segments = scene.add.graphics().setDepth(depth);
-  const percent = pixelText(scene, bar.x + bar.w + 18, 14, "", { size: 16 }).setDepth(depth);
+  const segments = scene.add.graphics().setDepth(depth).setScrollFactor(0);
+  const percent = pixelText(scene, bar.x + bar.w + 18, 14, "", { size: 16 }).setDepth(depth).setScrollFactor(0);
 
-  const place = pixelText(scene, width - 16, 14, location, { size: 16, color: COLORS.steelLight, origin: [1, 0] }).setDepth(depth);
-  const flagIcon = scene.add.image(0, 22, flag).setScale(2).setDepth(depth);
+  const place = pixelText(scene, width - 16, 14, location, { size: 16, color: COLORS.steelLight, origin: [1, 0], fit: 200 }).setDepth(depth).setScrollFactor(0);
+  const flagIcon = scene.add.image(0, 22, flag).setScale(2).setDepth(depth).setScrollFactor(0);
   const placeFlag = () => flagIcon.setX(place.x - place.width - 22);
   placeFlag();
 
@@ -244,10 +273,14 @@ export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it
 // Riquadro obiettivo in basso al centro (es. "1 · RACCOGLI LO ZAINO").
 export function addObjectiveBox(scene, text) {
   const { width, height } = scene.scale;
-  const g = scene.add.graphics().setDepth(1000);
-  const label = pixelText(scene, width / 2, height - 30, "", { size: 16, color: COLORS.paper, origin: 0.5 }).setDepth(1001);
+  const g = scene.add.graphics().setDepth(1000).setScrollFactor(0);
+  const label = pixelText(scene, width / 2, height - 30, "", { size: 16, color: COLORS.paper, origin: 0.5 }).setDepth(1001).setScrollFactor(0);
 
   const box = {
+    hide() {
+      g.setVisible(false);
+      label.setVisible(false);
+    },
     setText(value) {
       label.setText(value);
       const w = label.width + 48;
@@ -267,7 +300,7 @@ export function addObjectiveBox(scene, text) {
 export function showToast(scene, text, { duration = 2600, color = COLORS.text } = {}) {
   scene.toast?.destroy();
   const { width } = scene.scale;
-  const container = scene.add.container(0, 0).setDepth(1100);
+  const container = scene.add.container(0, 0).setDepth(1100).setScrollFactor(0);
   const label = bodyText(scene, width / 2, 116, text, { size: 26, color, origin: 0.5, align: "center", wrap: 640 });
   const w = Math.max(220, label.width + 40);
   const h = label.height + 20;
@@ -295,12 +328,12 @@ export function addCornerHints(scene, leftText, rightText = "ESC  MENU") {
 
 // Etichetta su "chip" di carta: leggibile su qualsiasi sfondo (chiaro o scuro).
 export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COLORS.paper, color = COLORS.ink, depth = 1000 } = {}) {
-  const label = bodyText(scene, 0, 0, text, { size, color }).setDepth(depth + 1);
+  const label = bodyText(scene, 0, 0, text, { size, color }).setDepth(depth + 1).setScrollFactor(0);
   const w = Math.round(label.width + 14);
   const h = Math.round(label.height + 2);
   const left = Math.round(x - originX * w);
   const top = Math.round(y - h / 2);
-  const g = drawPanel(scene.add.graphics().setDepth(depth), left, top, w, h, { fill, border: COLORS.ink, borderWidth: 2 });
+  const g = drawPanel(scene.add.graphics().setDepth(depth).setScrollFactor(0), left, top, w, h, { fill, border: COLORS.ink, borderWidth: 2 });
   label.setPosition(left + 7, top + 1);
   return { g, label };
 }

@@ -24,17 +24,17 @@ export class TutorialScene extends Phaser.Scene {
     paperGrid(this);
     addTopBar(this, "TUTORIAL", "BIODOM+");
 
-    pixelText(this, width / 2, 66, "WELCOME TO BIODOM+", { size: 24, origin: 0.5, shadow: true });
+    pixelText(this, width / 2, 64, "WELCOME TO BIODOM+", { size: 24, origin: 0.5, shadow: true, fit: 700 });
     bodyText(
       this,
-      126,
+      width / 2,
       88,
-      "Durante l'emergenza sanitaria, l'aria è irrespirabile. Per sopravvivere, il cittadino deve usare BIONOMAD+, lo zaino multifunzione contenente un ecosistema vegetale che produca aria respirabile.",
-      { size: 22, color: COLORS.text, wrap: 708, lineSpacing: -2 }
+      "Durante l'emergenza sanitaria l'aria è irrespirabile: per sopravvivere il cittadino usa BIONOMAD+, lo zaino con un ecosistema vegetale che produce aria respirabile.",
+      { size: 20, color: COLORS.steel, wrap: 700, lineSpacing: -2, align: "center", origin: [0.5, 0] }
     );
 
-    this.createSection(126, 156, "GESTI DI CURA", CARE_GESTURES, COLORS.green, true);
-    this.createSection(126, 334, "GESTI DI NEGLIGENZA", NEGLECT_GESTURES, COLORS.red, false);
+    this.createSection(126, 162, "GESTI DI CURA", CARE_GESTURES, COLORS.green, true);
+    this.createSection(126, 338, "GESTI DI NEGLIGENZA", NEGLECT_GESTURES, COLORS.red, false);
 
     this.createSidePanel(16, "left");
     this.createSidePanel(width - 16 - 96, "right");
@@ -45,7 +45,7 @@ export class TutorialScene extends Phaser.Scene {
 
   createSection(x, y, title, gestures, color, good) {
     const w = 708;
-    const h = 166;
+    const h = 156;
     const g = this.add.graphics();
     // Cura = carta con inchiostro; negligenza = schermo scuro "di errore" con bordo ruggine.
     dropShadow(g, x, y, w, h);
@@ -62,7 +62,7 @@ export class TutorialScene extends Phaser.Scene {
 
   createCard(x, y, gesture, color, good) {
     const w = 212;
-    const h = 96;
+    const h = 84;
     const g = this.add.graphics();
     drawPanel(g, x, y, w, h, { fill: good ? COLORS.bg : 0x24344a, border: color, borderWidth: 2 });
     g.fillStyle(good ? COLORS.panelLight : 0x2c3e52, 1);
@@ -75,8 +75,8 @@ export class TutorialScene extends Phaser.Scene {
 
     this.drawGestureArt(gesture.art, x + w / 2, y + h - 8);
 
-    bodyText(this, x + w / 2, y + h + 4, gesture.title, { size: 24, color: good ? COLORS.ink : COLORS.paper, origin: [0.5, 0] });
-    bodyText(this, x + w / 2, y + h + 24, gesture.description, { size: 20, color: good ? COLORS.steel : COLORS.steelLight, origin: [0.5, 0] });
+    bodyText(this, x + w / 2, y + h + 6, gesture.title, { size: 22, color: good ? COLORS.ink : COLORS.paper, origin: [0.5, 0], fit: w - 8 });
+    bodyText(this, x + w / 2, y + h + 28, gesture.description, { size: 18, color: good ? COLORS.steel : COLORS.steelLight, origin: [0.5, 0], fit: w - 8 });
 
     const hit = this.add.zone(x + w / 2, y + h / 2, w, h).setInteractive({ useHandCursor: true });
     const hover = this.add.graphics();
@@ -152,9 +152,9 @@ export class TutorialScene extends Phaser.Scene {
   }
 
   createSidePanel(x, side) {
-    const y = 156;
+    const y = 162;
     const w = 96;
-    const h = 344;
+    const h = 332;
     const g = this.add.graphics();
     dropShadow(g, x, y, w, h);
     drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.line, borderWidth: 2 });
@@ -174,7 +174,7 @@ export class TutorialScene extends Phaser.Scene {
     const arrow = this.add.graphics();
     pixelArrow(arrow, side === "left" ? cx - 22 : cx + 22, y + 210, side, COLORS.ink, 6);
 
-    bodyText(this, cx, y + 252, "TOCCA LA\nFOGLIA A", { size: 22, color: COLORS.text, align: "center", origin: [0.5, 0] });
-    bodyText(this, cx, y + 296, side === "left" ? "SINISTRA" : "DESTRA", { size: 22, color: COLORS.red, origin: [0.5, 0] });
+    bodyText(this, cx, y + 248, "TOCCA LA\nFOGLIA A", { size: 20, color: COLORS.text, align: "center", origin: [0.5, 0], fit: w - 12, lineSpacing: 2 });
+    bodyText(this, cx, y + 296, side === "left" ? "SINISTRA" : "DESTRA", { size: 20, color: COLORS.red, origin: [0.5, 0], fit: w - 12 });
   }
 }

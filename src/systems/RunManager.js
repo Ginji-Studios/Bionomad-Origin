@@ -18,7 +18,7 @@ export function startRun(registry, originId) {
     .slice(0, EVENTS_PER_RUN)
     .sort((a, b) => EVENTS[a].time.localeCompare(EVENTS[b].time));
   registry.set("origin", originId);
-  registry.set("run", { origin: originId, events, index: 0, oxygen: 1, results: [] });
+  registry.set("run", { origin: originId, events, index: 0, oxygen: 1, results: [], lastLocation: "home" });
   return registry.get("run");
 }
 
@@ -37,6 +37,7 @@ export function currentEvent(registry) {
 export function completeEvent(registry, oxygen) {
   const run = getRun(registry);
   run.results.push("ok");
+  run.lastLocation = EVENTS[run.events[run.index]].location;
   run.index += 1;
   run.oxygen = oxygen;
   registry.set("run", run);
@@ -48,4 +49,11 @@ export function failRun(registry) {
   run.results.push("fail");
   run.failed = true;
   registry.set("run", run);
+}
+
+// Prossima tappa del viaggio: la location del prossimo evento, oppure casa a fine giornata.
+export function nextDestination(registry) {
+  const run = getRun(registry);
+  const id = run?.events[run.index];
+  return id ? { location: EVENTS[id].location, time: EVENTS[id].time, evening: Boolean(EVENTS[id].evening) } : { location: "home", time: "20:15", evening: true };
 }

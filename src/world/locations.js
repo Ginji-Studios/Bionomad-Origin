@@ -4,7 +4,7 @@
 //   obstacles – rettangoli sul pavimento (coordinate dei piedi) per le collisioni
 //   points    – punti interattivi { x, y } usati dalle task degli eventi
 //   spawn     – posizione iniziale
-import { COLORS, bandGradient, drawPanel, pixelDisc } from "../ui/theme.js";
+import { COLORS, bandGradient, ditherRect, drawPanel, pixelDisc } from "../ui/theme.js";
 
 const W = 960;
 const HORIZON = 380;
@@ -25,12 +25,12 @@ const SKY = {
 };
 const SKY_EVENING = [0x2c3e52, 0x25354a, 0x1f2c40];
 
-export function drawBackdrop(scene, originId, { evening = false } = {}) {
+export function drawBackdrop(scene, originId, { evening = false, sun = true } = {}) {
   const g = scene.add.graphics();
   bandGradient(g, 0, 46, W, HORIZON - 46, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
 
   const sunColor = evening ? 0xdadfda : originId === "delhi" ? 0xeee2c4 : COLORS.paper;
-  pixelDisc(g, 760, 140, evening ? 26 : 42, sunColor, 1, 4);
+  if (sun) pixelDisc(g, 760, 140, evening ? 26 : 42, sunColor, 1, 4);
 
   const far = evening ? 0x34485e : originId === "delhi" ? 0xbfae8c : COLORS.steelLight;
   const near = evening ? 0x1c2839 : originId === "delhi" ? 0x8f8064 : COLORS.steel;
@@ -127,6 +127,7 @@ function drawStreetFloor(scene, evening) {
   for (let y = HORIZON + 40; y < 540; y += 40) g.fillRect(0, y, W, 2);
   g.fillStyle(COLORS.ink, 1);
   g.fillRect(0, HORIZON - 4, W, 4);
+  ditherRect(g, 0, HORIZON, W, 8, COLORS.inkDeep, 4);
   return g;
 }
 
@@ -142,6 +143,7 @@ function drawRoom(scene, evening) {
   g.fillRect(0, HORIZON, W, 160);
   g.fillStyle(evening ? 0xb9bfbb : COLORS.panelLight, 1);
   for (let x = 0; x < W; x += 48) for (let y = HORIZON; y < 540; y += 48) if (((x + y - HORIZON) / 48) % 2 === 0) g.fillRect(x, y, 48, 48);
+  ditherRect(g, 0, HORIZON, W, 8, COLORS.inkDeep, 4);
   return g;
 }
 
@@ -150,6 +152,7 @@ function drawRoom(scene, evening) {
 function drawHub(scene, x, baseY, evening) {
   // Hub BIODOM: bancone in acciaio con schermo e pianta sopra.
   const g = standing(scene, baseY);
+  ditherRect(g, x - 74, baseY - 2, 148, 8, COLORS.inkDeep, 6);
   drawPanel(g, x - 70, baseY - 70, 140, 70, { fill: COLORS.paper, border: COLORS.ink });
   g.fillStyle(COLORS.steel, 1);
   g.fillRect(x - 66, baseY - 66, 132, 10);
@@ -237,6 +240,7 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
   // Food truck
   const t = standing(scene, 412);
   const tx = 540;
+  ditherRect(t, tx - 8, 404, 336, 12, COLORS.inkDeep, 6);
   drawPanel(t, tx, 228, 320, 170, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 4 });
   t.fillStyle(COLORS.steel, 1);
   t.fillRect(tx + 4, 340, 312, 54);
@@ -268,6 +272,7 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
 
   // Panchina
   const b = standing(scene, 452);
+  ditherRect(b, 106, 448, 168, 8, COLORS.inkDeep, 5);
   b.fillStyle(COLORS.ink, 1);
   b.fillRect(110, 410, 160, 10);
   b.fillRect(110, 428, 160, 8);
@@ -293,12 +298,20 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
   };
 }
 
+// Strada generica (usata nella sequenza di game over).
+export function buildStreet(scene, originId, { evening = false, sun = true } = {}) {
+  drawBackdrop(scene, originId, { evening, sun });
+  drawStreetFloor(scene, evening);
+  return { floor: FLOOR, spawn: { x: 60, y: 450 }, obstacles: [], points: {} };
+}
+
 export function buildBusStop(scene, originId, { evening = true } = {}) {
   drawBackdrop(scene, originId, { evening });
   drawStreetFloor(scene, evening);
 
   // Pensilina
   const s = standing(scene, 410);
+  ditherRect(s, 296, 404, 288, 10, COLORS.inkDeep, 5);
   s.fillStyle(COLORS.ink, 1);
   s.fillRect(300, 230, 280, 12);
   s.fillRect(306, 242, 8, 168);

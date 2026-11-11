@@ -8,7 +8,7 @@ const MENU_ITEMS = [
   { label: "CREDITI", hint: "Chi ha costruito BIODOM+.", target: "CreditsScene" }
 ];
 
-const PANEL = { x: 70, y: 230, w: 380, h: 214 };
+const PANEL = { x: 70, y: 196, w: 380, h: 216 };
 const ROW_H = 44;
 
 export class MenuScene extends Phaser.Scene {
@@ -44,8 +44,7 @@ export class MenuScene extends Phaser.Scene {
     const o = pixelText(this, 0, 0, "O", { size: 48, color: COLORS.ink, shadow: true });
     const two = pixelText(this, 48, 32, "2", { size: 16, color: COLORS.red });
     const rigin = pixelText(this, 68, 0, "RIGIN", { size: 48, color: COLORS.ink, shadow: true });
-    const sub = bodyText(this, 2, 62, "BIONOMAD+  ·  simulatore di sopravvivenza", { size: 24, color: COLORS.steel });
-    title.add([o, two, rigin, sub]);
+    title.add([o, two, rigin]);
 
     title.setAlpha(0).y = 46;
     this.tweens.add({ targets: title, y: 76, alpha: 1, duration: 650, ease: "Back.easeOut" });
@@ -58,25 +57,18 @@ export class MenuScene extends Phaser.Scene {
     const g = this.add.graphics();
     dropShadow(g, x, y, w, h, 8);
     drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
-    g.fillStyle(COLORS.ink, 1);
-    g.fillRect(x, y, w, 30);
-    const head = pixelText(this, x + 14, y + 11, "MENU PRINCIPALE", { size: 8, color: COLORS.paper });
-
-    // Cursore lampeggiante stile terminale
-    const cursor = this.add.rectangle(x + 150, y + 15, 8, 10, COLORS.paper);
-    this.tweens.add({ targets: cursor, alpha: 0, duration: 450, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
     this.highlight = this.add.graphics();
     drawPanel(this.highlight, 0, 0, w - 28, ROW_H - 8, { fill: COLORS.ink, border: COLORS.ink });
-    this.highlight.setPosition(x + 14, y + 44);
+    this.highlight.setPosition(x + 14, y + 18);
 
-    this.leaf = this.add.image(x + 32, y + 44, "pot_plant").setScale(2);
+    this.leaf = this.add.image(x + 32, y + 18, "pot_plant").setScale(2);
     this.tweens.add({ targets: this.leaf, angle: { from: -8, to: 8 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
-    panel.add([g, head, cursor, this.highlight, this.leaf]);
+    panel.add([g, this.highlight, this.leaf]);
 
     MENU_ITEMS.forEach((item, index) => {
-      const rowY = y + 44 + index * ROW_H;
+      const rowY = y + 18 + index * ROW_H;
       const label = pixelText(this, x + 58, rowY + 10, item.label, { size: 16, color: COLORS.ink });
       const zone = this.add.zone(x + w / 2, rowY + ROW_H / 2 - 4, w - 28, ROW_H).setInteractive({ useHandCursor: true });
       zone.on("pointerover", () => this.select(index));
@@ -89,8 +81,9 @@ export class MenuScene extends Phaser.Scene {
     });
 
     g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x + 14, y + h - 44, w - 28, 2);
-    this.hint = bodyText(this, x + 16, y + h - 34, "", { size: 22, color: COLORS.steel });
+    g.fillRect(x + 14, y + h - 62, w - 28, 2);
+    // Il suggerimento va a capo dentro al riquadro
+    this.hint = bodyText(this, x + 16, y + h - 54, "", { size: 22, color: COLORS.steel, wrap: w - 32, lineSpacing: -4 });
     panel.add(this.hint);
 
     panel.setAlpha(0).x = -30;
@@ -138,7 +131,7 @@ export class MenuScene extends Phaser.Scene {
     this.tweens.add({ targets: tag, y: 156, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
     pixelText(this, 18, height - 31, "W/S  SCEGLI    INVIO  CONFERMA", { size: 8, color: COLORS.steelLight });
-    pixelText(this, width - 18, height - 31, "BIODOM+ · GINJI STUDIOS", { size: 8, color: COLORS.paper, origin: [1, 0] });
+    pixelText(this, width - 18, height - 31, "© BIODOM · BIOSICUREZZA ATMOSFERICA", { size: 8, color: COLORS.paper, origin: [1, 0] });
   }
 
   move(step) {

@@ -72,13 +72,15 @@ export class IntroScene extends Phaser.Scene {
     caption.setText("INDOSSA BIONOMAD+");
     await this.walk(this.world.points.pack.x - 50, 440, 1100);
     await this.wait(300);
+    player.act("act", 500, 0);
     this.tweens.killTweensOf(pack);
     this.tweens.add({ targets: pack, x: player.x - 30, y: player.y - 24, alpha: 0, duration: 400, ease: "Sine.easeIn" });
     await this.wait(380);
     player.setPack(true);
-    player.sprite.setTexture(characterTexture(this.origin.id, true));
+    player.setBaseTexture(characterTexture(this.origin.id, true));
     this.tweens.addCounter({ from: 0.3, to: 1, duration: 1000, ease: "Cubic.easeOut", onUpdate: (t) => hud.setOxygen(t.getValue()) });
     this.say("Ah, si respira!");
+    player.act("cheer", 700, 12);
     await this.wait(1300);
     caption.setText("ESCI DI CASA");
     await this.walk(this.world.points.door.x, 410, 1300);
@@ -103,7 +105,7 @@ export class IntroScene extends Phaser.Scene {
   finish() {
     if (this.done) return;
     this.done = true;
-    goTo(this, "EventScene");
+    goTo(this, "TravelScene");
   }
 }
 

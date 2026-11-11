@@ -25,8 +25,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     paperGrid(this);
     addTopBar(this, "ORIGINE", "GIOCATORE 1");
 
-    pixelText(this, width / 2, 74, "SCEGLI LA TUA ORIGINE", { size: 24, origin: 0.5, shadow: true });
-    pixelText(this, width / 2, 100, "SELEZIONANE UNA SOLA", { size: 8, color: COLORS.steel, origin: 0.5 });
+    pixelText(this, width / 2, 70, "SCEGLI LA TUA ORIGINE", { size: 24, origin: 0.5, shadow: true, fit: 760 });
+    pixelText(this, width / 2, 98, "SELEZIONANE UNA SOLA", { size: 8, color: COLORS.steel, origin: 0.5 });
 
     const startX = width / 2 - (ORIGINS.length * CARD_W + (ORIGINS.length - 1) * GAP) / 2;
     ORIGINS.forEach((origin, index) => this.createCard(origin, index, startX + index * (CARD_W + GAP), 140));
@@ -41,8 +41,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.createSideArrow(56, "left", -1);
     this.createSideArrow(width - 56, "right", 1);
 
-    bodyText(this, width / 2, height - 62, "DIFFICOLTÀ = INQUINAMENTO DELL'ARIA (PM2.5 µg/m³, media annua)", { size: 22, color: COLORS.ink, origin: 0.5 });
-    bodyText(this, width / 2, height - 40, "FONTE: IQAir 2024 · LIMITE OMS: 5 µg/m³", { size: 20, color: COLORS.steel, origin: 0.5 });
+    bodyText(this, width / 2, height - 62, "DIFFICOLTÀ = INQUINAMENTO DELL'ARIA (PM2.5 µg/m³, media annua)", { size: 22, color: COLORS.ink, origin: 0.5, fit: 760 });
+    bodyText(this, width / 2, height - 40, "FONTE: IQAir 2024 · LIMITE OMS: 5 µg/m³", { size: 20, color: COLORS.steel, origin: 0.5, fit: 600 });
     textChip(this, 14, height - 16, "A / D scegli · INVIO conferma", { size: 18 });
     textChip(this, width - 14, height - 16, "ESC  MENU", { size: 18, originX: 1 });
 
@@ -68,7 +68,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     // Il cittadino di quella città (cambia aspetto in base all'origine)
     const citizen = this.add.image(CARD_W - 30, 136, characterTexture(origin.id, true)).setOrigin(0.5, 1).setScale(2.5);
 
-    const city = pixelText(this, cx, 150, origin.city, { size: 16, origin: 0.5 });
+    const city = pixelText(this, cx, 152, origin.city, { size: 16, origin: 0.5, fit: CARD_W - 20 });
     const country = bodyText(this, cx, 174, origin.country, { size: 22, color: COLORS.steel, origin: 0.5 });
 
     const info = this.add.graphics();

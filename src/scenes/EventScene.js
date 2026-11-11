@@ -132,7 +132,7 @@ export class EventScene extends Phaser.Scene {
     g.fillRect(x, y, w, 30);
     const head = pixelText(this, x + 14, y + 11, `EVENTO ${this.run.index + 1}/${this.run.events.length}`, { size: 8, color: COLORS.paper });
     const time = pixelText(this, x + w - 14, y + 11, this.event.time, { size: 8, color: COLORS.steelLight, origin: [1, 0] });
-    const title = pixelText(this, x + 20, y + 48, this.event.title, { size: 16 });
+    const title = pixelText(this, x + 20, y + 46, this.event.title, { size: 16, fit: w - 40 });
     const desc = bodyText(this, x + 20, y + 76, this.event.description, { size: 24, color: COLORS.ink, wrap: w - 40, lineSpacing: -2 });
     const list = bodyText(this, x + 20, y + 150, this.event.steps.map((s, i) => `${i + 1}. ${s.text}`).join("\n"), { size: 20, color: COLORS.steel });
     const go = pixelText(this, width / 2, y + h - 22, "SPAZIO PER INIZIARE", { size: 8, color: COLORS.red, origin: 0.5 });
@@ -183,6 +183,7 @@ export class EventScene extends Phaser.Scene {
 
     if (step.type === "useSelf") {
       this.mode = "busy";
+      this.player.act("act", 900, 0);
       this.dropCarried();
       this.waterEffect(this.player.x - 30 * this.player.facing, this.player.y - 96);
       this.time.delayedCall(900, () => this.completeStep());
@@ -195,6 +196,7 @@ export class EventScene extends Phaser.Scene {
 
     switch (step.type) {
       case "pickup":
+        this.player.act("act", 380, 6);
         this.itemSprites[step.item]?.destroy();
         this.inventory.add(step.item);
         this.carry(step.item);
@@ -207,17 +209,21 @@ export class EventScene extends Phaser.Scene {
           return;
         }
         this.mode = "busy";
+        this.player.facing = point.x >= this.player.x ? 1 : -1;
+        this.player.act("act", 1000, 0);
         this.dropCarried();
         this.waterEffect(point.x, point.y - 110);
         if (this.world.hub) this.tweens.add({ targets: this.world.hub.plant, scaleY: 3.4, duration: 300, yoyo: true, repeat: 1, ease: "Sine.easeInOut" });
         this.time.delayedCall(1000, () => this.completeStep());
         break;
       case "talk":
+        this.player.act("act", 400, 0);
         this.man?.setMood("happy");
         showToast(this, `Signore: ${step.line}`, { duration: 3200 });
         this.completeStep();
         break;
       case "confirm":
+        this.player.act("act", 400, 0);
         this.openConfirm(step.question);
         break;
       case "sit":
@@ -245,6 +251,7 @@ export class EventScene extends Phaser.Scene {
 
   completeStep() {
     this.stepIndex += 1;
+    this.time.delayedCall(250, () => this.player?.act("cheer", 450, 10));
     this.addOxygen(STEP_BONUS);
     this.popCheck(this.player.x, this.player.y - 110);
     if (this.stepIndex >= this.event.steps.length) {
@@ -307,7 +314,12 @@ export class EventScene extends Phaser.Scene {
     const step = this.step;
     if (this.mode !== "play" || !step || step.type !== "hold") return;
     const point = this.targetPoint();
-    if (this.isNear(point)) this.holdProgress += delta;
+    if (this.isNear(point)) {
+      this.holdProgress += delta;
+      // Mentre carica, il cittadino "lavora" sull'hub / colonnina
+      if (Math.floor(this.holdProgress / 450) % 2 === 0) this.player.act("act", 120, 0);
+    }
+    if (this.holdProgress <= 0) return;
     const ratio = Math.min(1, this.holdProgress / step.duration);
     const x = point.x - 60;
     const y = point.y - 150;
@@ -495,6 +507,7 @@ export class EventScene extends Phaser.Scene {
       return;
     }
     leaf.cut = true;
+    this.player.act("act", 300, 0);
     this.tweens.killTweensOf(leaf.sprite);
     this.tweens.add({ targets: leaf.sprite, y: leaf.sprite.y + 140, angle: 120, alpha: 0, duration: 700, ease: "Quad.easeIn" });
     if (this.leaves.every((l) => !l.bad || l.cut)) {
@@ -524,6 +537,8 @@ export class EventScene extends Phaser.Scene {
       ease: "Sine.easeInOut",
       onComplete: () => {
         this.player.setDepth(460);
+        // Mangia: braccio alla bocca a intervalli
+        this.time.addEvent({ delay: 500, repeat: Math.floor(duration / 500) - 2, callback: () => this.player.act("act", 220, 0) });
         const food = this.add.rectangle(this.player.x + 20 * this.player.facing, this.player.y - 46, 14, 10, 0xd98a4b).setDepth(470);
         this.tweens.add({ targets: food, scaleX: 0.2, duration: duration - 400, ease: "Stepped", easeParams: [4] });
         ["gnam", "gnam!", "O2 +"].forEach((word, i) => {
@@ -563,9 +578,11 @@ export class EventScene extends Phaser.Scene {
     this.objective.setText("EVENTO COMPLETATO");
     this.addOxygen(EVENT_BONUS);
     this.banner("TASK COMPLETATE!", COLORS.ink);
+    [0, 500, 1000].forEach((delay) => this.time.delayedCall(delay, () => this.player.act("cheer", 420, 14)));
     this.time.delayedCall(1800, () => {
-      const finished = completeEvent(this.registry, Math.min(1, this.hud.oxygen));
-      goTo(this, finished ? "EndScene" : "EventScene", finished ? { result: "win" } : undefined);
+      // Niente teletrasporto: si attraversa la città verso la prossima tappa (o verso casa).
+      completeEvent(this.registry, Math.min(1, this.hud.oxygen));
+      goTo(this, "TravelScene");
     });
   }
 
