@@ -42,7 +42,8 @@ export class TravelScene extends Phaser.Scene {
     const evening = this.destination.evening;
 
     // città a livelli con parallasse
-    this.zone = ZONES[(this.run.index + 1) % ZONES.length];
+    // i quartieri cambiano ordine a ogni run (zoneOffset estratto all'inizio)
+    this.zone = ZONES[(this.run.index + 1 + (this.run.zoneOffset ?? 0)) % ZONES.length];
     this.add.rectangle(WORLD_W / 2, height / 2, WORLD_W, height, COLORS.bg).setDepth(-20);
     drawCityscape(this, this.origin.id, { evening, width: WORLD_W, parallax: true, zone: this.zone });
     drawStreetFloor(this, evening, WORLD_W);

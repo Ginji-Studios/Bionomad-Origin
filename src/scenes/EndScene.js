@@ -5,7 +5,7 @@ import { animateWalker, faint, Player, turnTo } from "../entities/Player.js";
 import { getRun, startRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse, buildStreet } from "../world/locations.js";
-import { addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { brandMarks, addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 // esito della run
 export class EndScene extends Phaser.Scene {
@@ -266,7 +266,7 @@ export class EndScene extends Phaser.Scene {
     drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(x, y, w, 30);
-    box.add(g);
+    box.add([brandMarks(this, x, y, w, h, { color: COLORS.paper, alpha: 0.8 }), g]);
     box.add(pixelText(this, x + 14, y + 11, "RECAP DELLA GIORNATA", { size: 8, color: COLORS.paper }));
     box.add(pixelText(this, x + w - 14, y + 11, this.origin.city, { size: 8, color: COLORS.steelLight, origin: [1, 0] }));
 

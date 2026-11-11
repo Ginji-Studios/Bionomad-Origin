@@ -1,12 +1,12 @@
 import Phaser from "../phaser.js";
-import { addTopBar, goTo, textChip, bodyText, COLORS, dropShadow, drawPanel, paperGrid, pixelArrow, pixelDisc, pixelText } from "../ui/theme.js";
+import { addTopBar, brandMarks, ditherRect, goTo, textChip, bodyText, COLORS, dropShadow, drawPanel, paperGrid, pixelArrow, pixelDisc, pixelText } from "../ui/theme.js";
 
 // le azioni vere sulla pianta, lette dai sensori dell'arduino
 const CARE_GESTURES = [
-  { title: "ILLUMINAZIONE", description: "punta la torcia", art: "light" },
-  { title: "TERMOREGOLAZIONE", description: "torcia termica ± °C", art: "heat" },
-  { title: "IDRATAZIONE", description: "pulsante irrigazione", art: "irrigate" },
-  { title: "NUTRIZIONE", description: "fiale nel pozzetto", art: "vials" }
+  { title: "ILLUMINAZIONE", description: "punta la torcia", art: "light", key: "I" },
+  { title: "TERMOREGOLAZIONE", description: "torcia termica ± °C", art: "heat", key: "H/F" },
+  { title: "IDRATAZIONE", description: "pulsante irrigazione", art: "irrigate", key: "R" },
+  { title: "NUTRIZIONE", description: "fiale nel pozzetto", art: "vials", key: "1/2/3" }
 ];
 
 // errori da evitare: ognuno costa ossigeno
@@ -27,7 +27,19 @@ export class TutorialScene extends Phaser.Scene {
     paperGrid(this);
     addTopBar(this, "TUTORIAL", "BIODOM+");
 
-    pixelText(this, width / 2, 64, "WELCOME TO BIODOM+", { size: 24, origin: 0.5, shadow: true, fit: 700 });
+    // il "what if" del progetto al posto del titolo, con l'etichetta del brand
+    const whatIf = pixelText(this, 0, 64, "E SE DOVESSIMO COLTIVARE L'ARIA CHE RESPIRIAMO?", { size: 16, origin: [0, 0.5], shadow: true, fit: 640 });
+    const tagLabel = pixelText(this, 0, 64, "WHAT IF", { size: 8, color: COLORS.paper, origin: [0, 0.5] });
+    const tagW = tagLabel.width + 16;
+    const total = tagW + 14 + whatIf.displayWidth;
+    const left = Math.round(width / 2 - total / 2);
+    const tag = this.add.graphics();
+    tag.fillStyle(COLORS.red, 1);
+    tag.fillRect(left, 52, tagW, 24);
+    tagLabel.x = left + 8;
+    tagLabel.setDepth(1);
+    whatIf.x = left + tagW + 14;
+
     bodyText(
       this,
       width / 2,
@@ -60,14 +72,15 @@ export class TutorialScene extends Phaser.Scene {
     dropShadow(g, x, y, w, h);
     drawPanel(g, x, y, w, h, { fill: good ? COLORS.paper : COLORS.inkDeep, border: color, borderWidth: 2 });
 
+    brandMarks(this, x, y, w, h, { color: good ? COLORS.steel : COLORS.red, gap: 8, lines: false });
     g.fillStyle(color, 1);
     const label = pixelText(this, x + w / 2, y, title, { size: 8, color: COLORS.paper, origin: 0.5 });
     g.fillRect(label.x - label.width / 2 - 8, y - 6, label.width + 16, 14);
 
-    gestures.forEach((gesture, index) => this.createCard(x + 18 + index * 172, y + 18, gesture, color, good, 160));
+    gestures.forEach((gesture, index) => this.createCard(x + 18 + index * 172, y + 18, gesture, color, good, 160, index));
   }
 
-  createCard(x, y, gesture, color, good, w = 212) {
+  createCard(x, y, gesture, color, good, w = 212, index = 0) {
     const h = 84;
     const g = this.add.graphics();
     drawPanel(g, x, y, w, h, { fill: good ? COLORS.bg : 0x24344a, border: color, borderWidth: 2 });
@@ -79,7 +92,16 @@ export class TutorialScene extends Phaser.Scene {
     g.fillRect(x + w - 24, y + 4, 20, 20);
     this.add.image(x + w - 14, y + 14, good ? "check" : "cross").setScale(2);
 
+    // retino leggero come le foto del progetto, numero [0n] e tasto da tastiera
+    ditherRect(g, x + 2, y + 2, w - 4, h - 20, good ? COLORS.paper : 0x2c3e52, 3, 2, 0.6);
     this.drawGestureArt(gesture.art, x + w / 2, y + h - 8);
+    pixelText(this, x + 6, y + h - 14, `[0${index + 1}]`, { size: 8, color: good ? COLORS.steel : COLORS.steelLight });
+    if (gesture.key) {
+      const keyLabel = pixelText(this, x + w - 8, y + h - 14, gesture.key, { size: 8, color: COLORS.paper, origin: [1, 0] });
+      const kg = this.add.graphics();
+      drawPanel(kg, keyLabel.x - keyLabel.width - 6, y + h - 17, keyLabel.width + 10, 14, { fill: COLORS.ink, border: COLORS.ink, borderWidth: 1 });
+      keyLabel.setDepth(1);
+    }
 
     bodyText(this, x + w / 2, y + h + 6, gesture.title, { size: 22, color: good ? COLORS.ink : COLORS.paper, origin: [0.5, 0], fit: w - 8 });
     bodyText(this, x + w / 2, y + h + 28, gesture.description, { size: 18, color: good ? COLORS.steel : COLORS.steelLight, origin: [0.5, 0], fit: w - 8 });

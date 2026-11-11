@@ -1,5 +1,5 @@
 import { PlantSensors, VIAL_COLORS } from "../input/PlantSensors.js";
-import { bodyText, COLORS, drawPanel, dropShadow, hex, pixelText } from "./theme.js";
+import { brandMarks, bodyText, COLORS, drawPanel, dropShadow, hex, pixelText } from "./theme.js";
 
 // pannello "AZIONE SULLA PIANTA"
 const W = 400;
@@ -33,6 +33,7 @@ export class PlantPanel {
     const y = 100;
     this.box = { x, y };
     const c = scene.add.container(0, 0).setDepth(2000);
+    const marks = brandMarks(scene, x, y, W, H, { color: emergency ? COLORS.red : COLORS.ink });
     const g = scene.add.graphics();
     dropShadow(g, x, y, W, H, 8);
     drawPanel(g, x, y, W, H, { fill: COLORS.paper, border: emergency ? COLORS.red : COLORS.ink });
@@ -68,7 +69,7 @@ export class PlantPanel {
     const keyLabel = bodyText(scene, x + 16, y + H - 30, keyHint, { size: 20, color: COLORS.red, fit: W - 32 });
     this.timerBar = scene.add.graphics();
 
-    c.add([g, head, status, title, artBg, this.plant, this.fx, this.valueLabel, this.gauge, this.progressLabel, this.progressBar, hint, keyLabel, this.timerBar]);
+    c.add([marks, g, head, status, title, artBg, this.plant, this.fx, this.valueLabel, this.gauge, this.progressLabel, this.progressBar, hint, keyLabel, this.timerBar]);
     c.setAlpha(0).setScale(0.96);
     scene.tweens.add({ targets: c, alpha: 1, scale: 1, duration: 220, ease: "Back.easeOut" });
     scene.tweens.add({ targets: this.plant, scaleY: 5.25, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });

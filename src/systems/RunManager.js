@@ -43,7 +43,7 @@ export function startRun(registry, originId) {
   const origin = ORIGINS.find((o) => o.id === originId);
   const extras = events.map((id) => pickExtras(id, origin));
   registry.set("origin", originId);
-  registry.set("run", { origin: originId, events, extras, index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
+  registry.set("run", { origin: originId, events, extras, zoneOffset: Math.floor(Math.random() * 4), index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
   return registry.get("run");
 }
 

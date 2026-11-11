@@ -9,7 +9,7 @@ import { buildBus, buildBusStop, buildFoodTruck, buildHome, buildOffice, buildRu
 import { EMERGENCY_ACTIONS } from "../config/events.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { PlantPanel } from "../ui/PlantPanel.js";
-import { addHud, addObjectiveBox, bodyText, o2Label, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
+import { brandMarks, burst, addHud, addObjectiveBox, bodyText, o2Label, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
 
 const BUILDERS = { office: buildOffice, foodtruck: buildFoodTruck, busstop: buildBusStop, bus: buildBus, home: buildHome, street: buildRunHome };
 const MASKED = ["foodtruck", "busstop", "bus", "street"];
@@ -178,7 +178,7 @@ export class EventScene extends Phaser.Scene {
     const list = bodyText(this, x + 20, y + 150, this.event.steps.map((s, i) => `${i + 1}. ${s.text}`).join("\n"), { size: 20, color: COLORS.steel });
     const go = pixelText(this, width / 2, y + h - 22, "SPAZIO PER INIZIARE", { size: 8, color: COLORS.red, origin: 0.5 });
     this.tweens.add({ targets: go, alpha: 0.3, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    card.add([dim, g, head, time, title, desc, list, go]);
+    card.add([dim, brandMarks(this, x, y, w, h, { color: COLORS.paper, alpha: 0.8 }), g, head, time, title, desc, list, go]);
     card.setAlpha(0).y = 16;
     this.tweens.add({ targets: card, alpha: 1, y: 0, duration: 300, ease: "Cubic.easeOut" });
     this.introCard = card;
@@ -436,13 +436,24 @@ export class EventScene extends Phaser.Scene {
     this.checklist?.destroy();
     if (withBanner) {
       const { width } = this.scale;
+      // timbro "TASK COMPLETATA": cala dall'alto, schiaccia e rimbalza, poi scivola via
       const banner = this.add.container(width / 2 + 120, 200).setDepth(1500);
-      const label = pixelText(this, 0, 0, "TASK COMPLETATA", { size: 16, color: COLORS.paper, origin: 0.5 });
-      const bg = drawPanel(this.add.graphics(), -label.width / 2 - 18, -20, label.width + 36, 40, { fill: 0x5c7a6b, border: COLORS.inkDeep });
-      banner.add([bg, label]);
-      banner.setScale(0.5).setAlpha(0);
-      this.tweens.add({ targets: banner, scale: 1, alpha: 1, duration: 240, ease: "Back.easeOut" });
-      this.tweens.add({ targets: banner, alpha: 0, y: 180, duration: 300, delay: 1300, onComplete: () => banner.destroy() });
+      const label = pixelText(this, 14, 0, "TASK COMPLETATA", { size: 16, color: COLORS.paper, origin: 0.5 });
+      const bw = label.width + 64;
+      const bg = this.add.graphics();
+      drawPanel(bg, -bw / 2, -22, bw, 44, { fill: COLORS.ink, border: COLORS.inkDeep });
+      bg.fillStyle(0x5c7a6b, 1);
+      bg.fillRect(-bw / 2 + 2, -20, 30, 40);
+      const tick = this.add.image(-bw / 2 + 17, 0, "check").setScale(2);
+      const marks = brandMarks(this, -bw / 2, -22, bw, 44, { color: COLORS.ink, gap: 7, lines: false });
+      banner.add([marks, bg, tick, label]);
+      banner.setScale(1.8).setAlpha(0);
+      this.tweens.add({ targets: banner, scale: 1, alpha: 1, duration: 180, ease: "Quad.easeIn", onComplete: () => {
+        this.cameras.main.shake(90, 0.003);
+        burst(this, banner.x, banner.y, { colors: [0x9fd4b0, COLORS.paper, 0x5c7a6b], count: 14, spread: bw / 2 + 20, gravity: 0, depth: 1499, duration: 450 });
+        this.tweens.add({ targets: banner, scaleX: 1.08, scaleY: 0.9, duration: 70, yoyo: true });
+      } });
+      this.tweens.add({ targets: banner, alpha: 0, x: banner.x + 60, duration: 260, delay: 1400, ease: "Cubic.easeIn", onComplete: () => banner.destroy() });
     }
 
     const x = 14;
@@ -482,44 +493,91 @@ export class EventScene extends Phaser.Scene {
     // prima la spunta verde, poi la matita che cancella la riga
     this.time.delayedCall(350, () => {
       if (!c.active) return;
-      drawPanel(target.box.clear(), x + 12, target.ry, 22, 22, { fill: 0x5c7a6b, border: COLORS.ink });
-      const check = this.add.image(x + 23, target.ry + 11, "check").setScale(5).setAlpha(0);
+      // casella che si riempie dal basso, spunta che "cade" con rimbalzo
+      const fill = this.add.graphics();
+      c.add(fill);
+      const fillP = { t: 0 };
+      this.tweens.add({
+        targets: fillP,
+        t: 1,
+        duration: 160,
+        onUpdate: () => {
+          fill.clear();
+          fill.fillStyle(0x5c7a6b, 1);
+          const hh = Math.round(18 * fillP.t / 2) * 2;
+          fill.fillRect(x + 14, target.ry + 20 - hh, 18, hh);
+        }
+      });
+      const check = this.add.image(x + 23, target.ry - 14, "check").setScale(2).setAlpha(0);
       c.add(check);
-      this.tweens.add({ targets: check, scale: 2, alpha: 1, duration: 220, ease: "Quad.easeIn" });
+      this.tweens.add({ targets: check, y: target.ry + 11, alpha: 1, duration: 260, delay: 120, ease: "Bounce.easeOut" });
+      this.time.delayedCall(260, () => burst(this, x + 23, target.ry + 11, { colors: [0x9fd4b0, 0x5c7a6b], count: 8, spread: 18, gravity: 0, depth: 1501, size: 2, duration: 300 }));
 
+      // matita in pixel art inclinata a 45°: punta di grafite, legno, corpo giallo, ghiera, gomma
       const strike = this.add.graphics();
       const pencil = this.add.graphics();
-      pencil.fillStyle(COLORS.inkDeep, 1);
-      pencil.fillRect(0, -2, 2, 2);
-      pencil.fillStyle(0xe8c66a, 1);
-      for (let i = 1; i < 8; i += 1) pencil.fillRect(i * 2, -i * 2 - 2, 4, 4);
+      const px = (i, color, size = 2) => {
+        pencil.fillStyle(color, 1);
+        pencil.fillRect(i * 2, -i * 2 - size, size, size);
+      };
+      px(0, COLORS.inkDeep);
+      px(1, 0x3a3633);
+      for (let i = 2; i < 4; i += 1) { px(i, 0xd9b48c, 2); pencil.fillStyle(0xd9b48c, 1); pencil.fillRect(i * 2 - 2, -i * 2 - 2, 2, 2); }
+      for (let i = 4; i < 12; i += 1) {
+        pencil.fillStyle(0xe8c66a, 1);
+        pencil.fillRect(i * 2 - 2, -i * 2 - 2, 4, 4);
+        pencil.fillStyle(0xc9a23d, 1);
+        pencil.fillRect(i * 2, -i * 2, 2, 2);
+      }
       pencil.fillStyle(COLORS.stone, 1);
-      pencil.fillRect(16, -18, 4, 4);
-      pencil.fillStyle(COLORS.red, 1);
-      pencil.fillRect(18, -22, 5, 5);
-      c.add([strike, pencil]);
+      pencil.fillRect(22, -26, 4, 4);
+      pencil.fillRect(24, -28, 4, 4);
+      pencil.fillStyle(0xd98a9a, 1);
+      pencil.fillRect(26, -32, 5, 5);
+      // ombra della matita sul foglio
+      const shadow = this.add.graphics();
+      shadow.fillStyle(COLORS.inkDeep, 0.15);
+      for (let i = 2; i < 14; i += 1) shadow.fillRect(i * 2 + 4, -i * 2 + 4, 2, 2);
+      c.add([strike, shadow, pencil]);
+
       const startX = x + 42;
       const lineY = target.ry + 11;
       const length = target.label.width + 4;
-      pencil.setPosition(startX, lineY + 1).setAlpha(0);
+      pencil.setPosition(startX - 6, lineY - 16).setAlpha(0);
+      shadow.setPosition(startX, lineY).setAlpha(0);
+      // la matita arriva dall'alto e si appoggia
+      this.tweens.add({ targets: pencil, alpha: 1, x: startX, y: lineY + 1, duration: 200, delay: 300, ease: "Quad.easeOut" });
+      this.tweens.add({ targets: shadow, alpha: 1, duration: 200, delay: 300 });
       const progress = { t: 0 };
-      this.tweens.add({ targets: pencil, alpha: 1, duration: 120, delay: 250 });
+      // tratto a mano: piccole oscillazioni di 1 px lungo la riga
+      const wobble = Array.from({ length: Math.ceil(length / 4) + 1 }, (_, i) => (i % 5 === 2 ? 1 : i % 7 === 4 ? -1 : 0));
       this.tweens.add({
         targets: progress,
         t: 1,
-        delay: 350,
-        duration: 650,
+        delay: 520,
+        duration: 620,
         ease: "Sine.easeInOut",
         onUpdate: () => {
           const len = Math.round(length * progress.t);
           strike.clear();
           strike.fillStyle(COLORS.ink, 1);
-          strike.fillRect(startX, lineY, len, 2);
-          pencil.setPosition(startX + len, lineY + 1 + Math.sin(progress.t * 20));
+          for (let sx = 0; sx < len; sx += 4) strike.fillRect(startX + sx, lineY + wobble[sx >> 2], Math.min(4, len - sx), 2);
+          const jitter = Math.round(Math.sin(progress.t * 40));
+          pencil.setPosition(startX + len, lineY + 1 + jitter);
+          shadow.setPosition(startX + len, lineY + 1);
+          // polvere di grafite
+          if (Math.random() < 0.35) {
+            const dust = this.add.rectangle(startX + len, lineY + 2, 2, 2, COLORS.stone).setDepth(1501);
+            c.add(dust);
+            this.tweens.add({ targets: dust, y: dust.y + 6, x: dust.x - 4, alpha: 0, duration: 300, onComplete: () => dust.destroy() });
+          }
         },
         onComplete: () => {
           target.label.setColor(hex(COLORS.stone));
-          this.tweens.add({ targets: pencil, alpha: 0, y: pencil.y - 10, duration: 200 });
+          // doppio colpetto finale e via
+          this.tweens.add({ targets: pencil, y: pencil.y - 4, duration: 70, yoyo: true, repeat: 1, onComplete: () => {
+            this.tweens.add({ targets: [pencil, shadow], alpha: 0, x: "+=14", y: "-=14", duration: 220, ease: "Quad.easeIn" });
+          } });
         }
       });
       // esce dopo qualche secondo

@@ -78,8 +78,6 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
     }
     x += w + Math.floor(rand() * 10);
   }
-  ditherRect(far, 0, HORIZON - 70, span(0.15), 70, pal.sky[3], 4);
-
   // edifici e monumenti
   const mid = layer(scene, 0.4, parallax, -7);
   const midSpan = span(0.4);

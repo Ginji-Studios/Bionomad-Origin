@@ -2,6 +2,7 @@ import Phaser from "../phaser.js";
 import { makeTexture, registerPixelTextures } from "../ui/pixelSprites.js";
 import { registerTeamTextures } from "../ui/teamSprites.js";
 import { loadPosters } from "../ui/posters.js";
+import { loadLogos } from "../ui/logo.js";
 import { VT323_WOFF2 } from "../ui/fontData.js";
 
 // il font è incorporato nel codice (fontData.js): nessun percorso da indovinare,
@@ -27,6 +28,7 @@ export class PreloadScene extends Phaser.Scene {
     registerPixelTextures(this);
     registerTeamTextures(this, makeTexture);
     await loadPosters(this);
+    await loadLogos(this);
     this.scene.start("MenuScene");
   }
 }

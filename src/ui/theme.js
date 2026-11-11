@@ -234,7 +234,12 @@ export function addTopBar(scene, left, right = "BIODOM+") {
   g.fillStyle(COLORS.inkDeep, 1);
   g.fillRect(0, 0, width, 40);
   pixelText(scene, 18, 13, left, { size: 16, color: COLORS.paper });
-  pixelText(scene, width - 18, 13, right, { size: 16, color: COLORS.steelLight, origin: [1, 0] });
+  // a destra il logotipo vero di biodom+ in versione pixel
+  if (right === "BIODOM+" && scene.textures.exists("logo_biodom")) {
+    scene.add.image(width - 18, 21, "logo_biodom").setOrigin(1, 0.5).setTint(COLORS.steelLight);
+  } else {
+    pixelText(scene, width - 18, 13, right, { size: 16, color: COLORS.steelLight, origin: [1, 0] });
+  }
   return g;
 }
 
@@ -342,23 +347,42 @@ export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it
 // riquadro obiettivo in basso al centro (es
 export function addObjectiveBox(scene, text) {
   const { width, height } = scene.scale;
-  const g = scene.add.graphics().setDepth(1000).setScrollFactor(0);
-  const label = pixelText(scene, width / 2, height - 30, "", { size: 16, color: COLORS.paper, origin: 0.5 }).setDepth(1001).setScrollFactor(0);
+  const fix = (o, d) => o.setDepth(d).setScrollFactor(0);
+  const g = fix(scene.add.graphics(), 1000);
+  const tag = fix(pixelText(scene, 0, 0, "OBIETTIVO", { size: 8, color: COLORS.steelLight, origin: [0, 0.5] }), 1001);
+  const label = fix(bodyText(scene, 0, 0, "", { size: 24, color: COLORS.paper, origin: [0, 0.5] }), 1001);
+  const cy = height - 28;
 
   const box = {
     hide() {
       g.setVisible(false);
       label.setVisible(false);
+      tag.setVisible(false);
     },
     setText(value) {
+      const changed = label.text !== value;
       label.setText(value);
-      const w = label.width + 48;
-      const h = 44;
-      g.clear();
+      // barra compatta su una riga: linguetta con il "+" del brand, etichetta, testo
+      const tab = 24;
+      const w = tab + 12 + tag.width + 12 + label.width + 16;
+      const h = 32;
       const x = Math.round(width / 2 - w / 2);
-      const y = height - 30 - h / 2;
-      dropShadow(g, x, y, w, h);
+      const y = cy - h / 2;
+      g.clear();
       drawPanel(g, x, y, w, h, { fill: COLORS.ink, border: COLORS.inkDeep, borderWidth: 2 });
+      g.fillStyle(COLORS.red, 1);
+      g.fillRect(x + 2, y + 2, tab, h - 4);
+      g.fillStyle(COLORS.paper, 1);
+      g.fillRect(x + 2 + tab / 2 - 1, cy - 5, 2, 10);
+      g.fillRect(x + 2 + tab / 2 - 5, cy - 1, 10, 2);
+      g.fillStyle(COLORS.steel, 1);
+      g.fillRect(x + tab + 12 + tag.width + 5, y + 8, 1, h - 16);
+      tag.setPosition(x + tab + 12, cy);
+      label.setPosition(x + tab + 12 + tag.width + 12, cy - 1);
+      if (changed) {
+        label.setAlpha(0).x += 10;
+        scene.tweens.add({ targets: label, alpha: 1, x: label.x - 10, duration: 200, ease: "Cubic.easeOut" });
+      }
     }
   };
   box.setText(text);
@@ -398,12 +422,18 @@ export function addCornerHints(scene, leftText, rightText = "ESC  MENU") {
 // etichetta su "chip" di carta
 export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COLORS.paper, color = COLORS.ink, depth = 1000 } = {}) {
   const label = bodyText(scene, 0, 0, text, { size, color }).setDepth(depth + 1).setScrollFactor(0);
-  const w = Math.round(label.width + 14);
-  const h = Math.round(label.height + 2);
+  const w = Math.round(label.width + 22);
+  const h = Math.round(label.height + 4);
   const left = Math.round(x - originX * w);
   const top = Math.round(y - h / 2);
-  const g = drawPanel(scene.add.graphics().setDepth(depth).setScrollFactor(0), left, top, w, h, { fill, border: COLORS.ink, borderWidth: 2 });
-  label.setPosition(left + 7, top + 1);
+  const g = scene.add.graphics().setDepth(depth).setScrollFactor(0);
+  // barretta d'inchiostro a sinistra e angolino ruggine: stile etichetta BIODOM
+  drawPanel(g, left, top, w, h, { fill, border: COLORS.ink, borderWidth: 2 });
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(left + 2, top + 2, 4, h - 4);
+  g.fillStyle(COLORS.red, 1);
+  g.fillRect(left + w - 6, top + 2, 4, 4);
+  label.setPosition(left + 12, top + 2);
   return { g, label };
 }
 
@@ -566,4 +596,40 @@ export function targetMarker(scene, { depth = 950, drop = 120 } = {}) {
     g.y = Math.round(offset);
   };
   return c;
+}
+
+// segni del brand BIODOM: "+" agli angoli, appena fuori dal riquadro, e filetti sottili
+// che ne prolungano i bordi (come nelle tavole del progetto). Da usare su pannelli e foto
+export function brandMarks(scene, x, y, w, h, { color = COLORS.steel, gap = 12, depth, lines = true, alpha = 1 } = {}) {
+  const g = scene.add.graphics();
+  if (depth !== undefined) g.setDepth(depth);
+  g.setAlpha(alpha);
+  const plus = (cx, cy) => {
+    g.fillStyle(color, 1);
+    g.fillRect(cx - 5, cy - 1, 10, 2);
+    g.fillRect(cx - 1, cy - 5, 2, 10);
+  };
+  if (lines) {
+    g.fillStyle(color, 0.35);
+    g.fillRect(x - gap + 8, y - gap, w + gap * 2 - 16, 1);
+    g.fillRect(x - gap + 8, y + h + gap, w + gap * 2 - 16, 1);
+  }
+  plus(x - gap, y - gap);
+  plus(x + w + gap, y - gap);
+  plus(x - gap, y + h + gap);
+  plus(x + w + gap, y + h + gap);
+  return g;
+}
+
+// disco a retino (Bayer), più fitto al centro: aloni, soli velati
+export function ditherDisc(g, cx, cy, r, color, level, cell = 4) {
+  g.fillStyle(color, 1);
+  for (let y = -r; y < r; y += cell) {
+    for (let x = -r; x < r; x += cell) {
+      const d = Math.sqrt(x * x + y * y) / r;
+      if (d > 1) continue;
+      const local = Math.round(level * (1 - d));
+      if (BAYER[((y + r) / cell) & 3][((x + r) / cell) & 3] < local) g.fillRect(cx + x, cy + y, cell, cell);
+    }
+  }
 }

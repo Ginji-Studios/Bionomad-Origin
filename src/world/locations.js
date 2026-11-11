@@ -1,4 +1,93 @@
+// arredi dell'ufficio: alcuni tipici del paese, altri pescati a caso a ogni visita,
+// così lo stesso ufficio non è mai identico due volte
+function decorateOffice(scene, originId, evening, { ac }) {
+  const g = scene.add.graphics();
+  const front = scene.add.graphics().setDepth(HORIZON + 1);
+  const pick = (list, n) => Phaser.Utils.Array.Shuffle([...list]).slice(0, n);
+
+  // tipici del paese
+  if (originId === "delhi") {
+    // ventilatore a soffitto che gira e ghirlanda di calendule sulla porta
+    const fan = scene.add.container(480, 62);
+    const hub = scene.add.rectangle(0, 0, 12, 8, COLORS.ink);
+    const blades = scene.add.graphics();
+    blades.fillStyle(0x6e5434, 1);
+    blades.fillRect(-60, 2, 120, 4);
+    fan.add([scene.add.rectangle(0, -8, 2, 10, COLORS.ink), blades, hub]);
+    scene.tweens.add({ targets: blades, scaleX: { from: 1, to: -1 }, duration: 260, yoyo: true, repeat: -1 });
+    for (let i = 0; i < 9; i += 1) pixelDisc(g, 34 + i * 10, 190 + Math.round(Math.sin((i / 8) * Math.PI) * 12), 4, i % 2 ? 0xe8a33d : 0xd9702b, 1, 2);
+  } else if (originId === "reykjavik") {
+    // lampada di design a sospensione e vaso con rami secchi
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(479, 50, 2, 40);
+    pixelDisc(g, 480, 100, 18, 0xe8dccd, 1, 2);
+    g.fillStyle(0xe8c66a, 0.6);
+    g.fillRect(470, 112, 20, 4);
+  } else {
+    // macchina dell'espresso e lampada da tavolo
+    drawPanel(front, 160, HORIZON - 64, 34, 36, { fill: COLORS.inkDeep, border: COLORS.ink });
+    front.fillStyle(0xb4553f, 1);
+    front.fillRect(168, HORIZON - 56, 18, 4);
+    front.fillStyle(COLORS.paper, 1);
+    front.fillRect(172, HORIZON - 40, 10, 8);
+    front.fillStyle(COLORS.ink, 1);
+    front.fillRect(840, HORIZON - 80, 4, 52);
+    front.fillRect(820, HORIZON - 84, 30, 8);
+    front.fillStyle(0xe8c66a, evening ? 0.8 : 0.4);
+    front.fillRect(822, HORIZON - 76, 26, 4);
+  }
+
+  // a caso: due oggetti a parete e uno sul pavimento
+  const wallSpots = [{ x: 180, y: 120 }, { x: 760, y: ac ? 140 : 110 }];
+  const wallItems = {
+    clock: (x, y) => {
+      pixelDisc(g, x, y, 18, COLORS.ink, 1, 2);
+      pixelDisc(g, x, y, 14, COLORS.paper, 1, 2);
+      g.fillStyle(COLORS.ink, 1);
+      g.fillRect(x - 1, y - 10, 2, 10);
+      g.fillRect(x, y - 1, 8, 2);
+    },
+    chart: (x, y) => {
+      drawPanel(g, x - 44, y - 30, 88, 60, { fill: COLORS.paper, border: COLORS.ink });
+      g.fillStyle(COLORS.steel, 1);
+      [14, 24, 18, 34, 28, 40].forEach((h, i) => g.fillRect(x - 34 + i * 12, y + 22 - h, 8, h));
+      g.fillStyle(COLORS.red, 1);
+      g.fillRect(x - 36, y + 22, 72, 2);
+    },
+    shelf: (x, y) => {
+      g.fillStyle(COLORS.ink, 1);
+      g.fillRect(x - 50, y + 20, 100, 4);
+      [0xb4553f, 0x5e7f94, 0x7fae86, 0xdadfda, 0x163c4d, 0xe8c66a].forEach((c, i) => {
+        g.fillStyle(c, 1);
+        g.fillRect(x - 46 + i * 12, y - 4 + (i % 2) * 4, 10, 24 - (i % 2) * 4);
+      });
+    },
+    frame: (x, y) => {
+      drawPanel(g, x - 30, y - 34, 60, 68, { fill: 0xdfe7ea, border: COLORS.ink });
+      scene.add.image(x, y + 26, "pot_plant").setOrigin(0.5, 1).setScale(3);
+    }
+  };
+  pick(Object.keys(wallItems), wallSpots.length).forEach((name, i) => wallItems[name](wallSpots[i].x, wallSpots[i].y));
+
+  const floorItems = {
+    plant: () => scene.add.image(630, 440, "plant_tall").setOrigin(0.5, 1).setScale(4).setDepth(420),
+    cooler: () => {
+      const c = scene.add.graphics().setDepth(436);
+      drawPanel(c, 600, 360, 40, 76, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
+      drawPanel(c, 604, 320, 32, 42, { fill: 0x9fb4c2, border: COLORS.ink, borderWidth: 3 });
+      c.fillStyle(COLORS.steel, 1);
+      c.fillRect(610, 332, 20, 24);
+    },
+    bin: () => {
+      const c = scene.add.graphics().setDepth(420);
+      drawPanel(c, 610, 406, 28, 30, { fill: COLORS.steel, border: COLORS.ink, borderWidth: 3 });
+    }
+  };
+  Phaser.Utils.Array.GetRandom(Object.values(floorItems))();
+}
+
 // location del gioco: ognuna ritorna floor, obstacles, points e spawn
+import Phaser from "../phaser.js";
 import { COLORS, bandGradient, ditherRect, drawPanel, pixelDisc } from "../ui/theme.js";
 import { drawCityscape } from "./cityscape.js";
 
@@ -51,20 +140,145 @@ export function drawStreetFloor(scene, evening, width = W) {
   return g;
 }
 
-function drawRoom(scene, evening) {
+// materiali degli uffici per paese (la casa ha i suoi in decorateHome)
+const OFFICE_THEMES = {
+  milano: { wall: COLORS.bgSoft, wallDark: COLORS.panelLight, floorA: COLORS.paper, floorB: COLORS.panelLight, floor: "check", desk: COLORS.steel },
+  delhi: { wall: 0xeadfc6, wallDark: 0xd6c6a3, floorA: 0xd9b48c, floorB: 0xc4956a, floor: "check", desk: 0x8f6a3e },
+  reykjavik: { wall: 0xe4dccd, wallDark: 0xcbbfa8, floorA: 0xc9a77c, floorB: 0xb38e62, floor: "planks", desk: 0x7d5f41 }
+};
+
+function drawRoom(scene, evening, theme = OFFICE_THEMES.milano) {
   const g = scene.add.graphics();
-  g.fillStyle(evening ? 0xb9c2c4 : COLORS.bgSoft, 1);
+  const dim = (c, t) => {
+    const r = ((c >> 16) & 255) * t, gg = ((c >> 8) & 255) * t, b = (c & 255) * t;
+    return (Math.round(r) << 16) | (Math.round(gg) << 8) | Math.round(b);
+  };
+  const ev = (c) => (evening ? dim(c, 0.8) : c);
+  const wall = ev(theme.wall);
+  const wallDark = ev(theme.wallDark);
+  // parete: più chiara in alto, più scura verso il pavimento (retino)
+  g.fillStyle(wall, 1);
   g.fillRect(0, 46, W, HORIZON - 46);
-  g.fillStyle(evening ? 0xaab3b6 : COLORS.panelLight, 1);
-  for (let x = 0; x < W; x += 96) g.fillRect(x, 46, 2, HORIZON - 46);
+  ditherRect(g, 0, HORIZON - 120, W, 60, wallDark, 3, 2);
+  ditherRect(g, 0, HORIZON - 60, W, 46, wallDark, 7, 2);
+  // pannelli della parete con giunti in rilievo
+  for (let x = 0; x < W; x += 96) {
+    g.fillStyle(wallDark, 1);
+    g.fillRect(x, 46, 2, HORIZON - 60);
+    g.fillStyle(evening ? 0xc8d0d2 : COLORS.paper, 1);
+    g.fillRect(x + 2, 46, 1, HORIZON - 60);
+  }
+  // cornice a soffitto
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(0, 46, W, 4);
+  ditherRect(g, 0, 50, W, 6, COLORS.ink, 4, 2);
+  // battiscopa con filetto
   g.fillStyle(COLORS.ink, 1);
   g.fillRect(0, HORIZON - 14, W, 14);
-  g.fillStyle(evening ? 0xcfd3cf : COLORS.paper, 1);
+  g.fillStyle(COLORS.steel, 1);
+  g.fillRect(0, HORIZON - 14, W, 2);
+  // pavimento a scacchi con riflesso sfumato verso il fondo
+  g.fillStyle(ev(theme.floorA), 1);
   g.fillRect(0, HORIZON, W, 160);
-  g.fillStyle(evening ? 0xb9bfbb : COLORS.panelLight, 1);
-  for (let x = 0; x < W; x += 48) for (let y = HORIZON; y < 540; y += 48) if (((x + y - HORIZON) / 48) % 2 === 0) g.fillRect(x, y, 48, 48);
+  g.fillStyle(ev(theme.floorB), 1);
+  if (theme.floor === "planks") {
+    // parquet a doghe sfalsate
+    for (let y = HORIZON; y < 540; y += 16) {
+      g.fillRect(0, y, W, 2);
+      for (let x = ((y / 16) % 3) * 40; x < W; x += 120) g.fillRect(x, y, 2, 16);
+    }
+  } else {
+    for (let x = 0; x < W; x += 48) for (let y = HORIZON; y < 540; y += 48) if (((x + y - HORIZON) / 48) % 2 === 0) g.fillRect(x, y, 48, 48);
+  }
   ditherRect(g, 0, HORIZON, W, 8, COLORS.inkDeep, 4);
+  ditherRect(g, 0, HORIZON + 8, W, 16, COLORS.inkDeep, 1, 2);
+
+  // plafoniere con cono di luce a retino
+  const lamps = scene.add.graphics();
+  [240, 720].forEach((lx) => {
+    lamps.fillStyle(COLORS.ink, 1);
+    lamps.fillRect(lx - 30, 50, 60, 6);
+    lamps.fillStyle(evening ? 0xe8c66a : COLORS.paper, 1);
+    lamps.fillRect(lx - 26, 56, 52, 4);
+    for (let i = 0; i < 6; i += 1) ditherRect(lamps, lx - 28 - i * 10, 60 + i * 16, 56 + i * 20, 16, evening ? 0xe8c66a : 0xffffff, evening ? 3 - (i >> 1) : 2 - (i >> 2), 2, evening ? 0.5 : 0.6);
+  });
+  // granelli di polvere che fluttuano nella luce
+  for (let i = 0; i < 14; i += 1) {
+    const mote = scene.add.rectangle(Phaser.Math.Between(40, W - 40), Phaser.Math.Between(80, HORIZON - 30), 2, 2, evening ? 0xe8c66a : COLORS.paper, 0.8).setDepth(HORIZON + 200);
+    scene.tweens.add({ targets: mote, y: mote.y - Phaser.Math.Between(20, 50), x: mote.x + Phaser.Math.Between(-20, 20), alpha: { from: 0, to: 0.8 }, duration: Phaser.Math.Between(3000, 6000), yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 3000), ease: "Sine.easeInOut" });
+  }
   return g;
+}
+
+// vista dalla finestra: piccola città a livelli che scorre in parallasse
+// mentre il personaggio si muove nella stanza (più lontano = si muove meno)
+export function windowView(scene, originId, win, { evening = false } = {}) {
+  const pad = 140;
+  const inner = { x: win.x + 6, y: win.y + 6, w: win.w - 12, h: win.h - 12 };
+  const sky = scene.add.graphics();
+  bandGradient(sky, inner.x, inner.y, inner.w, inner.h, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
+  if (!evening) pixelDisc(sky, inner.x + inner.w - 50, inner.y + 34, 14, COLORS.paper, 1, 2);
+  else {
+    sky.fillStyle(COLORS.paper, 0.8);
+    for (let i = 0; i < 12; i += 1) sky.fillRect(inner.x + ((i * 53) % inner.w), inner.y + 6 + ((i * 29) % 50), 2, 2);
+  }
+  let seed = originId.length * 31 + (evening ? 7 : 0);
+  const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const pal = {
+    far: evening ? 0x3a4f66 : originId === "delhi" ? 0xc9b896 : 0xb3c4cf,
+    mid: evening ? 0x26374c : originId === "delhi" ? 0x9e8e70 : 0x7d9aad,
+    near: evening ? 0x172231 : originId === "delhi" ? 0x766953 : 0x4f6f84,
+    light: evening ? 0xe8c66a : 0xdfe7ea
+  };
+  // ogni livello è disegnato una volta in una texture più larga del vetro;
+  // a ogni frame se ne mostra solo la parte che sta dietro la finestra (setCrop)
+  const tw = inner.w + pad * 2;
+  const layer = (key, factor, color, minH, maxH, windows) => {
+    const tkey = `win_${originId}_${evening ? "e" : "d"}_${key}`;
+    if (!scene.textures.exists(tkey)) {
+      const l = scene.make.graphics({ add: false });
+      for (let x = 0; x < tw; ) {
+        const w = 18 + Math.floor(rand() * 34);
+        const h = minH + Math.floor(rand() * (maxH - minH));
+        l.fillStyle(color, 1);
+        l.fillRect(x, inner.h - h, w, h);
+        if (rand() < 0.3) l.fillRect(x + Math.floor(w / 2), inner.h - h - 12, 2, 12);
+        if (windows) {
+          l.fillStyle(pal.light, evening ? 0.9 : 0.5);
+          for (let wy = inner.h - h + 6; wy < inner.h - 6; wy += 10) {
+            for (let wx = x + 3; wx < x + w - 4; wx += 6) if (rand() < (evening ? 0.35 : 0.5)) l.fillRect(wx, wy, 2, 4);
+          }
+        }
+        x += w + 2 + Math.floor(rand() * 6);
+      }
+      l.generateTexture(tkey, tw, inner.h);
+      l.destroy();
+    }
+    const img = scene.add.image(inner.x - pad, inner.y, tkey).setOrigin(0, 0);
+    img.setCrop(pad, 0, inner.w, inner.h);
+    return { img, factor };
+  };
+  const layers = [layer("far", 0.04, pal.far, 50, 120, false), layer("mid", 0.1, pal.mid, 30, 90, true), layer("near", 0.2, pal.near, 14, 46, true)];
+  // foschia a retino davanti alla città (più fitta dove l'aria è peggiore)
+  const haze = scene.add.graphics();
+  ditherRect(haze, inner.x, inner.y + Math.round(inner.h * 0.45), inner.w, Math.round(inner.h * 0.55), evening ? 0x4b5664 : 0xffffff, originId === "delhi" ? 6 : originId === "milano" ? 4 : 2, 2, 0.5);
+  // riflesso sul vetro
+  const glare = scene.add.graphics();
+  glare.fillStyle(0xffffff, 0.25);
+  for (let i = 0; i < 4; i += 1) glare.fillRect(inner.x + 20 + i * 4, inner.y + 10 + i * 8, 4, inner.h - 40 - i * 16);
+  const maxShift = pad - 2;
+  const onUpdate = () => {
+    const px = scene.player?.x ?? W / 2;
+    layers.forEach(({ img, factor }) => {
+      const off = Phaser.Math.Clamp(Math.round((W / 2 - px) * factor), -maxShift, maxShift);
+      img.x = inner.x - pad + off;
+      img.setCrop(pad - off, 0, inner.w, inner.h);
+    });
+  };
+  onUpdate();
+  scene.events.on("update", onUpdate);
+  scene.events.once("shutdown", () => scene.events.off("update", onUpdate));
+  return { sky, layers, haze };
 }
 
 // elementi
@@ -93,14 +307,14 @@ function drawDoor(g, x, top, color = COLORS.steel) {
   g.fillRect(x + 64, top + 82, 6, 8);
 }
 
-function drawDesk(scene, x, evening) {
+function drawDesk(scene, x, evening, top = COLORS.steel) {
   const g = scene.add.graphics().setDepth(HORIZON);
   drawPanel(g, x + 60, HORIZON - 96, 100, 60, { fill: COLORS.inkDeep, border: COLORS.ink, borderWidth: 4 });
   g.fillStyle(evening ? 0x5e7f94 : COLORS.steelLight, 1);
   for (let i = 0; i < 3; i += 1) g.fillRect(x + 72, HORIZON - 84 + i * 12, 40 + ((i * 23) % 30), 4);
   g.fillStyle(COLORS.ink, 1);
   g.fillRect(x + 104, HORIZON - 36, 12, 8);
-  g.fillStyle(COLORS.steel, 1);
+  g.fillStyle(top, 1);
   g.fillRect(x, HORIZON - 28, 220, 16);
   g.fillStyle(COLORS.ink, 1);
   g.fillRect(x, HORIZON - 12, 220, 4);
@@ -111,29 +325,32 @@ function drawDesk(scene, x, evening) {
 // location
 
 export function buildOffice(scene, originId, { evening = false, ac = false } = {}) {
-  drawRoom(scene, evening);
+  const theme = OFFICE_THEMES[originId] ?? OFFICE_THEMES.milano;
+  drawRoom(scene, evening, theme);
   const g = scene.add.graphics();
 
   // finestra sulla città
   const win = { x: 320, y: 80, w: 320, h: 170 };
-  drawPanel(g, win.x, win.y, win.w, win.h, { fill: evening ? 0x1f2c40 : COLORS.paper, border: COLORS.ink, borderWidth: 6 });
-  bandGradient(g, win.x + 6, win.y + 6, win.w - 12, win.h - 12, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
-  g.fillStyle(evening ? 0x34485e : COLORS.steelLight, 1);
-  [[330, 40, 70], [376, 30, 100], [412, 54, 60], [470, 26, 120], [500, 64, 80], [570, 60, 96]].forEach(([x, w, h]) => g.fillRect(x, win.y + win.h - 6 - h, w, h));
-  if (evening) {
-    g.fillStyle(0xe8c66a, 1);
-    [[384, 190], [482, 160], [520, 200], [590, 180]].forEach(([x, y]) => g.fillRect(x, y, 6, 8));
-  }
-  g.fillStyle(COLORS.ink, 1);
-  g.fillRect(win.x + win.w / 2 - 2, win.y, 4, win.h);
+  windowView(scene, originId, win, { evening });
+  // telaio sopra la vista, davanzale e luce che entra sul pavimento
+  const frame = scene.add.graphics();
+  frame.lineStyle(6, COLORS.ink, 1);
+  frame.strokeRect(win.x + 3, win.y + 3, win.w - 6, win.h - 6);
+  frame.fillStyle(COLORS.ink, 1);
+  frame.fillRect(win.x + win.w / 2 - 2, win.y, 4, win.h);
+  frame.fillRect(win.x - 10, win.y + win.h, win.w + 20, 8);
+  frame.fillStyle(COLORS.steel, 1);
+  frame.fillRect(win.x - 10, win.y + win.h, win.w + 20, 2);
+  if (!evening) ditherRect(frame, win.x + 40, HORIZON + 10, win.w - 20, 60, 0xffffff, 3, 4, 0.6);
 
   drawDoor(g, 30, 196);
   // manifesto BIODOM appeso in ufficio
   g.fillStyle(COLORS.ink, 1);
   g.fillRect(652, 128, 72, 98);
   scene.add.image(656, 132, "poster_2").setOrigin(0, 0);
-  drawDesk(scene, 150, evening);
-  drawDesk(scene, 690, evening);
+  drawDesk(scene, 150, evening, theme.desk);
+  drawDesk(scene, 690, evening, theme.desk);
+  decorateOffice(scene, originId, evening, { ac });
 
   // archivio
   drawPanel(g, 900, 230, 52, HORIZON - 230, { fill: COLORS.stone, border: COLORS.ink, borderWidth: 3 });
@@ -496,6 +713,10 @@ export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390,
   g.fillRect(x - 3, top + h, 6, ground - top - h);
   g.fillRect(x - 12, ground - 4, 24, 4);
   ditherRect(g, x - 16, ground, 32, 4, 0x1c2839, 6);
+
+  // ombra
+  g.fillStyle(0x1c2839, 0.22);
+  g.fillRect(left + 5, top + 5, w + tip, h);
 
   // targa con punta a freccia
   g.fillStyle(0x163c4d, 1);

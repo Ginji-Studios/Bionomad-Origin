@@ -1,3 +1,4 @@
+import { crowdTexture } from "../ui/pixelSprites.js";
 import Phaser from "../phaser.js";
 import { animateWalker, playAction, SPRITE_SCALE } from "./Player.js";
 
@@ -12,6 +13,8 @@ export class Npc extends Phaser.GameObjects.Container {
     this.walkPhase = Math.random() * Math.PI * 2;
 
     this.pack = scene.add.image(-30, -24, "pack").setOrigin(0.5, 1).setScale(SPRITE_SCALE).setVisible(withPack);
+    // i passanti senza nome prendono un aspetto a caso, sempre diverso nella stessa scena
+    if (!name && !/npc_(old|vendor)/.test(texture)) texture = crowdTexture(scene, texture.endsWith("_mask"));
     this.sprite = scene.add.image(0, 0, texture).setOrigin(0.5, 1).setScale(SPRITE_SCALE);
     this.baseTexture = texture;
     this.moodIcon = scene.add.image(0, -100, "heart").setScale(3).setVisible(false);

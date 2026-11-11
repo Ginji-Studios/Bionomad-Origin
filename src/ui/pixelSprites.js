@@ -87,14 +87,19 @@ const HERO_VARIANTS = {
   hero_sela: { h: "#4b4440", r: "#5e7f94", R: "#3f5a6c", b: "#1c2839", B: "#121b27" },
   npc_a: { r: "#a3a9a6", R: "#7e8683", b: "#3b4f5c", B: "#2a3a45" },
   npc_b: { h: "#4b4440", r: "#9fb4c2", R: "#6f8798", b: "#1c2839", B: "#121b27" },
-  npc_c: { h: "#cdd2ce", r: "#dadfda", R: "#a3a9a6", b: "#5e7f94", B: "#3f5a6c" }
+  npc_c: { h: "#cdd2ce", r: "#dadfda", R: "#a3a9a6", b: "#5e7f94", B: "#3f5a6c" },
+  // altri passanti: capelli, pelle e vestiti diversi
+  npc_e: { h: "#7a3a2e", s: "#d9b89c", S: "#bf9c80", r: "#7fae86", R: "#2f5e4a", b: "#1c2839", B: "#121b27" },
+  npc_f: { h: "#e8d29a", r: "#b4553f", R: "#8a3e2e", b: "#dadfda", B: "#a3a9a6" },
+  npc_g: { h: "#3a2a20", s: "#8a6248", S: "#6e4c36", r: "#e8c66a", R: "#c9a23d", b: "#3b4f5c", B: "#2a3a45" },
+  npc_h: { h: "#a3a9a6", s: "#f3e6da", S: "#dcc8b6", r: "#163c4d", R: "#0f2a37", b: "#7e8683", B: "#5f6663" }
 };
 
 const PACK = [
-  "..g..g..",
-  ".gGg.Gg.",
-  "gGgGgGgg",
-  ".gGgGgg.",
+  "..G.G.G.",
+  ".gG.GgG.",
+  ".GGgGGG.",
+  "GgGGgGgG",
   "TTTTTTTT",
   "TttttttT",
   "TtwwwwtT",
@@ -106,22 +111,23 @@ const PACK = [
 ];
 
 const PACK_PALETTE = {
-  g: "#7e9c8c",
-  G: "#3f6560",
+  g: "#7fae86",
+  G: "#2f5e4a",
   T: "#163c4d",
   t: "#2c566a",
   w: "#cdd2ce"
 };
 
+// sansevieria: foglie a spada dritte, verde scuro con bande chiare a zig-zag
 const POT_PLANT = [
-  "....gg......",
-  "...gGGg..gg.",
-  "....gg..gGGg",
-  ".gg..g..gg..",
-  "gGGg.g.g....",
-  ".gg..gg.....",
-  ".....g......",
-  ".....g......",
+  ".....G......",
+  ".....GG.....",
+  "..G..gG.G...",
+  "..GG.GgGG...",
+  "..gG.GGgG.G.",
+  "..GGGGgGG.GG",
+  ".GgGgGGgGGgG",
+  ".GGgGGgGgGG.",
   "..pppppppp..",
   "..PPPPPPPP..",
   "...pppppp...",
@@ -132,22 +138,23 @@ const POT_PLANT = [
 
 // vasi in "pietra" chiara come nei disegni tecnici BIODOM, foglie salvia
 const PLANT_PALETTE = {
-  g: "#7e9c8c",
-  G: "#3f6560",
+  g: "#7fae86",
+  G: "#2f5e4a",
   p: "#a3a9a6",
   P: "#6e7673",
   f: "#f1f0ed"
 };
 
+// sansevieria con lo stelo fiorito
 const FLOWER_PLANT = [
-  "....gf......",
-  "...gGGg..gf.",
-  "....gg..gGGg",
-  ".fg..g..gg..",
-  "gGGg.g.g....",
-  ".gg..gg.....",
-  ".....g......",
-  ".....g......",
+  ".....G...f..",
+  ".....GG..f..",
+  "..G..gG.Gf..",
+  "..GG.GgGGf..",
+  "..gG.GGgG.G.",
+  "..GGGGgGG.GG",
+  ".GgGgGGgGGgG",
+  ".GGgGGgGgGG.",
   "..pppppppp..",
   "..PPPPPPPP..",
   "...pppppp...",
@@ -157,17 +164,17 @@ const FLOWER_PLANT = [
 ];
 
 const TALL_PLANT = [
-  "....g...g...",
-  "...gG..gG...",
-  "...gG.gGg...",
-  "..gGg.gG..g.",
-  ".gG...g..gG.",
-  ".gG..gg.gGg.",
-  "..g..g..gG..",
-  "....gg.gg...",
-  ".....gg.....",
-  ".....g......",
-  ".....g......",
+  ".....G......",
+  ".....GG.....",
+  ".....Gg.....",
+  ".....GG..G..",
+  ".....Gg..GG.",
+  "..G..GG..gG.",
+  "..GG.Gg.GGg.",
+  "..gG.GG.GgG.",
+  "..GgGGgGGGG.",
+  ".GGGgGGGgG..",
+  ".GgGGGgGGG..",
   "..pppppppp..",
   "..PPPPPPPP..",
   "...pppppp...",
@@ -190,7 +197,8 @@ const CAN = [
 
 const BOTTLE = ["..kk..", "..ww..", ".wwww.", "wbbbbw", "wbbbbw", "wbbbbw", "wbbbbw", "wbbbbw", ".wwww."];
 
-const LEAF = [".gg...", "gGGgg.", ".gGGGg", "...gg."];
+// foglia di sansevieria tagliata: lama stretta a bande
+const LEAF = ["....gG", "..GgG.", ".GgG..", "GG...."];
 
 const BATTERY = ["kkkkkkkkk.", "kgggggggkk", "kgggggggkk", "kkkkkkkkk."];
 
@@ -359,8 +367,8 @@ export function registerPixelTextures(scene) {
     }
     sheets.forEach(([suffix, rows, off]) => {
       makeTexture(scene, `${key}${suffix}`, rows, palette);
-      // i protagonisti hanno anche la versione donna (stesso set di frame)
-      if (key.startsWith("hero_")) makeTexture(scene, `${key}_f${suffix}`, longHair(rows, off), palette);
+      // protagonisti e passanti hanno anche la versione donna (stesso set di frame)
+      if (key !== "npc_vendor" && key !== "npc_old") makeTexture(scene, `${key}_f${suffix}`, longHair(rows, off), palette);
     });
   }
   makeTexture(scene, "pack", PACK, PACK_PALETTE);
@@ -369,7 +377,7 @@ export function registerPixelTextures(scene) {
   makeTexture(scene, "plant_tall", TALL_PLANT, { ...PLANT_PALETTE, p: "#2c566a", P: "#163c4d" });
   makeTexture(scene, "can", CAN, { k: "#163c4d", c: "#5e7f94", C: "#3f5a6c" });
   makeTexture(scene, "bottle", BOTTLE, { k: "#163c4d", w: "#dadfda", b: "#9fb4c2" });
-  makeTexture(scene, "leaf_good", LEAF, { g: "#7e9c8c", G: "#3f6560" });
+  makeTexture(scene, "leaf_good", LEAF, { g: "#7fae86", G: "#2f5e4a" });
   makeTexture(scene, "leaf_bad", LEAF, { g: "#a88a5a", G: "#6e5434" });
   makeTexture(scene, "battery", BATTERY, { k: "#163c4d", g: "#7e9c8c" });
   makeTexture(scene, "active_pack", ACTIVE_PACK, { k: "#163c4d", w: "#dfe7ea", g: "#7e9c8c", G: "#3f6560", y: "#e8c66a" });
@@ -393,5 +401,17 @@ export function registerPixelTextures(scene) {
 export function characterTexture(originId, masked = false, gender) {
   const base = HERO_VARIANTS[`hero_${originId}`] ? `hero_${originId}` : "hero_milano";
   const key = (gender ?? currentGender) === "f" ? `${base}_f` : base;
+  return masked ? `${key}_mask` : key;
+}
+
+// passanti generici: pesca un aspetto (e un genere) non ancora usato nella scena
+const CROWD = ["npc_a", "npc_b", "npc_c", "npc_d", "npc_e", "npc_f", "npc_g", "npc_h", "hero_nara", "hero_lio", "hero_sela"];
+export function crowdTexture(scene, masked = true) {
+  scene.crowdUsed ??= new Set();
+  const options = [];
+  CROWD.forEach((base) => ["", "_f"].forEach((g) => options.push(`${base}${g}`)));
+  const free = options.filter((k) => !scene.crowdUsed.has(k));
+  const key = free.length ? free[Math.floor(Math.random() * free.length)] : options[Math.floor(Math.random() * options.length)];
+  scene.crowdUsed.add(key);
   return masked ? `${key}_mask` : key;
 }

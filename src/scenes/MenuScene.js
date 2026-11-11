@@ -3,7 +3,7 @@ import { characterTexture } from "../ui/pixelSprites.js";
 import { animateImage } from "../entities/Player.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { TITLE_WORD } from "../ui/pixelSprites.js";
-import { o2Label, bodyText, COLORS, showToast, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
+import { brandMarks, ditherDisc, ditherRect, o2Label, bodyText, COLORS, showToast, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
 
 // menu principale in stile "schermata di avvio"
 const MENU_ITEMS = [
@@ -123,20 +123,115 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createStage(width, height) {
-    // sole velato, skyline e il cittadino con lo zaino
+    // a ogni accesso al menu cambiano città e cittadino in primo piano
+    const STAGES = {
+      milano: { far: COLORS.steelLight, face: [COLORS.steel, COLORS.steelLight], side: [0x4f6f84, COLORS.steel], dark: [0x3f5a6c, COLORS.steel], halo: COLORS.panelLight, sun: COLORS.bgSoft, smog: 6, roof: null },
+      delhi: { far: 0xd8c9a9, face: [0xb59a72, 0xcdb48c], side: [0x8f7650, 0xb59a72], dark: [0x6e5a3c, 0x8f7650], halo: 0xe2d6bd, sun: 0xeee4cc, smog: 9, roof: null },
+      reykjavik: { far: 0xc4d8e4, face: [0x5e7f94, 0x9fb4c2], side: [0x46627a, 0x7d9aad], dark: [0x2c3e52, 0x5e7f94], halo: 0xdfe7ea, sun: COLORS.paper, smog: 2, roof: COLORS.paper }
+    };
+    const origins = Object.keys(STAGES);
+    const last = this.registry.get("menuStage");
+    this.stageOrigin = Phaser.Utils.Array.GetRandom(origins.filter((o) => o !== last));
+    this.registry.set("menuStage", this.stageOrigin);
+    this.stageGender = Math.random() < 0.5 ? "m" : "f";
+    const st = STAGES[this.stageOrigin];
+
     const g = this.add.graphics();
-    pixelDisc(g, 700, 250, 110, COLORS.panelLight, 1, 6);
-    pixelDisc(g, 700, 250, 86, COLORS.bgSoft, 1, 6);
-    [[500, 80, 150], [575, 50, 230], [630, 110, 120], [745, 60, 200], [805, 90, 140], [895, 80, 180]].forEach(([x, w, h], i) => {
-      g.fillStyle(i % 2 ? COLORS.steelLight : COLORS.steel, 1);
-      g.fillRect(x, height - 54 - h, w, h);
+    const ground = height - 54;
+    // sole velato dallo smog: alone a retino a cerchi concentrici (più fitto dove l'aria è peggiore)
+    ditherDisc(g, 700, 250, 130, st.halo, st.smog / 1.2);
+    pixelDisc(g, 700, 250, 96, st.halo, 1, 4);
+    pixelDisc(g, 700, 250, 84, st.sun, 1, 4);
+    ditherDisc(g, 700, 250, 84, COLORS.paper, 6);
+    // skyline lontano, più chiaro e a retino
+    [[470, 40, 110], [520, 30, 170], [610, 44, 90], [660, 26, 200], [700, 50, 130], [780, 34, 160], [850, 46, 120], [910, 40, 150]].forEach(([x, w, h]) => {
+      ditherRect(g, x, ground - h, w, h, st.far, 8, 2);
     });
+    // monumento della città sullo sfondo (sagoma piena, tra skyline e palazzi)
+    const mark = st.side[1];
+    g.fillStyle(mark, 1);
+    if (this.stageOrigin === "milano") {
+      // Duomo: facciata a capanna con guglie e la Madonnina
+      g.fillRect(640, ground - 150, 130, 150);
+      for (let i = 0; i < 7; i += 1) g.fillRect(644 + i * 20, ground - 176 - (i % 2) * 10, 6, 30 + (i % 2) * 10);
+      g.fillRect(700, ground - 236, 10, 90);
+      g.fillRect(696, ground - 246, 18, 10);
+      g.fillStyle(0xe8c66a, 1);
+      g.fillRect(702, ground - 254, 6, 8);
+    } else if (this.stageOrigin === "delhi") {
+      // India Gate: arco monumentale con cornicione e cupoletta
+      g.fillRect(650, ground - 190, 110, 190);
+      g.fillStyle(st.halo, 1);
+      g.fillRect(684, ground - 130, 42, 130);
+      pixelDisc(g, 705, ground - 130, 21, st.halo, 1, 3);
+      g.fillStyle(mark, 1);
+      g.fillRect(640, ground - 200, 130, 12);
+      g.fillRect(670, ground - 222, 70, 22);
+      pixelDisc(g, 705, ground - 226, 16, mark, 1, 2);
+    } else {
+      // montagne innevate e Hallgrímskirkja a gradoni
+      [[470, 120], [560, 150], [880, 130]].forEach(([mx, mh]) => {
+        for (let i = 0; i < mh; i += 4) {
+          g.fillStyle(i < 24 ? COLORS.paper : st.far, 1);
+          g.fillRect(mx - i * 0.9, ground - mh + i, i * 1.8, 4);
+        }
+      });
+      g.fillStyle(mark, 1);
+      [[650, 60, 80], [664, 46, 110], [676, 34, 140], [686, 22, 170], [692, 10, 210]].forEach(([x, w, h]) => g.fillRect(x, ground - h, w * 2 - (x - 650) * 0, h));
+      g.fillRect(694, ground - 230, 6, 24);
+    }
+
+    // palazzi in primo piano: facciata, lato in ombra, finestre, tetti con antenne
+    const buildings = [[500, 80, 150], [575, 50, 230], [630, 110, 120], [745, 60, 200], [805, 90, 140], [895, 80, 180]];
+    buildings.forEach(([x, w, h], i) => {
+      const face = st.face[i % 2];
+      const side = st.side[i % 2];
+      g.fillStyle(face, 1);
+      g.fillRect(x, ground - h, w, h);
+      g.fillStyle(side, 1);
+      g.fillRect(x + w - 10, ground - h, 10, h);
+      ditherRect(g, x, ground - h, w - 10, 6, COLORS.paper, 6, 2);
+      // a Reykjavík i tetti sono innevati
+      if (st.roof) {
+        g.fillStyle(st.roof, 1);
+        g.fillRect(x - 2, ground - h - 8, w + 4, 4);
+      }
+      g.fillStyle(COLORS.ink, 1);
+      g.fillRect(x - 2, ground - h - 4, w + 4, 4);
+      if (i % 3 !== 1) {
+        g.fillRect(x + 12, ground - h - 18, 2, 14);
+        g.fillRect(x + 8, ground - h - 18, 10, 2);
+      } else {
+        drawPanel(g, x + w / 2 - 12, ground - h - 16, 24, 12, { fill: side, border: COLORS.ink, borderWidth: 2 });
+      }
+      // finestre a griglia: qualcuna accesa
+      for (let wy = ground - h + 16; wy < ground - 20; wy += 18) {
+        for (let wx = x + 8; wx < x + w - 18; wx += 14) {
+          const lit = ((wx * 7 + wy * 13 + i) % 11) < 2;
+          g.fillStyle(lit ? 0xe8c66a : st.dark[i % 2], lit ? 0.9 : 0.8);
+          g.fillRect(wx, wy, 6, 8);
+        }
+      }
+    });
+    // marciapiede, cordolo e strada
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(0, ground - 6, width, 6);
+    g.fillStyle(COLORS.steel, 1);
+    g.fillRect(0, ground - 6, width, 2);
     g.fillStyle(COLORS.inkDeep, 1);
-    g.fillRect(0, height - 54, width, 54);
+    g.fillRect(0, ground, width, 54);
+    ditherRect(g, 0, ground, width, 8, COLORS.ink, 6, 2);
+    // lampione
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(560, ground - 120, 4, 114);
+    g.fillRect(560, ground - 120, 26, 4);
+    g.fillStyle(0xe8c66a, 1);
+    g.fillRect(578, ground - 116, 10, 4);
+    ditherRect(g, 560, ground - 112, 46, 100, 0xe8c66a, 2, 2, 0.6);
 
     const hero = this.add.container(700, height - 54);
     const pack = this.add.image(-45, -36, "pack").setOrigin(0.5, 1).setScale(6);
-    const heroKey = () => characterTexture(this.registry.get("origin") ?? "milano", true);
+    const heroKey = () => characterTexture(this.stageOrigin, true, this.stageGender);
     const body = this.add.image(0, 0, heroKey()).setOrigin(0.5, 1).setScale(6);
     hero.add([pack, body]);
     this.hero = hero;
@@ -188,11 +283,19 @@ export class MenuScene extends Phaser.Scene {
     // etichetta "O2+" fluttuante
     const tag = this.add.container(800, 170);
     const tagBg = drawPanel(this.add.graphics(), -34, -16, 68, 32, { fill: COLORS.paper, border: COLORS.ink });
-    tag.add([tagBg, o2Label(this, 0, -1, { px: 22, color: COLORS.ink, suffix: "+" })]);
+    // etichetta in stile BIODOM: linguetta ruggine e "+" agli angoli
+    tagBg.fillStyle(COLORS.red, 1);
+    tagBg.fillRect(-32, -14, 6, 28);
+    tag.add([tagBg, o2Label(this, 3, -1, { px: 22, color: COLORS.ink, suffix: "+" }), brandMarks(this, -34, -16, 68, 32, { color: COLORS.steel, gap: 7, lines: false })]);
     this.tweens.add({ targets: tag, y: 156, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
     pixelText(this, 18, height - 31, "W/S  SCEGLI    INVIO  CONFERMA", { size: 8, color: COLORS.steelLight });
-    pixelText(this, width - 18, height - 31, "© BIODOM · BIOSICUREZZA ATMOSFERICA", { size: 8, color: COLORS.paper, origin: [1, 0] });
+    // logotipo vero di biodom+ in pixel, con la dicitura
+    // logo e dicitura centrati sulla stessa riga della barra
+    const rowY = height - 27;
+    const tagline = pixelText(this, width - 18, rowY, "BIOSICUREZZA ATMOSFERICA", { size: 8, color: COLORS.steelLight, origin: [1, 0.5] });
+    // la base delle lettere del logo coincide con la base del testo
+    this.add.image(Math.round(tagline.x - tagline.width - 14), rowY - 4, "logo_biodom").setOrigin(1, 0.5).setTint(COLORS.paper);
   }
 
   move(step) {
