@@ -1,4 +1,4 @@
-import { PlantSensors } from "../input/PlantSensors.js";
+import { PlantSensors, VIAL_COLORS } from "../input/PlantSensors.js";
 import { bodyText, COLORS, drawPanel, dropShadow, hex, pixelText } from "./theme.js";
 
 // pannello "AZIONE SULLA PIANTA"
@@ -23,9 +23,13 @@ export class PlantPanel {
     this.elapsed = 0;
     this.timeoutMs = timeoutMs;
     this.baseTemperature = PlantSensors.state.temperature;
+    this.floodMs = 0;
+    this.overheated = false;
+    this.lastSlots = [...PlantSensors.state.slots];
 
     const { width } = scene.scale;
-    const x = Math.round(width / 2 - W / 2);
+    // spostato a destra: a sinistra può comparire la lista delle task
+    const x = Math.round(width / 2 - W / 2 + 110);
     const y = 100;
     this.box = { x, y };
     const c = scene.add.container(0, 0).setDepth(2000);
@@ -57,8 +61,10 @@ export class PlantPanel {
     const keyHint = PlantSensors.state.connected
       ? "Usa la pianta vera"
       : step.sensor === "vials"
-        ? `Tastiera: premi ${step.key} per ogni fiala`
-        : `Tastiera: tieni premuto ${step.key}`;
+        ? "Tastiera: 1 verde · 2 blu · 3 rossa · 0 togli"
+        : step.sensor === "irrigation"
+          ? `Tastiera: premi ${step.key} (apre / chiude la leva)`
+          : `Tastiera: tieni premuto ${step.key}`;
     const keyLabel = bodyText(scene, x + 16, y + H - 30, keyHint, { size: 20, color: COLORS.red, fit: W - 32 });
     this.timerBar = scene.add.graphics();
 
@@ -81,6 +87,7 @@ export class PlantPanel {
     let satisfied = false;
     let fill = 0;
     let marker = null;
+    let negligence = null;
 
     this.fx.clear();
     if (step.sensor === "light") {
@@ -101,36 +108,90 @@ export class PlantPanel {
         this.fx.fillRect(x + 20, y + 72, 112, 124);
       }
     } else if (step.sensor === "temperature") {
-      const target = this.baseTemperature + step.riseBy;
-      satisfied = s.temperature >= target;
-      fill = (s.temperature - (this.baseTemperature - 2)) / (step.riseBy + 6);
-      marker = (target - (this.baseTemperature - 2)) / (step.riseBy + 6);
+      // scaldare (riseBy) o raffreddare (dropBy); oltre maxOver si esagera e la pianta si rovina
+      const cooling = step.dropBy !== undefined;
+      const delta = cooling ? -step.dropBy : step.riseBy;
+      const target = this.baseTemperature + delta;
+      satisfied = cooling ? s.temperature <= target : s.temperature >= target;
+      const range = Math.abs(delta) + 8;
+      const lowest = cooling ? target - 4 : this.baseTemperature - 2;
+      fill = (s.temperature - lowest) / range;
+      marker = (target - lowest) / range;
       this.valueLabel.setText(`TEMP ${s.temperature.toFixed(1)}°C → ${target.toFixed(1)}°C`);
-      const warm = Math.max(0, Math.min(1, (s.temperature - this.baseTemperature) / step.riseBy));
-      this.fx.fillStyle(COLORS.red, warm * 0.35);
-      this.fx.fillRect(x + 20, y + 72, 112, 124);
-      if (warm < 0.3) {
-        // brina
-        this.fx.fillStyle(COLORS.paper, 1 - warm * 3);
+      if (step.maxOver && !cooling && s.temperature > target + step.maxOver && !this.overheated) {
+        this.overheated = true;
+        negligence = "overheat";
+      }
+      if (step.maxOver && !cooling && s.temperature < target + step.maxOver - 1) this.overheated = false;
+      const warm = Math.max(-1, Math.min(1, (s.temperature - this.baseTemperature) / Math.abs(delta)));
+      if (warm > 0) {
+        this.fx.fillStyle(COLORS.red, warm * 0.35);
+        this.fx.fillRect(x + 20, y + 72, 112, 124);
+      } else {
+        this.fx.fillStyle(0x9fb4c2, -warm * 0.45);
+        this.fx.fillRect(x + 20, y + 72, 112, 124);
+      }
+      if (!cooling && warm < 0.3) {
+        this.fx.fillStyle(COLORS.paper, 1 - Math.max(0, warm) * 3);
         [[34, 90], [96, 84], [60, 120], [110, 132], [44, 150]].forEach(([dx, dy]) => this.fx.fillRect(x + dx, y + dy, 6, 6));
       }
+      if (cooling && warm > -0.3) {
+        // aria calda che sale
+        const t = this.scene.time.now;
+        this.fx.fillStyle(COLORS.red, 0.6);
+        for (let i = 0; i < 5; i += 1) this.fx.fillRect(x + 34 + i * 20, y + 180 - ((t / 12 + i * 30) % 100), 3, 6);
+      }
     } else if (step.sensor === "vials") {
-      satisfied = s.vials >= step.atLeast;
-      fill = s.vials / step.atLeast;
-      this.valueLabel.setText(`FIALE ${s.vials}/${step.atLeast}`);
-      // punti indicati sul vaso
+      // due fiale del colore giusto nel pozzetto; una fiala sbagliata è negligenza
+      const required = step.required ?? [1, 2];
+      const slots = s.slots;
+      satisfied = slots[0] === required[0] && slots[1] === required[1];
+      fill = slots.filter((v, i) => v && v === required[i]).length / 2;
+      this.valueLabel.setText(`POZZETTO: ${required.map((c) => VIAL_COLORS[c].name).join(" + ")}`);
+      slots.forEach((value, i) => {
+        if (value && value !== this.lastSlots[i] && value !== required[i]) negligence = "wrongVial";
+      });
+      this.lastSlots = [...slots];
       [x + 56, x + 96].forEach((vx, i) => {
-        const inserted = i < s.vials;
-        this.fx.fillStyle(inserted ? COLORS.ink : COLORS.red, 1);
-        if (inserted) {
-          this.fx.fillRect(vx - 3, y + 128, 6, 26);
-          this.fx.fillStyle(0x7e9c8c, 1);
-          this.fx.fillRect(vx - 3, y + 128, 6, 8);
-        } else {
-          this.fx.fillRect(vx - 6, y + 150, 12, 3);
-          this.fx.fillRect(vx - 1, y + 144, 3, 14);
+        const want = VIAL_COLORS[required[i]].color;
+        const value = slots[i];
+        // contorno del colore richiesto
+        this.fx.fillStyle(want, 1);
+        this.fx.fillRect(vx - 8, y + 156, 16, 4);
+        this.fx.fillRect(vx - 8, y + 156, 4, 14);
+        this.fx.fillRect(vx + 4, y + 156, 4, 14);
+        if (value) {
+          const wrong = value !== required[i];
+          this.fx.fillStyle(COLORS.inkDeep, 1);
+          this.fx.fillRect(vx - 4, y + 124, 8, 34);
+          this.fx.fillStyle(VIAL_COLORS[value].color, 1);
+          this.fx.fillRect(vx - 2, y + 136, 4, 20);
+          if (wrong && Math.floor(this.scene.time.now / 200) % 2) {
+            this.fx.fillStyle(COLORS.red, 1);
+            this.fx.fillRect(vx - 10, y + 118, 20, 3);
+          }
         }
       });
+    } else if (step.sensor === "irrigation") {
+      satisfied = s.irrigation === step.on;
+      fill = s.irrigation ? 1 : 0;
+      // leva lasciata aperta troppo a lungo: la pianta si allaga
+      if (step.on === false && s.irrigation) {
+        this.floodMs += delta;
+        if (this.floodMs > (step.floodMs ?? 4000)) {
+          this.floodMs = 0;
+          negligence = "flood";
+        }
+      }
+      this.valueLabel.setText(`IRRIGAZIONE ${s.irrigation ? "ACCESA" : "SPENTA"}`);
+      if (s.irrigation) {
+        const t = this.scene.time.now;
+        this.fx.fillStyle(COLORS.steel, 1);
+        for (let i = 0; i < 6; i += 1) {
+          const dy = (t / 6 + i * 23) % 70;
+          this.fx.fillRect(x + 40 + i * 14, y + 80 + dy, 3, 6);
+        }
+      }
     } else if (step.sensor === "touch") {
       satisfied = s.touchLeft || s.touchRight;
       fill = satisfied ? 1 : 0;
@@ -167,7 +228,7 @@ export class PlantPanel {
       this.timerBar.fillRect(x, y + H - 6, Math.round(W * left), 6);
     }
 
-    return { satisfied, done: this.progress >= hold, timedOut: this.timeoutMs > 0 && this.elapsed >= this.timeoutMs };
+    return { satisfied, done: this.progress >= hold, timedOut: this.timeoutMs > 0 && this.elapsed >= this.timeoutMs, negligence };
   }
 
   close(instant = false) {

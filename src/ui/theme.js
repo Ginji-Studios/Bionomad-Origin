@@ -289,16 +289,16 @@ export function addObjectiveBox(scene, text) {
 }
 
 // messaggio temporaneo sotto l'HUD
-export function showToast(scene, text, { duration = 2600, color = COLORS.text } = {}) {
+export function showToast(scene, text, { duration = 2600, color = COLORS.text, y = 116, depth = 1100 } = {}) {
   scene.toast?.destroy();
   const { width } = scene.scale;
-  const container = scene.add.container(0, 0).setDepth(1100).setScrollFactor(0);
-  const label = bodyText(scene, width / 2, 116, text, { size: 26, color, origin: 0.5, align: "center", wrap: 640 });
+  const container = scene.add.container(0, 0).setDepth(depth).setScrollFactor(0);
+  const label = bodyText(scene, width / 2, y, text, { size: 26, color, origin: 0.5, align: "center", wrap: 640 });
   const w = Math.max(220, label.width + 40);
   const h = label.height + 20;
   const g = scene.add.graphics();
-  dropShadow(g, Math.round(width / 2 - w / 2), Math.round(116 - h / 2), w, h);
-  drawPanel(g, Math.round(width / 2 - w / 2), Math.round(116 - h / 2), w, h, { fill: COLORS.paper, border: COLORS.ink });
+  dropShadow(g, Math.round(width / 2 - w / 2), Math.round(y - h / 2), w, h);
+  drawPanel(g, Math.round(width / 2 - w / 2), Math.round(y - h / 2), w, h, { fill: COLORS.paper, border: COLORS.ink });
   container.add([g, label]);
   container.setAlpha(0).setY(-10);
   scene.tweens.add({ targets: container, alpha: 1, y: 0, duration: 200, ease: "Sine.easeOut" });

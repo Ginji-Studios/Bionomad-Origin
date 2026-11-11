@@ -1,5 +1,5 @@
 import Phaser from "../phaser.js";
-import { animateWalker, Player } from "../entities/Player.js";
+import { animateWalker, Player, turnTo } from "../entities/Player.js";
 import { getOrigin } from "../config/origins.js";
 import { getRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
@@ -25,7 +25,7 @@ export class IntroScene extends Phaser.Scene {
     fadeIn(this, 500);
 
     this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg).setDepth(-100);
-    this.world = buildHouse(this);
+    this.world = buildHouse(this, { originId: this.origin.id });
     const hud = addHud(this, { oxygen: 0.3, location: this.origin.city, flag: this.origin.flag });
     const caption = addObjectiveBox(this, "07:30 · CASA");
     textChip(this, width - 14, height - 30, "SPAZIO  salta", { size: 20, originX: 1 });
@@ -97,7 +97,7 @@ export class IntroScene extends Phaser.Scene {
   update(time, delta) {
     if (!this.player) return;
     // camminata "pilotata" dalla cutscene
-    this.player.scaleX = Phaser.Math.Linear(this.player.scaleX, this.player.facing, 0.25);
+    turnTo(this.player, this.player.facing, this.walking);
     this.player.setDepth(this.player.y);
     animateWalker(this.player, delta, this.walking ? 0.8 : 0, time);
   }

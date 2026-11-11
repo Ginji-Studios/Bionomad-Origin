@@ -1,14 +1,22 @@
 // sensori della pianta (Elegoo UNO R3) letti via Web Serial.
-// riga dall'arduino: L:612,T:23.4,V:1,TL:0,TR:1  (luce, °C, fiale, foglia sx/dx)
+// riga dall'arduino: L:612,T:23.4,P1:1,P2:0,W:0,TL:0,TR:1
+//   luce, °C, fiala nel pozzetto 1 e 2 (0 vuoto, 1 verde, 2 blu, 3 rossa), leva acqua, foglia sx/dx
 // comandi verso l'arduino: E1 / E0 led emergenza, G lampeggio verde
 
 const BAUD = 115200;
+
+export const VIAL_COLORS = {
+  1: { name: "VERDE", color: 0x5c9a6b },
+  2: { name: "BLU", color: 0x3b6fb0 },
+  3: { name: "ROSSA", color: 0xb4553f }
+};
 
 const state = {
   connected: false,
   light: 0.6, // 0..1
   temperature: 22, // °C
-  vials: 0,
+  slots: [0, 0],
+  irrigation: false,
   touchLeft: false,
   touchRight: false
 };
@@ -23,7 +31,9 @@ function parseLine(line) {
     if (Number.isNaN(value)) continue;
     if (key === "L") state.light = Math.max(0, Math.min(1, value / 1023));
     if (key === "T") state.temperature = value;
-    if (key === "V") state.vials = value;
+    if (key === "P1") state.slots[0] = value;
+    if (key === "P2") state.slots[1] = value;
+    if (key === "W") state.irrigation = value === 1;
     if (key === "TL") state.touchLeft = value === 1;
     if (key === "TR") state.touchRight = value === 1;
   }
@@ -72,23 +82,40 @@ export const PlantSensors = {
     if (writer) writer.write(`${command}\n`).catch(() => {});
   },
 
-  // simulazione da tastiera (usata solo se la pianta non è collegata)
+  // simulazione da tastiera: C copri, I torcia, H scalda, F raffredda
   simulate(keys, delta, baseTemperature = 22) {
     if (state.connected) return;
     const seconds = delta / 1000;
-    const targetLight = keys.C.isDown ? 0.04 : keys.I.isDown ? 0.95 : 0.6;
+    const targetLight = keys.C.isDown ? 0.04 : keys.I.isDown ? 0.95 : this.ambientLight;
     state.light += (targetLight - state.light) * Math.min(1, seconds * 8);
-    const targetTemp = keys.H.isDown ? baseTemperature + 10 : baseTemperature;
-    const rate = keys.H.isDown ? 2.2 : 1.2;
+    const targetTemp = keys.H.isDown ? baseTemperature + 12 : keys.F.isDown ? baseTemperature - 10 : baseTemperature;
+    const rate = keys.H.isDown || keys.F.isDown ? 2.2 : 1.2;
     state.temperature += Math.sign(targetTemp - state.temperature) * Math.min(Math.abs(targetTemp - state.temperature), rate * seconds);
     state.touchLeft = keys.Q.isDown;
     state.touchRight = keys.E.isDown;
   },
 
-  resetSimulation(baseTemperature = 22) {
+  // fiale simulate: 1/2/3 inseriscono una fiala colorata, 0 toglie l'ultima
+  insertVial(color) {
     if (state.connected) return;
-    state.light = 0.6;
+    const free = state.slots.indexOf(0);
+    if (free !== -1) state.slots[free] = color;
+  },
+
+  removeVial() {
+    if (state.connected) return;
+    const last = state.slots[1] ? 1 : state.slots[0] ? 0 : -1;
+    if (last !== -1) state.slots[last] = 0;
+  },
+
+  // luce "a riposo" della simulazione (bassa se il vaso è rimasto coperto)
+  ambientLight: 0.6,
+
+  resetSimulation(baseTemperature = 22, { ambientLight = 0.6 } = {}) {
+    this.ambientLight = ambientLight;
+    if (state.connected) return;
+    state.light = ambientLight;
     state.temperature = baseTemperature;
-    state.vials = 0;
+    state.slots = [0, 0];
   }
 };

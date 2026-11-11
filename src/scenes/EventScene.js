@@ -49,7 +49,7 @@ export class EventScene extends Phaser.Scene {
     this.simBase = 22;
     this.events.once("shutdown", () => {
       PlantSensors.send("E0");
-      document.body.classList.remove("plant-active");
+      this.clearPlantClasses();
     });
 
     this.createNpcs();
@@ -78,13 +78,21 @@ export class EventScene extends Phaser.Scene {
     ["LEFT", "A"].forEach((key) => keys.on(`keydown-${key}`, () => this.onDirection(-1)));
     ["RIGHT", "D"].forEach((key) => keys.on(`keydown-${key}`, () => this.onDirection(1)));
     keys.once("keydown-ESC", () => goTo(this, "MenuScene"));
-    // simulazione fiala inserita (solo senza pianta collegata)
-    keys.on("keydown-V", () => {
-      if (this.mode === "plant" && this.plantPanel.step?.sensor === "vials" && !PlantSensors.state.connected) {
-        PlantSensors.state.vials = Math.min(2, PlantSensors.state.vials + 1);
-        this.player.act("act", 300, 0);
-      }
+    // simulazione da tastiera delle azioni discrete sulla pianta
+    const plantStep = (sensor) => this.mode === "plant" && this.plantPanel.step?.sensor === sensor && !PlantSensors.state.connected;
+    keys.on("keydown-R", () => {
+      if (PlantSensors.state.connected) return;
+      PlantSensors.state.irrigation = !PlantSensors.state.irrigation;
+      this.player.act("act", 300, 0);
     });
+    [["ONE", 1], ["TWO", 2], ["THREE", 3]].forEach(([key, color]) =>
+      keys.on(`keydown-${key}`, () => {
+        if (!plantStep("vials")) return;
+        PlantSensors.insertVial(color);
+        this.player.act("act", 300, 0);
+      })
+    );
+    keys.on("keydown-ZERO", () => plantStep("vials") && PlantSensors.removeVial());
     textChip(this, 14, height - 30, PlantSensors.state.connected ? "PIANTA: COLLEGATA" : "PIANTA: SIMULATA", { size: 18 });
 
     this.showIntroCard();
@@ -199,15 +207,24 @@ export class EventScene extends Phaser.Scene {
     this.mode = "plant";
     this.plantEmergency = emergency;
     this.simBase = step.baseTemperature ?? 22;
-    PlantSensors.resetSimulation(this.simBase);
+    const irrigation = PlantSensors.state.irrigation;
+    PlantSensors.resetSimulation(this.simBase, { ambientLight: step.setup === "covered" ? 0.06 : 0.6 });
+    if (step.sensor === "irrigation" && step.on === false) PlantSensors.state.irrigation = irrigation;
     this.player.velocity.set(0, 0);
+    if (step.sensor === "vials") {
+      const colors = Phaser.Utils.Array.Shuffle([1, 2, 3]);
+      step = { ...step, required: colors.slice(0, 2) };
+      // negligenza già fatta: nel pozzetto c'è la fiala del terzo colore
+      if (step.setup === "wrongVial" && !PlantSensors.state.connected) PlantSensors.state.slots = [colors[2], 0];
+    }
+    if (step.setup === "leverOpen" && !PlantSensors.state.connected) PlantSensors.state.irrigation = true;
     this.plantPanel.show(step, { timeoutMs: step.timeoutMs ?? 0, emergency });
-    document.body.classList.add("plant-active");
+    document.body.classList.add("plant-active", `plant-${step.sensor}`);
   }
 
   closePlant(success) {
     this.plantPanel.close();
-    document.body.classList.remove("plant-active");
+    this.clearPlantClasses();
     if (success) PlantSensors.send("G");
     if (this.plantEmergency) {
       this.plantEmergency = false;
@@ -225,6 +242,29 @@ export class EventScene extends Phaser.Scene {
       return;
     }
     this.completeStep();
+  }
+
+  clearPlantClasses() {
+    document.body.classList.remove("plant-active", "plant-light", "plant-temperature", "plant-irrigation", "plant-vials");
+  }
+
+  // gesti di negligenza: costano ossigeno e vengono contati nel recap
+  negligence(type) {
+    const messages = {
+      forgot: "te ne sei dimenticato, la pianta ha sofferto!",
+      overheat: "troppo calore, l'hai scottata!",
+      flood: "leva dell'acqua aperta, si sta allagando!",
+      wrongVial: "fiala sbagliata! Toglila e metti quella giusta."
+    };
+    const cost = { forgot: 0.18, overheat: 0.12, flood: 0.2, wrongVial: 0.12 }[type] ?? 0.1;
+    this.hud.setOxygen(this.hud.oxygen - cost);
+    this.cameras.main.shake(220, 0.006);
+    this.cameras.main.flash(160, 180, 85, 63);
+    // sotto il pannello della pianta, sopra a tutto
+    const y = this.mode === "plant" ? 420 : 116;
+    showToast(this, `NEGLIGENZA · ${messages[type] ?? "la pianta soffre"}`, { color: COLORS.red, duration: 2400, y, depth: 2100 });
+    this.run.negligence = (this.run.negligence ?? 0) + 1;
+    this.registry.set("run", this.run);
   }
 
   playBusLeaves() {
@@ -424,7 +464,7 @@ export class EventScene extends Phaser.Scene {
       const ry = y + 38 + i * rowH;
       const done = i < doneIndex;
       const box = drawPanel(this.add.graphics(), x + 12, ry, 22, 22, { fill: done ? 0x5c7a6b : COLORS.paper, border: COLORS.ink });
-      const label = bodyText(this, x + 44, ry + 1, step.text, { size: 20, color: done ? COLORS.stone : COLORS.ink, fit: w - 56 });
+      const label = bodyText(this, x + 44, ry + 1, step.text, { size: 20, color: done ? COLORS.stone : step.extra === "fix" ? COLORS.red : COLORS.ink, fit: w - 56 });
       c.add([box, label]);
       if (done) {
         c.add(this.add.image(x + 23, ry + 11, "check").setScale(2));
@@ -510,8 +550,14 @@ export class EventScene extends Phaser.Scene {
       const result = this.plantPanel.update(delta);
       if (result.satisfied && this.plantPanel.step?.drainBoost) boost *= this.plantPanel.step.drainBoost;
       if (result.satisfied && Math.random() < 0.02) this.player.act("act", 200, 0);
+      if (result.negligence) this.negligence(result.negligence);
       if (result.done) this.closePlant(true);
-      else if (result.timedOut) this.closePlant(false);
+      else if (result.timedOut && this.plantEmergency) this.closePlant(false);
+      else if (result.timedOut) {
+        // se ne è dimenticato: la pianta soffre e la richiesta resta
+        this.negligence("forgot");
+        this.plantPanel.elapsed = 0;
+      }
     }
 
     // emergenza

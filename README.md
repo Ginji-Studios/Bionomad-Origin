@@ -12,12 +12,25 @@ npm run dev
 ## Come funziona una run
 
 1. **Menu** → GIOCA
-2. **Origine**: Nuova Delhi (estremo), Milano (difficile), Reykjavík (facile). La difficoltà è l'inquinamento (PM2.5): più è alto, più in fretta cala l'ossigeno. Cambia anche l'aspetto del personaggio.
+2. **Origine**: Reykjavík (facile), Milano (medio), Nuova Delhi (difficile). Più è alto il PM2.5, più in fretta cala l'ossigeno. Cambia anche l'aspetto del personaggio, e il numero di task per evento:
+   - **Facile**: solo la task dell'evento.
+   - **Medio**: + una task di cura in più (illuminala, scaldala, nutrila, dalle un sorso).
+   - **Difficile**: + una cura e + un rimedio a una negligenza (leva lasciata aperta, fiala sbagliata nel pozzetto, pianta surriscaldata o rimasta al buio).
 3. **Cutscene**: il cittadino indossa BIONOMAD+ ed esce di casa.
-4. **3 eventi** pescati a caso tra 10 in `src/config/events.js` (5 nel gioco, 5 sulla pianta vera), giocati in ordine di orario. Tra un evento e l'altro si attraversa la città a piedi.
+4. **3 eventi** pescati a caso tra 11 in `src/config/events.js` (5 nel gioco, 5 sulla pianta vera), giocati in ordine di orario. Tra un evento e l'altro si attraversa la città a piedi.
 5. **Fine giornata** (tutte le task completate) oppure **Task fallite · Game over** (ossigeno a zero).
 
 Comandi: WASD / frecce per muoversi, SPAZIO per interagire, ESC per il menu.
+
+### Negligenze
+
+Ogni negligenza costa ossigeno e viene contata nel recap finale:
+
+- **Scordarsela**: non scaldarla / raffreddarla entro il tempo indicato (la richiesta resta e il conto si ripete).
+- **Scottarla**: scaldarla molto oltre il richiesto.
+- **Allagarla**: lasciare aperta la leva dell'acqua (in qualsiasi momento, non solo durante l'irrigazione).
+- **Fiala sbagliata**: inserire nel pozzetto una fiala del colore che non corrisponde.
+- **Coprirla troppo**: tenerla al buio costa ossigeno.
 
 ## Pianta vera (Elegoo UNO R3)
 
@@ -27,15 +40,16 @@ Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial 
 2. Avvia il gioco con `npm run dev` e aprilo in **Chrome o Edge** (`http://localhost:...`).
 3. Nel menu scegli **COLLEGA PIANTA** e seleziona la porta dell'Elegoo.
 
-| Sensore | Pin | Usato in |
-| --- | --- | --- |
-| Fotoresistenza (luce) | A0 | Bus mattina (copri), emergenza (illumina) |
-| Termistore NTC 10k | A1 | Ufficio condizionatore, bus perso, emergenza (scalda) |
-| Contatti fiale | D2, D3 | Casa sera (fertilizzante) |
-| Foglie capacitive sx / dx | D4 → D5 / D6 | Movimento del personaggio, emergenza |
-| LED rossi / verde | D9, D10 / D11 | Emergenza / task riuscita |
+| Azione sulla pianta | Sensore | Pin | Usato in |
+| --- | --- | --- | --- |
+| Puntare la torcia / coprire il vaso | Fotoresistenza | A0 | Bus mattina (copri), emergenza (illumina) |
+| Torcia termica (scalda / raffredda) | Termistore NTC 10k | A1 | Ufficio condizionatore, bus perso, ondata di calore, emergenza |
+| Toccare le piante laterali | Foglie capacitive sx / dx | D4 → D5 / D6 | Movimento del personaggio |
+| Pulsante irrigazione | Pulsante + pompa (relè) | D7 / D8 | Food truck · acqua, emergenza |
+| Fiale colorate nel pozzetto | Resistenza nel tappo (verde 1k, blu 4.7k, rossa 10k) | A2, A3 | Casa sera (fertilizzante), task extra |
+| LED rossi / verde | — | D9, D10 / D11 | Emergenza / task riuscita |
 
-Senza pianta collegata si gioca da tastiera: **C** copri, **I** illumina, **H** scalda, **V** inserisci fiala, **Q / E** tocca foglia sinistra / destra.
+Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** scalda, **F** raffredda, **R** apre / chiude la leva dell'acqua, **1 / 2 / 3** inserisci fiala verde / blu / rossa, **0** togli fiala, **Q / E** tocca foglia sinistra / destra. Su telefono e tablet compaiono solo i tasti dell'azione richiesta.
 
 ## Struttura
 

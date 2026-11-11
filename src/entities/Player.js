@@ -39,6 +39,25 @@ export function animateWalker(walker, delta, speedRatio, time) {
   if (walker.sprite.texture.key !== key) walker.sprite.setTexture(key);
 }
 
+// girata con un po' di peso: cambio di verso immediato, schiacciamento elastico,
+// lo zaino che arriva in ritardo e un filo di polvere se si stava camminando
+export function turnTo(walker, facing, moving = false) {
+  if (Math.sign(walker.scaleX) === facing) return;
+  const scene = walker.scene;
+  walker.scaleX = facing;
+  scene.tweens.killTweensOf(walker.sprite);
+  scene.tweens.killTweensOf(walker.pack);
+  walker.sprite.setScale(SPRITE_SCALE * 0.82, SPRITE_SCALE * 1.1);
+  scene.tweens.add({ targets: walker.sprite, scaleX: SPRITE_SCALE, scaleY: SPRITE_SCALE, duration: 260, ease: "Back.easeOut" });
+  walker.pack.x = -30 + 10;
+  scene.tweens.add({ targets: walker.pack, x: -30, duration: 220, delay: 40, ease: "Back.easeOut" });
+  if (!moving) return;
+  for (let i = 0; i < 3; i += 1) {
+    const dust = scene.add.rectangle(walker.x + facing * (8 + i * 6), walker.y - 2, 4, 4, 0xa3a9a6).setDepth(walker.depth - 1);
+    scene.tweens.add({ targets: dust, x: dust.x + facing * (10 + i * 6), y: dust.y - 6 - i * 3, alpha: 0, duration: 380, onComplete: () => dust.destroy() });
+  }
+}
+
 // avvia un'azione
 export function playAction(walker, frame = "act", duration = 420, hop = 8) {
   walker.actionFrame = frame;
@@ -134,7 +153,7 @@ export class Player extends Phaser.GameObjects.Container {
       this.facing = moveX > 0 ? 1 : -1;
       this.glancing = false;
     }
-    this.scaleX = Phaser.Math.Linear(this.scaleX, this.facing, 1 - Math.exp(-delta / 45));
+    turnTo(this, this.facing, this.velocity.length() > 40);
 
     const speedRatio = Math.min(1, this.velocity.length() / this.speed);
     animateWalker(this, delta, speedRatio, time);

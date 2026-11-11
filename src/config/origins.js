@@ -1,8 +1,8 @@
 // origini selezionabili
 export const ORIGINS = [
-  { id: "reykjavik", city: "REYKJAVIK", label: "Reykjavík", country: "ISLANDA", flag: "flag_is", pm25: 3.8, level: 1, difficulty: "FACILE", color: 0x5c7a6b, drainSeconds: 130 },
-  { id: "milano", city: "MILANO", label: "Milano", country: "ITALIA", flag: "flag_it", pm25: 18.1, level: 3, difficulty: "DIFFICILE", color: 0xc98552, drainSeconds: 75 },
-  { id: "delhi", city: "NUOVA DELHI", label: "Nuova Delhi", country: "INDIA", flag: "flag_in", pm25: 108.3, level: 4, difficulty: "ESTREMO", color: 0xb4553f, drainSeconds: 45 }
+  { id: "reykjavik", city: "REYKJAVIK", label: "Reykjavík", country: "ISLANDA", flag: "flag_is", pm25: 3.8, level: 1, difficulty: "FACILE", tasks: "1 TASK", extras: { care: 0, fix: 0 }, color: 0x5c7a6b, drainSeconds: 130 },
+  { id: "milano", city: "MILANO", label: "Milano", country: "ITALIA", flag: "flag_it", pm25: 18.1, level: 2, difficulty: "MEDIO", tasks: "+1 TASK", extras: { care: 1, fix: 0 }, color: 0xc98552, drainSeconds: 75 },
+  { id: "delhi", city: "NUOVA DELHI", label: "Nuova Delhi", country: "INDIA", flag: "flag_in", pm25: 108.3, level: 3, difficulty: "DIFFICILE", tasks: "+2 TASK", extras: { care: 1, fix: 1 }, color: 0xb4553f, drainSeconds: 45 }
 ];
 
 export function getOrigin(registry) {

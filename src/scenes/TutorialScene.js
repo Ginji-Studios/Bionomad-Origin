@@ -1,17 +1,20 @@
 import Phaser from "../phaser.js";
 import { addTopBar, goTo, textChip, bodyText, COLORS, dropShadow, drawPanel, paperGrid, pixelArrow, pixelDisc, pixelText } from "../ui/theme.js";
 
-// gesti che i sensori della pianta riconoscono
+// le azioni vere sulla pianta, lette dai sensori dell'arduino
 const CARE_GESTURES = [
-  { title: "ILLUMINALA", description: "luce e crescita", art: "light" },
-  { title: "SOFFIACI SOPRA", description: "aria dolce", art: "blow" },
-  { title: "SCALDALA", description: "torcia termica", art: "heat" }
+  { title: "ILLUMINAZIONE", description: "punta la torcia", art: "light" },
+  { title: "TERMOREGOLAZIONE", description: "torcia termica ± °C", art: "heat" },
+  { title: "IDRATAZIONE", description: "pulsante irrigazione", art: "irrigate" },
+  { title: "NUTRIZIONE", description: "fiale nel pozzetto", art: "vials" }
 ];
 
+// errori da evitare: ognuno costa ossigeno
 const NEGLECT_GESTURES = [
-  { title: "COPRILA", description: "toglie la luce", art: "cover" },
-  { title: "SCUOTILA", description: "la fa soffrire", art: "shake" },
-  { title: "SOLLEVALA", description: "senza sottovaso", art: "lift" }
+  { title: "PRIVAZIONE DI LUCE", description: "coperta troppo a lungo", art: "cover" },
+  { title: "SHOCK TERMICO", description: "troppo caldo o freddo", art: "forgot" },
+  { title: "IPER-IDRATAZIONE", description: "leva dell'acqua aperta", art: "flood" },
+  { title: "INTOSSICAZIONE", description: "fiala del colore sbagliato", art: "wrongVial" }
 ];
 
 export class TutorialScene extends Phaser.Scene {
@@ -61,13 +64,10 @@ export class TutorialScene extends Phaser.Scene {
     const label = pixelText(this, x + w / 2, y, title, { size: 8, color: COLORS.paper, origin: 0.5 });
     g.fillRect(label.x - label.width / 2 - 8, y - 6, label.width + 16, 14);
 
-    gestures.forEach((gesture, index) => {
-      this.createCard(x + 18 + index * 230, y + 18, gesture, color, good);
-    });
+    gestures.forEach((gesture, index) => this.createCard(x + 18 + index * 172, y + 18, gesture, color, good, 160));
   }
 
-  createCard(x, y, gesture, color, good) {
-    const w = 212;
+  createCard(x, y, gesture, color, good, w = 212) {
     const h = 84;
     const g = this.add.graphics();
     drawPanel(g, x, y, w, h, { fill: good ? COLORS.bg : 0x24344a, border: color, borderWidth: 2 });
@@ -93,34 +93,53 @@ export class TutorialScene extends Phaser.Scene {
     const loop = (delay, callback) => this.time.addEvent({ delay, loop: true, callback });
 
     if (type === "light") {
-      // sole che pulsa e raggi che viaggiano verso la pianta
-      const sun = this.add.container(cx - 62, baseY - 60);
-      const disc = this.add.graphics();
-      pixelDisc(disc, 0, 0, 14, COLORS.ink, 1, 2);
-      pixelDisc(disc, 0, 0, 9, COLORS.paper, 1, 2);
-      sun.add(disc);
-      this.tweens.add({ targets: sun, scale: 1.15, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-      loop(260, () => {
-        const ray = this.add.rectangle(cx - 46, baseY - 48, 6, 4, COLORS.ink);
-        this.tweens.add({ targets: ray, x: cx - 14, y: baseY - 32, alpha: 0.2, duration: 600, onComplete: () => ray.destroy() });
-      });
-      this.tweens.add({ targets: plant, scaleY: 4.3, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      // torcia che si accende e punta il fascio sulla pianta
+      fx.fillStyle(COLORS.steel, 1);
+      fx.fillRect(cx - 74, baseY - 50, 18, 10);
+      fx.fillStyle(COLORS.ink, 1);
+      fx.fillRect(cx - 56, baseY - 54, 6, 18);
+      const beam = this.add.graphics();
+      for (let i = 0; i < 8; i += 1) {
+        beam.fillStyle(0xe8c66a, 0.55);
+        beam.fillRect(cx - 50 + i * 4, baseY - 48 - i * 2, 4, 6 + i * 4);
+      }
+      this.tweens.add({ targets: beam, alpha: { from: 0, to: 1 }, duration: 160, yoyo: true, hold: 1200, repeat: -1, repeatDelay: 600 });
+      this.tweens.add({ targets: plant, scaleY: 4.3, duration: 500, yoyo: true, hold: 800, repeat: -1, repeatDelay: 700, ease: "Sine.easeInOut" });
     }
 
-    if (type === "blow") {
-      // faccia che soffia
-      const face = this.add.graphics();
-      face.fillStyle(0xe8dccd, 1);
-      face.fillRect(cx - 86, baseY - 58, 26, 30);
-      face.fillStyle(COLORS.inkDeep, 1);
-      face.fillRect(cx - 70, baseY - 50, 4, 4);
-      const mouth = this.add.rectangle(cx - 60, baseY - 38, 6, 6, COLORS.inkDeep);
-      this.tweens.add({ targets: mouth, scaleX: 1.6, scaleY: 0.6, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-      loop(320, () => {
-        const puff = this.add.rectangle(cx - 52, baseY - 40 + Phaser.Math.Between(-4, 4), 8, 4, COLORS.steel);
-        this.tweens.add({ targets: puff, x: cx - 10, alpha: 0, scaleX: 0.4, duration: 650, ease: "Sine.easeOut", onComplete: () => puff.destroy() });
+    if (type === "irrigate") {
+      // pulsante sul vaso: si preme, l'acqua scende, si ripreme e si ferma
+      const button = this.add.graphics();
+      button.fillStyle(COLORS.ink, 1);
+      button.fillRect(cx - 52, baseY - 16, 16, 8);
+      const cap = this.add.rectangle(cx - 44, baseY - 20, 10, 6, COLORS.red);
+      fx.fillStyle(COLORS.steel, 1);
+      fx.fillRect(cx - 4, baseY - 72, 8, 6);
+      let on = false;
+      loop(1600, () => {
+        on = !on;
+        this.tweens.add({ targets: cap, y: baseY - 16, duration: 90, yoyo: true });
+        cap.setFillStyle(on ? 0x5c7a6b : COLORS.red);
       });
-      this.tweens.add({ targets: plant, x: cx + 4, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      loop(110, () => {
+        if (!on) return;
+        const drop = this.add.rectangle(cx + Phaser.Math.Between(-6, 6), baseY - 64, 3, 6, COLORS.steel);
+        this.tweens.add({ targets: drop, y: baseY - 30, alpha: 0, duration: 380, onComplete: () => drop.destroy() });
+      });
+    }
+
+    if (type === "vials") {
+      // pozzetto accanto al vaso: la fiala scende e si incastra
+      fx.fillStyle(COLORS.ink, 1);
+      fx.fillRect(cx + 36, baseY - 30, 20, 4);
+      fx.fillRect(cx + 36, baseY - 30, 4, 22);
+      fx.fillRect(cx + 52, baseY - 30, 4, 22);
+      fx.fillRect(cx + 36, baseY - 10, 20, 4);
+      const vial = this.add.container(cx + 46, baseY - 70);
+      const glass = this.add.rectangle(0, 0, 8, 22, 0xdfe7ea).setStrokeStyle(2, COLORS.ink);
+      const liquid = this.add.rectangle(0, 5, 6, 10, 0x7e9c8c);
+      vial.add([glass, liquid]);
+      this.tweens.add({ targets: vial, y: baseY - 22, duration: 700, hold: 700, yoyo: true, repeat: -1, repeatDelay: 300, ease: "Quad.easeIn" });
     }
 
     if (type === "heat") {
@@ -136,9 +155,73 @@ export class TutorialScene extends Phaser.Scene {
       flame.add([outer, inner]);
       this.tweens.add({ targets: outer, scaleX: 1.5, duration: 90, yoyo: true, repeat: -1 });
       this.tweens.add({ targets: inner, x: -7, duration: 120, yoyo: true, repeat: -1 });
+      // alterna caldo (onde rosse) e freddo (aria azzurra)
+      let warm = true;
+      loop(2400, () => {
+        warm = !warm;
+        outer.setFillStyle(warm ? COLORS.red : COLORS.steelLight);
+        inner.setFillStyle(warm ? 0xe8b04a : COLORS.paper);
+      });
       loop(300, () => {
-        const wave = this.add.rectangle(cx + Phaser.Math.Between(-20, 20), baseY - 20, 4, 6, COLORS.red, 0.7);
+        const wave = this.add.rectangle(cx + Phaser.Math.Between(-20, 20), baseY - 20, 4, 6, warm ? COLORS.red : COLORS.steelLight, 0.7);
         this.tweens.add({ targets: wave, y: baseY - 62, alpha: 0, x: wave.x + Phaser.Math.Between(-6, 6), duration: 900, onComplete: () => wave.destroy() });
+      });
+    }
+
+    if (type === "forgot") {
+      // clessidra che scorre: nessuno la scalda e la pianta si affloscia nel gelo
+      fx.fillStyle(COLORS.steelLight, 1);
+      fx.fillRect(cx - 62, baseY - 62, 18, 4);
+      fx.fillRect(cx - 62, baseY - 30, 18, 4);
+      fx.fillRect(cx - 60, baseY - 58, 4, 8);
+      fx.fillRect(cx - 50, baseY - 58, 4, 8);
+      fx.fillRect(cx - 56, baseY - 50, 6, 4);
+      fx.fillRect(cx - 60, baseY - 46, 4, 8);
+      fx.fillRect(cx - 50, baseY - 46, 4, 8);
+      const sand = this.add.rectangle(cx - 53, baseY - 38, 6, 8, 0xe8c66a).setOrigin(0.5, 1);
+      this.tweens.add({ targets: sand, scaleY: { from: 0.1, to: 1 }, duration: 2000, repeat: -1, repeatDelay: 400 });
+      this.tweens.add({ targets: plant, scaleY: 3.2, scaleX: 4.3, duration: 1200, hold: 700, yoyo: true, repeat: -1, ease: "Sine.easeIn" });
+      loop(240, () => {
+        const flake = this.add.rectangle(cx + Phaser.Math.Between(-30, 60), baseY - 70, 4, 4, COLORS.paper, 0.9);
+        this.tweens.add({ targets: flake, y: baseY - 10, alpha: 0, duration: 1300, onComplete: () => flake.destroy() });
+      });
+    }
+
+    if (type === "flood") {
+      // leva aperta: l'acqua sale fino a sommergere il vaso
+      fx.fillStyle(COLORS.steel, 1);
+      fx.fillRect(cx - 4, baseY - 72, 8, 6);
+      fx.fillStyle(COLORS.ink, 1);
+      fx.fillRect(cx + 44, baseY - 14, 18, 6);
+      fx.fillStyle(0x5c7a6b, 1);
+      fx.fillRect(cx + 52, baseY - 34, 4, 22);
+      fx.fillRect(cx + 50, baseY - 38, 8, 6);
+      const water = this.add.rectangle(cx, baseY, 136, 44, COLORS.steel, 0.55).setOrigin(0.5, 1);
+      this.tweens.add({ targets: water, scaleY: { from: 0, to: 1 }, duration: 2200, hold: 600, repeat: -1, ease: "Sine.easeIn" });
+      this.tweens.add({ targets: plant, angle: 0, scaleY: 3.4, duration: 2200, hold: 600, repeat: -1, ease: "Sine.easeIn" });
+      loop(90, () => {
+        const drop = this.add.rectangle(cx + Phaser.Math.Between(-5, 5), baseY - 64, 3, 6, COLORS.steelLight);
+        this.tweens.add({ targets: drop, y: baseY - 34, alpha: 0, duration: 340, onComplete: () => drop.destroy() });
+      });
+    }
+
+    if (type === "wrongVial") {
+      // pozzetto che chiede il verde: entra la fiala rossa, X lampeggiante, la fiala risale
+      fx.fillStyle(0x5c9a6b, 1);
+      fx.fillRect(cx + 36, baseY - 30, 20, 4);
+      fx.fillRect(cx + 36, baseY - 30, 4, 22);
+      fx.fillRect(cx + 52, baseY - 30, 4, 22);
+      fx.fillRect(cx + 36, baseY - 10, 20, 4);
+      const vial = this.add.container(cx + 46, baseY - 70);
+      vial.add([this.add.rectangle(0, 0, 8, 22, 0xdfe7ea).setStrokeStyle(2, COLORS.ink), this.add.rectangle(0, 5, 6, 10, COLORS.red)]);
+      const wrong = this.add.image(cx + 46, baseY - 52, "cross").setScale(2).setAlpha(0);
+      this.tweens.chain({
+        loop: -1,
+        tweens: [
+          { targets: vial, y: baseY - 22, duration: 600, ease: "Quad.easeIn", delay: 300 },
+          { targets: wrong, alpha: { from: 1, to: 0 }, duration: 140, repeat: 3, yoyo: true },
+          { targets: vial, y: baseY - 70, duration: 500, ease: "Back.easeOut" }
+        ]
       });
     }
 
@@ -167,44 +250,6 @@ export class TutorialScene extends Phaser.Scene {
       });
     }
 
-    if (type === "shake") {
-      // scossa a raffiche
-      const lines = this.add.graphics();
-      lines.fillStyle(COLORS.red, 1);
-      [-1, 1].forEach((side) => {
-        lines.fillRect(cx + side * 46 - 2, baseY - 56, 4, 10);
-        lines.fillRect(cx + side * 54 - 2, baseY - 46, 4, 14);
-        lines.fillRect(cx + side * 46 - 2, baseY - 30, 4, 10);
-      });
-      const burst = () => {
-        lines.setVisible(true);
-        this.tweens.add({ targets: plant, x: { from: cx - 6, to: cx + 6 }, duration: 60, yoyo: true, repeat: 6, onComplete: () => {
-          plant.x = cx;
-          lines.setVisible(false);
-        } });
-        for (let i = 0; i < 2; i += 1) {
-          const leaf = this.add.image(cx + Phaser.Math.Between(-14, 14), baseY - 44, "leaf_bad").setScale(3);
-          this.tweens.add({ targets: leaf, y: baseY - 10, x: leaf.x + Phaser.Math.Between(-16, 16), alpha: 0, duration: 900, delay: i * 120, ease: "Quad.easeIn", onComplete: () => leaf.destroy() });
-        }
-      };
-      burst();
-      loop(1500, burst);
-    }
-
-    if (type === "lift") {
-      // il vaso si alza, il sottovaso resta giù e l'acqua gocciola via
-      fx.fillStyle(COLORS.steelLight, 1);
-      fx.fillRect(cx + 44, baseY - 8, 36, 6);
-      fx.fillStyle(COLORS.stone, 1);
-      fx.fillRect(cx + 48, baseY - 12, 28, 4);
-      pixelArrow(fx, cx - 64, baseY - 64, "up", COLORS.paper, 3);
-      this.tweens.add({ targets: plant, y: baseY - 12, duration: 600, yoyo: true, hold: 600, repeat: -1, ease: "Back.easeOut" });
-      loop(240, () => {
-        if (plant.y > baseY - 8) return;
-        const drop = this.add.rectangle(cx + Phaser.Math.Between(-10, 10), plant.y, 4, 6, COLORS.steelLight);
-        this.tweens.add({ targets: drop, y: baseY, alpha: 0, duration: 400, onComplete: () => drop.destroy() });
-      });
-    }
   }
 
   createSidePanel(x, side) {

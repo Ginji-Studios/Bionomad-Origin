@@ -5,7 +5,7 @@ import { PlantSensors } from "./PlantSensors.js";
 export class MockPlantInput extends InputProvider {
   constructor(scene) {
     super();
-    this.keys = scene.input.keyboard.addKeys("W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,C,I,H,V,Q,E");
+    this.keys = scene.input.keyboard.addKeys("W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,C,I,H,F,R,Q,E");
   }
 
   getState() {

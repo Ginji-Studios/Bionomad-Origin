@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#1c2839" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Bionomad · O2RIGIN</title>
     <style>
@@ -128,6 +129,15 @@
       /* i tasti della pianta compaiono solo durante le azioni sulla pianta */
       .tc-plant { display: none; }
       body.plant-active .tc-plant { display: grid; }
+      /* solo i tasti del sensore richiesto */
+      .tc-plant .tc-btn { display: none; }
+      body.plant-light .tc-plant .s-light,
+      body.plant-temperature .tc-plant .s-temperature,
+      body.plant-irrigation .tc-plant .s-irrigation,
+      body.plant-vials .tc-plant .s-vials { display: block; }
+      .tc-plant .v1 { color: #5c9a6b; }
+      .tc-plant .v2 { color: #3b6fb0; }
+      .tc-plant .v3 { color: #b4553f; }
 
       /* telefoni in orizzontale: comandi più piccoli e trasparenti */
       @media (max-height: 500px) {

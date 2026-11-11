@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { TEAM } from "../ui/teamSprites.js";
 import { TITLE_WORD } from "../ui/pixelSprites.js";
-import { addTopBar, bodyText, COLORS, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { addTopBar, bodyText, COLORS, hex, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 // crediti in due pagine
 const BIODOM_TEXT =
@@ -42,8 +42,18 @@ export class CreditsScene extends Phaser.Scene {
     this.pages = [this.createBiodomPage(), this.createTeamPage()];
     this.pages[1].setAlpha(0).setX(width);
 
-    // indicatore di pagina con il nome della sezione successiva
-    this.pageLabel = bodyText(this, width / 2, height - 24, "", { size: 20, color: COLORS.ink, origin: 0.5 });
+    // linguette delle due sezioni: quella attiva è piena, si possono anche cliccare
+    this.tabs = ["BIONOMAD SYSTEM", "CREDITI"].map((name, i) => {
+      const label = bodyText(this, 0, 0, name, { size: 20, color: COLORS.ink });
+      const w = label.width + 24;
+      const x = width / 2 + (i === 0 ? -w - 4 : 4);
+      label.setPosition(x + 12, height - 36);
+      const bg = this.add.graphics().setDepth(10);
+      label.setDepth(11);
+      const zone = this.add.zone(x + w / 2, height - 24, w, 28).setInteractive({ useHandCursor: true });
+      zone.on("pointerdown", () => this.goToPage(i));
+      return { label, bg, x, w };
+    });
     this.drawDots();
 
     textChip(this, 14, height - 24, "A / D cambia pagina", { size: 20 });
@@ -70,8 +80,13 @@ export class CreditsScene extends Phaser.Scene {
   }
 
   drawDots() {
-    const names = ["BIONOMAD SYSTEM", "CREDITI"];
-    this.pageLabel.setText(`PAGINA ${this.page + 1} DI ${this.pages.length} · ${names[this.page]}`);
+    const { height } = this.scale;
+    this.tabs.forEach((tab, i) => {
+      const active = i === this.page;
+      tab.bg.clear();
+      drawPanel(tab.bg, tab.x, height - 38, tab.w, 28, { fill: active ? COLORS.ink : COLORS.paper, border: COLORS.ink });
+      tab.label.setColor(hex(active ? COLORS.paper : COLORS.ink));
+    });
   }
 
   // pagina 1

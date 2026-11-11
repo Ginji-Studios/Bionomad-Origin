@@ -1,6 +1,7 @@
 import Phaser from "../phaser.js";
 import { makeTexture, registerPixelTextures } from "../ui/pixelSprites.js";
 import { registerTeamTextures } from "../ui/teamSprites.js";
+import { loadPosters } from "../ui/posters.js";
 
 // i font si caricano da js provando più cartelle (vite o server statico)
 const FONTS = [
@@ -34,6 +35,7 @@ export class PreloadScene extends Phaser.Scene {
     await Promise.all(FONTS.map(loadFont));
     registerPixelTextures(this);
     registerTeamTextures(this, makeTexture);
+    await loadPosters(this);
     this.scene.start("MenuScene");
   }
 }

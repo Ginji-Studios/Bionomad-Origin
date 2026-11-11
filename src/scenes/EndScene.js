@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { EVENTS } from "../config/events.js";
 import { getOrigin } from "../config/origins.js";
-import { animateWalker, Player } from "../entities/Player.js";
+import { animateWalker, Player, turnTo } from "../entities/Player.js";
 import { getRun, startRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse, buildStreet } from "../world/locations.js";
@@ -52,7 +52,7 @@ export class EndScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.player) return;
-    this.player.scaleX = Phaser.Math.Linear(this.player.scaleX, this.player.facing, 0.25);
+    turnTo(this.player, this.player.facing, this.walking);
     this.player.setDepth(this.player.y);
     animateWalker(this.player, delta, this.walking ? this.walkSpeed : 0, time);
   }
@@ -60,15 +60,18 @@ export class EndScene extends Phaser.Scene {
   // fine giornata
 
   async playWin() {
-    const world = buildHouse(this, { evening: true });
+    const world = buildHouse(this, { evening: true, originId: this.origin.id });
     this.hud = addHud(this, { oxygen: this.run?.oxygen ?? 0.5, location: this.origin.city, flag: this.origin.flag });
     const caption = addObjectiveBox(this, "20:30 · RITORNO A CASA");
     this.caption = caption;
 
     // home Hub accanto alla serra
-    const hubX = 560;
-    const hub = this.add.image(hubX, 420, "home_hub").setOrigin(0.5, 1).setScale(6).setDepth(420);
-    const glow = this.add.rectangle(hubX, 420 - 6 * 10.5, 6 * 14, 6 * 9, COLORS.paper, 0).setDepth(421);
+    // l'Home Hub della casa: lo zaino si aggancia alla sua base
+    const homeHub = world.hub;
+    const hubX = homeHub.center;
+    const glow = this.add
+      .rectangle(homeHub.glass.x + homeHub.glass.w / 2, homeHub.glass.y + homeHub.glass.h / 2, homeHub.glass.w, homeHub.glass.h, 0x9fd4b0, 0)
+      .setDepth(homeHub.graphics.depth + 1);
 
     // la porta è aperta
     const door = world.door;
@@ -83,7 +86,7 @@ export class EndScene extends Phaser.Scene {
     await this.wait(500);
     if (this.summaryShown) return;
     this.tweens.add({ targets: opening, scaleX: 0, duration: 300 });
-    await this.walk(hubX + 90, 1600);
+    await this.walk(hubX + 150, 1800);
     if (this.summaryShown) return;
     await this.wait(300);
 
@@ -92,18 +95,17 @@ export class EndScene extends Phaser.Scene {
     this.player.act("act", 600, 0);
     const pack = this.add.image(this.player.x + 30, this.player.y - 24, "pack").setOrigin(0.5, 1).setScale(4).setDepth(450).setFlipX(true);
     this.player.pack.setVisible(false);
-    this.tweens.add({ targets: pack, x: hubX, y: 420 - 6 * 6, duration: 600, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: pack, x: hubX + 60, y: homeHub.glass.y + homeHub.glass.h + 50, duration: 600, ease: "Sine.easeInOut" });
     this.tweens.add({ targets: pack, scale: 2.5, alpha: 0, delay: 500, duration: 300 });
     await this.wait(800);
     if (this.summaryShown) return;
     this.player.setBaseTexture(characterTexture(this.origin.id, false));
-    this.tweens.add({ targets: glow, fillAlpha: 0.45, duration: 400, yoyo: true, repeat: 2 });
-    this.tweens.add({ targets: hub, scaleY: 6.2, duration: 200, yoyo: true, ease: "Sine.easeOut" });
+    this.tweens.add({ targets: glow, fillAlpha: 0.35, duration: 400, yoyo: true, repeat: 2 });
 
     // L'ossigeno si riempie, bollicine dalla serra
     caption.setText("L'O2 SI RIEMPIE");
     this.tweens.addCounter({ from: this.hud.oxygen, to: 1, duration: 1600, ease: "Cubic.easeOut", onUpdate: (t) => this.hud.setOxygen(t.getValue()) });
-    this.bubbles = this.time.addEvent({ delay: 160, repeat: 18, callback: () => this.bubble(hubX + Phaser.Math.Between(-36, 36), 330) });
+    this.bubbles = this.time.addEvent({ delay: 160, repeat: 18, callback: () => this.bubble(hubX + Phaser.Math.Between(-60, 60), homeHub.glass.y + 60) });
     await this.wait(1000);
     if (this.summaryShown) return;
     this.say("Che giornata... ma ce l'abbiamo fatta.");
@@ -315,6 +317,17 @@ export class EndScene extends Phaser.Scene {
       })
     );
     if (!win) percent.setText("0%");
+
+    // negligenze commesse durante la run
+    const careless = this.run?.negligence ?? 0;
+    const neglect = bodyText(this, x + w - 260, y + 242, careless ? `NEGLIGENZE: ${careless}` : "NESSUNA NEGLIGENZA", {
+      size: 22,
+      color: careless ? COLORS.red : 0x5c7a6b,
+      fit: 230
+    });
+    neglect.setAlpha(0);
+    box.add(neglect);
+    this.tweens.add({ targets: neglect, alpha: 1, duration: 260 });
 
     // il cittadino saluta (o resta a terra)
     const hero = this.add.image(x + w - 145, y + 350, characterTexture(this.origin.id, !win)).setOrigin(0.5, 1).setScale(4).setAlpha(0);

@@ -29,9 +29,12 @@ function layer(scene, factor, parallax, depth) {
 // quartieri
 export const ZONES = ["centro", "residenziale", "parco", "industriale"];
 
+let snowyRoofs = false;
+
 export function drawCityscape(scene, originId, { evening = false, width = VIEW_W, parallax = false, sun = true, zone = "centro" } = {}) {
   const pal = evening ? { ...PALETTES[originId] ?? PALETTES.milano, ...EVENING } : PALETTES[originId] ?? PALETTES.milano;
   const rand = seeded(originId.length * 7919 + (evening ? 13 : 0) + ZONES.indexOf(zone) * 1031);
+  snowyRoofs = originId === "reykjavik";
   const span = (f) => (parallax ? Math.ceil(VIEW_W + (width - VIEW_W) * f) + 80 : width);
 
   // cielo
@@ -105,7 +108,7 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
     // colline morbide e qualche palazzo lontano tra gli alberi
     for (let x = 0; x < midSpan; x += 160) pixelDisc(mid, x, HORIZON, 70 + Math.floor(rand() * 40), pal.tree, 1, 2);
     ditherRect(mid, 0, HORIZON - 60, midSpan, 60, pal.near, 2);
-    for (let x = 40; x < midSpan; x += 90 + Math.floor(rand() * 60)) drawTree(mid, x, pal, rand);
+    for (let x = 40; x < midSpan; x += 90 + Math.floor(rand() * 60)) drawTree(mid, x, pal, rand, originId);
   } else {
     // zona industriale
     for (let x = -20; x < midSpan; ) {
@@ -117,22 +120,85 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
     for (let tx = 260; tx < midSpan; tx += 520) drawAirTower(scene, mid, tx, pal, parallax);
   }
   ditherRect(mid, 0, HORIZON - 26, midSpan, 26, pal.near, 3);
+  if (originId === "reykjavik") ditherRect(mid, 0, HORIZON - 12, midSpan, 12, 0xf1f0ed, 5);
 
   // alberi e cartelloni
   const near = layer(scene, 0.75, parallax, -6);
   const nearSpan = span(0.75);
   const gap = zone === "parco" ? 90 : zone === "residenziale" ? 150 : 200;
   for (let x = 60; x < nearSpan; x += gap + Math.floor(rand() * 140)) {
-    if (zone !== "parco" && rand() < 0.3) drawBillboard(scene, near, x, pal, parallax);
-    else drawTree(near, x, pal, rand);
+    if (zone !== "parco" && rand() < 0.35) drawPosterWall(scene, near, x, pal, parallax);
+    else drawTree(near, x, pal, rand, originId);
   }
 
-  addLife(scene, pal, { evening, parallax, rand });
+  drawLocalDetails(scene, near, originId, pal, { evening, parallax, rand, span: nearSpan });
+  addLife(scene, pal, { evening, parallax, rand, originId });
+}
+
+// elementi tipici di ogni città, sul livello vicino
+function drawLocalDetails(scene, g, originId, pal, { evening, parallax, rand, span }) {
+  if (originId === "delhi") {
+    // bandierine arancio / giallo / magenta tese tra due pali
+    for (let x = 120; x < span; x += 640) {
+      g.fillStyle(pal.near, 1);
+      g.fillRect(x, HORIZON - 120, 3, 120);
+      g.fillRect(x + 200, HORIZON - 120, 3, 120);
+      g.fillRect(x, HORIZON - 116, 203, 1);
+      const colors = [0xe08a2e, 0xe8c66a, 0xc2407a, 0x5c7a6b];
+      for (let i = 0; i < 12; i += 1) {
+        const fx = x + 8 + i * 16;
+        const sag = Math.round(Math.sin((i / 11) * Math.PI) * 14);
+        g.fillStyle(colors[i % colors.length], 1);
+        g.fillRect(fx, HORIZON - 114 + sag, 8, 4);
+        g.fillRect(fx + 2, HORIZON - 110 + sag, 4, 4);
+      }
+    }
+    // banco del chai
+    for (let x = 420; x < span; x += 900) {
+      g.fillStyle(pal.near, 1);
+      g.fillRect(x, HORIZON - 34, 70, 30);
+      for (let i = 0; i < 7; i += 1) {
+        g.fillStyle(i % 2 ? 0xe08a2e : 0x5c7a6b, 1);
+        g.fillRect(x - 6 + i * 12, HORIZON - 52, 12, 10);
+      }
+      g.fillStyle(0xe8c66a, 1);
+      g.fillRect(x + 10, HORIZON - 28, 8, 8);
+      const t = scene.add.text(x + 30, HORIZON - 30, "CHAI", { fontFamily: '"VT323", monospace', fontSize: "16px", color: "#f1f0ed" }).setDepth(-6);
+      if (parallax) t.setScrollFactor(0.75, 1);
+    }
+  } else if (originId === "milano") {
+    // bar con gli ombrelloni e i tavolini
+    for (let x = 300; x < span; x += 760) {
+      g.fillStyle(pal.near, 1);
+      g.fillRect(x, HORIZON - 70, 110, 66);
+      g.fillStyle(pal.window, 1);
+      g.fillRect(x + 8, HORIZON - 52, 40, 30);
+      g.fillRect(x + 60, HORIZON - 52, 40, 30);
+      g.fillStyle(0x163c4d, 1);
+      g.fillRect(x + 6, HORIZON - 70, 98, 12);
+      const t = scene.add.text(x + 40, HORIZON - 72, "BAR", { fontFamily: '"VT323", monospace', fontSize: "16px", color: "#f1f0ed" }).setDepth(-6);
+      if (parallax) t.setScrollFactor(0.75, 1);
+      [x + 130, x + 180].forEach((ux) => {
+        pixelDisc(g, ux, HORIZON - 40, 18, 0xb4553f, 1, 2);
+        g.fillStyle(pal.sky[0], 1);
+        g.fillRect(ux - 20, HORIZON - 40, 40, 20);
+        g.fillStyle(pal.near, 1);
+        g.fillRect(ux - 1, HORIZON - 40, 2, 36);
+        g.fillRect(ux - 10, HORIZON - 16, 20, 3);
+      });
+    }
+  } else if (originId === "reykjavik") {
+    // neve sul marciapiede e cumuli ai piedi degli edifici
+    for (let x = 0; x < span; x += 70 + Math.floor(rand() * 60)) {
+      pixelDisc(g, x, HORIZON, 12 + Math.floor(rand() * 10), 0xf1f0ed, 1, 2);
+    }
+    ditherRect(g, 0, HORIZON - 8, span, 8, 0xf1f0ed, 6);
+  }
 }
 
 // vita in città
 
-function addLife(scene, pal, { evening, parallax, rand }) {
+function addLife(scene, pal, { evening, parallax, rand, originId }) {
   // strada dietro il marciapiede con il traffico
   const road = layer(scene, 0.85, parallax, -5);
   road.fillStyle(evening ? 0x1c2839 : 0x5d6d7e, 1);
@@ -142,31 +208,107 @@ function addLife(scene, pal, { evening, parallax, rand }) {
 
   const spawnCar = () => {
     const dir = rand() < 0.5 ? 1 : -1;
-    const car = scene.add.container(dir > 0 ? -80 : VIEW_W + 80, HORIZON - 8).setDepth(-4);
+    const car = scene.add.container(dir > 0 ? -140 : VIEW_W + 140, HORIZON - 8).setDepth(-4);
     if (parallax) car.setScrollFactor(0);
     const g = scene.add.graphics();
-    const body = [0x5e7f94, 0xdadfda, 0xb4553f, 0x163c4d, 0x7e9c8c][Math.floor(rand() * 5)];
-    g.fillStyle(body, 1);
-    g.fillRect(-26, -14, 52, 10);
-    g.fillRect(-14, -22, 28, 8);
-    g.fillStyle(evening ? 0xe8c66a : 0xc9d6de, 1);
-    g.fillRect(-10, -20, 8, 5);
-    g.fillRect(2, -20, 8, 5);
-    if (evening) g.fillRect(dir > 0 ? 24 : -28, -12, 4, 4);
-    g.fillStyle(0x16202e, 1);
-    g.fillRect(-20, -4, 10, 4);
-    g.fillRect(10, -4, 10, 4);
+    const lights = evening ? 0xe8c66a : 0xc9d6de;
+    let speed = 3500 + rand() * 3000;
+    const kind = rand();
+    if (originId === "milano" && kind < 0.35) {
+      // il tram arancione
+      g.fillStyle(0xd98a4b, 1);
+      g.fillRect(-60, -26, 120, 22);
+      g.fillStyle(0xf1f0ed, 1);
+      g.fillRect(-60, -12, 120, 3);
+      g.fillStyle(lights, 1);
+      for (let i = 0; i < 6; i += 1) g.fillRect(-54 + i * 19, -23, 12, 8);
+      g.fillStyle(0x16202e, 1);
+      g.fillRect(-2, -34, 4, 8);
+      g.fillRect(-14, -36, 28, 2);
+      g.fillRect(-48, -4, 12, 4);
+      g.fillRect(36, -4, 12, 4);
+      speed += 3000;
+    } else if (originId === "delhi" && kind < 0.5) {
+      // tuk-tuk giallo e verde
+      g.fillStyle(0x2e7d4f, 1);
+      g.fillRect(-18, -24, 32, 6);
+      g.fillStyle(0xe8c66a, 1);
+      g.fillRect(-18, -18, 34, 12);
+      g.fillStyle(0x16202e, 1);
+      g.fillRect(-16, -18, 2, 12);
+      g.fillRect(-14, -4, 8, 4);
+      g.fillRect(8, -4, 8, 4);
+    } else if (originId === "reykjavik" && kind < 0.5) {
+      // fuoristrada con le gomme grosse
+      g.fillStyle([0xb4553f, 0xdadfda, 0x163c4d][Math.floor(rand() * 3)], 1);
+      g.fillRect(-26, -24, 52, 16);
+      g.fillStyle(lights, 1);
+      g.fillRect(-20, -21, 12, 6);
+      g.fillRect(-4, -21, 12, 6);
+      g.fillStyle(0x16202e, 1);
+      g.fillRect(-24, -8, 14, 8);
+      g.fillRect(10, -8, 14, 8);
+      g.fillStyle(0xf1f0ed, 1);
+      g.fillRect(-26, -26, 52, 2);
+    } else {
+      const body = [0x5e7f94, 0xdadfda, 0xb4553f, 0x163c4d, 0x7e9c8c][Math.floor(rand() * 5)];
+      g.fillStyle(body, 1);
+      g.fillRect(-26, -14, 52, 10);
+      g.fillRect(-14, -22, 28, 8);
+      g.fillStyle(lights, 1);
+      g.fillRect(-10, -20, 8, 5);
+      g.fillRect(2, -20, 8, 5);
+      g.fillStyle(0x16202e, 1);
+      g.fillRect(-20, -4, 10, 4);
+      g.fillRect(10, -4, 10, 4);
+    }
     car.add(g);
     if (dir < 0) car.setScale(-1, 1);
-    scene.tweens.add({
-      targets: car,
-      x: dir > 0 ? VIEW_W + 80 : -80,
-      duration: 3500 + rand() * 3000,
-      onComplete: () => car.destroy()
-    });
+    scene.tweens.add({ targets: car, x: dir > 0 ? VIEW_W + 140 : -140, duration: speed, onComplete: () => car.destroy() });
   };
   scene.time.addEvent({ delay: 1800, loop: true, callback: () => rand() < 0.75 && spawnCar() });
   spawnCar();
+
+  // Reykjavík: nevicata leggera e, di sera, aurora boreale
+  if (originId === "reykjavik") {
+    if (evening) {
+      const aurora = scene.add.graphics().setDepth(-9.5);
+      if (parallax) aurora.setScrollFactor(0);
+      for (let x = 0; x < VIEW_W; x += 4) {
+        const h = 30 + Math.round(Math.sin(x / 70) * 18 + Math.sin(x / 23) * 8);
+        aurora.fillStyle(0x7fd6a0, 0.28);
+        aurora.fillRect(x, 70 + Math.round(Math.sin(x / 110) * 20), 4, h);
+      }
+      scene.tweens.add({ targets: aurora, alpha: 0.35, duration: 2400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    }
+    scene.time.addEvent({
+      delay: 140,
+      loop: true,
+      callback: () => {
+        const flake = scene.add.rectangle(rand() * VIEW_W, 46, 2, 2, 0xf1f0ed).setDepth(500);
+        if (parallax) flake.setScrollFactor(0);
+        scene.tweens.add({ targets: flake, y: 540, x: flake.x - 40 + rand() * 30, duration: 5000 + rand() * 3000, onComplete: () => flake.destroy() });
+      }
+    });
+  }
+
+  // Delhi: aquiloni colorati nel cielo
+  if (originId === "delhi" && !evening) {
+    [[180, 110, 0xc2407a], [520, 80, 0xe08a2e], [820, 140, 0x2e7d4f]].forEach(([kx, ky, color]) => {
+      const kite = scene.add.graphics().setDepth(-9);
+      if (parallax) kite.setScrollFactor(0.05, 1);
+      kite.fillStyle(color, 1);
+      kite.fillRect(-2, -8, 4, 2);
+      kite.fillRect(-4, -6, 8, 2);
+      kite.fillRect(-6, -4, 12, 4);
+      kite.fillRect(-4, 0, 8, 2);
+      kite.fillRect(-2, 2, 4, 2);
+      kite.fillStyle(0x3f5a6c, 1);
+      for (let i = 0; i < 6; i += 1) kite.fillRect(i * 2, 4 + i * 4, 1, 4);
+      kite.setPosition(kx, ky);
+      scene.tweens.add({ targets: kite, y: ky + 10, x: kx + 6, duration: 1600 + rand() * 800, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    });
+  }
 
   // stormo di uccelli (solo di giorno)
   if (!evening) {
@@ -200,6 +342,12 @@ function drawHouseBlock(g, x, w, h, pal, rand, evening) {
   // tetto a punta
   g.fillStyle(rand() < 0.3 ? 0xb4553f : pal.near, 1);
   for (let i = 0; i < 6; i += 1) g.fillRect(x - 4 + i * (w / 12), top - 6 - i * 5, w + 8 - i * (w / 6), 6);
+  if (snowyRoofs) {
+    g.fillStyle(0xf1f0ed, 1);
+    for (let i = 0; i < 6; i += 1) g.fillRect(x - 4 + i * (w / 12), top - 6 - i * 5, 4, 2);
+    for (let i = 0; i < 6; i += 1) g.fillRect(x + w + 4 - i * (w / 12) - 4, top - 6 - i * 5, 4, 2);
+    g.fillRect(x + w / 2 - 6, top - 32, 12, 4);
+  }
   for (let wy = top + 10; wy < HORIZON - 18; wy += 20) {
     for (let wx = x + 10; wx < x + w - 18; wx += 18) {
       g.fillStyle(evening && rand() < 0.4 ? pal.window : evening ? pal.near : pal.window, 1);
@@ -262,8 +410,9 @@ function drawBuilding(g, x, w, h, pal, rand, evening) {
   // lato in ombra a retino
   ditherRect(g, x + w - 12, top, 12, h, pal.near, 6);
   // cornicione e dettagli sul tetto
-  g.fillStyle(pal.near, 1);
+  g.fillStyle(snowyRoofs ? 0xf1f0ed : pal.near, 1);
   g.fillRect(x - 2, top, w + 4, 4);
+  g.fillStyle(pal.near, 1);
   if (rand() < 0.5) {
     g.fillRect(x + 8, top - 14, 18, 14); // serbatoio / condizionatore
     g.fillRect(x + 10, top - 18, 2, 4);
@@ -333,8 +482,35 @@ function drawLandmark(g, originId, ox, pal) {
   }
 }
 
-function drawTree(g, x, pal, rand) {
+function drawTree(g, x, pal, rand, originId = "milano") {
   const h = 40 + Math.floor(rand() * 30);
+  if (originId === "delhi") {
+    // palma: tronco a gradini e foglie a raggiera
+    g.fillStyle(pal.near, 1);
+    for (let i = 0; i < h + 20; i += 4) g.fillRect(x + Math.round(Math.sin(i / 20) * 4), HORIZON - i, 6, 4);
+    const top = HORIZON - h - 20;
+    const tx = x + Math.round(Math.sin((h + 20) / 20) * 4) + 3;
+    g.fillStyle(pal.tree, 1);
+    for (let i = 0; i < 5; i += 1) {
+      g.fillRect(tx - 6 - i * 6, top + i * 3, 8, 3);
+      g.fillRect(tx + i * 6, top + i * 3, 8, 3);
+    }
+    g.fillRect(tx - 3, top - 6, 6, 8);
+    return;
+  }
+  if (originId === "reykjavik") {
+    // abete con la neve sulle punte
+    g.fillStyle(pal.near, 1);
+    g.fillRect(x - 3, HORIZON - 14, 6, 14);
+    for (let i = 0; i < 6; i += 1) {
+      const w = 40 - i * 6;
+      g.fillStyle(pal.tree, 1);
+      g.fillRect(x - w / 2, HORIZON - 22 - i * 10, w, 10);
+      g.fillStyle(0xf1f0ed, 1);
+      g.fillRect(x - w / 2, HORIZON - 22 - i * 10, w, 2);
+    }
+    return;
+  }
   g.fillStyle(pal.near, 1);
   g.fillRect(x - 3, HORIZON - h, 6, h);
   const r = 22 + Math.floor(rand() * 12);
@@ -343,22 +519,19 @@ function drawTree(g, x, pal, rand) {
   ditherRect(g, x - r, HORIZON - h - 6, r * 2, 12, pal.near, 6);
 }
 
-function drawBillboard(scene, g, x, pal, parallax) {
-  const top = HORIZON - 120;
+// muro con un manifesto BIODOM incollato sopra
+let posterIndex = 0;
+function drawPosterWall(scene, g, x, pal, parallax) {
+  const top = HORIZON - 136;
   g.fillStyle(pal.near, 1);
-  g.fillRect(x + 20, top + 50, 4, 70);
-  g.fillRect(x + 96, top + 50, 4, 70);
-  g.fillStyle(COLORS.ink, 1);
-  g.fillRect(x, top, 120, 54);
-  g.fillStyle(COLORS.paper, 1);
-  g.fillRect(x + 4, top + 4, 112, 46);
-  g.fillStyle(0x7e9c8c, 1);
-  pixelDisc(g, x + 22, top + 27, 10, 0x7e9c8c, 1, 2);
-  const lines = ["BIONOMAD+", "respira", "meglio"];
-  lines.forEach((line, i) => {
-    const t = scene.add
-      .text(x + 38, top + 6 + i * 14, line, { fontFamily: '"VT323", monospace', fontSize: i === 0 ? "16px" : "14px", color: i === 0 ? "#163c4d" : "#5e7f94" })
-      .setDepth(-6);
-    if (parallax) t.setScrollFactor(0.75, 1);
-  });
+  g.fillRect(x, top, 96, 136);
+  ditherRect(g, x + 84, top, 12, 136, 0x16202e, 5);
+  g.fillStyle(pal.mid, 1);
+  g.fillRect(x, top, 96, 4);
+  g.fillStyle(0x16202e, 1);
+  g.fillRect(x + 12, top + 14, 72, 98);
+  const key = `poster_${(posterIndex % 3) + 1}`;
+  posterIndex += 1;
+  const poster = scene.add.image(x + 16, top + 18, key).setOrigin(0, 0).setScale(1, 1).setDepth(-6);
+  if (parallax) poster.setScrollFactor(0.75, 1);
 }

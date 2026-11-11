@@ -12,11 +12,17 @@ const KEYS = {
   c: 67,
   i: 73,
   h: 72,
-  v: 86
+  f: 70,
+  r: 82,
+  "0": 48,
+  "1": 49,
+  "2": 50,
+  "3": 51
 };
 
 function sendKey(type, key) {
-  const event = new KeyboardEvent(type, { key, code: key === " " ? "Space" : key, bubbles: true, cancelable: true });
+  const code = key === " " ? "Space" : /^[0-9]$/.test(key) ? `Digit${key}` : key;
+  const event = new KeyboardEvent(type, { key, code, bubbles: true, cancelable: true });
   Object.defineProperty(event, "keyCode", { get: () => KEYS[key] });
   Object.defineProperty(event, "which", { get: () => KEYS[key] });
   window.dispatchEvent(event);
@@ -69,7 +75,17 @@ export function setupTouchControls() {
   actions.className = "tc-actions";
   const plant = document.createElement("div");
   plant.className = "tc-plant";
-  plant.append(button("copri", "c"), button("luce", "i"), button("scalda", "h"), button("fiala", "v"));
+  plant.append(
+    button("copri", "c", "s-light"),
+    button("torcia", "i", "s-light"),
+    button("scalda", "h", "s-temperature"),
+    button("raffredda", "f", "s-temperature"),
+    button("leva", "r", "s-irrigation"),
+    button("verde", "1", "s-vials v1"),
+    button("blu", "2", "s-vials v2"),
+    button("rossa", "3", "s-vials v3"),
+    button("togli", "0", "s-vials")
+  );
   actions.append(plant, button("USA", " ", "big"));
 
   const top = document.createElement("div");

@@ -76,11 +76,11 @@ export class CharacterSelectScene extends Phaser.Scene {
     info.fillRect(14, 192, CARD_W - 28, 2);
     const pm = bodyText(this, cx, 212, `PM2.5  ${origin.pm25.toFixed(1)}`, { size: 26, color: COLORS.ink, origin: 0.5 });
 
-    // barra di difficoltà a 4 tacche
-    for (let i = 0; i < 4; i += 1) {
-      drawPanel(info, cx - 70 + i * 36, 230, 32, 18, { fill: i < origin.level ? origin.color : COLORS.paper, border: COLORS.ink, borderWidth: 2 });
+    // barra di difficoltà a 3 tacche
+    for (let i = 0; i < 3; i += 1) {
+      drawPanel(info, cx - 52 + i * 36, 230, 32, 18, { fill: i < origin.level ? origin.color : COLORS.paper, border: COLORS.ink, borderWidth: 2 });
     }
-    const difficulty = pixelText(this, cx, 262, origin.difficulty, { size: 8, color: origin.color, origin: 0.5 });
+    const difficulty = pixelText(this, cx, 262, `${origin.difficulty} · ${origin.tasks}`, { size: 8, color: origin.color, origin: 0.5, fit: CARD_W - 20 });
 
     const radio = this.add.graphics();
     container.add([shadow, bg, frame, number, flagFrame, flag, citizen, city, country, info, pm, difficulty, radio]);

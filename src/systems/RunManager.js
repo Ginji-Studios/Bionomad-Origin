@@ -1,4 +1,5 @@
-import { EVENTS, EVENTS_PER_RUN } from "../config/events.js";
+import { EVENTS, EVENTS_PER_RUN, EXTRA_TASKS } from "../config/events.js";
+import { ORIGINS } from "../config/origins.js";
 
 // la run vive nel registry di Phaser, così la vedono tutte le scene
 
@@ -11,13 +12,38 @@ function shuffle(list) {
   return copy;
 }
 
+// task extra di un evento: non ripetono un sensore già usato nell'evento
+function pickExtras(eventId, origin) {
+  const used = new Set(EVENTS[eventId].steps.filter((s) => s.sensor).map((s) => s.sensor));
+  const extras = [];
+  const take = (pool, kind) => {
+    const free = shuffle(pool).filter((task) => !used.has(task.sensor));
+    const task = free[0] ?? shuffle(pool)[0];
+    used.add(task.sensor);
+    extras.push({ ...task, extra: kind });
+  };
+  for (let i = 0; i < (origin?.extras?.care ?? 0); i += 1) take(EXTRA_TASKS.care, "care");
+  for (let i = 0; i < (origin?.extras?.fix ?? 0); i += 1) take(EXTRA_TASKS.fix, "fix");
+  return extras;
+}
+
+// le extra vanno prima dell'uscita / della corsa verso casa, altrimenti in coda
+function withExtras(steps, extras) {
+  if (!extras?.length) return steps;
+  const last = steps[steps.length - 1];
+  if (["exit", "emergency"].includes(last.type)) return [...steps.slice(0, -1), ...extras, last];
+  return [...steps, ...extras];
+}
+
 export function startRun(registry, originId) {
   // gli eventi vengono poi giocati in ordine di orario (mattina → sera)
   const events = shuffle(Object.keys(EVENTS))
     .slice(0, EVENTS_PER_RUN)
     .sort((a, b) => EVENTS[a].time.localeCompare(EVENTS[b].time));
+  const origin = ORIGINS.find((o) => o.id === originId);
+  const extras = events.map((id) => pickExtras(id, origin));
   registry.set("origin", originId);
-  registry.set("run", { origin: originId, events, index: 0, oxygen: 1, results: [], lastLocation: "home" });
+  registry.set("run", { origin: originId, events, extras, index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
   return registry.get("run");
 }
 
@@ -29,7 +55,9 @@ export function currentEvent(registry) {
   const run = getRun(registry);
   if (!run) return null;
   const id = run.events[run.index];
-  return id ? { id, ...EVENTS[id] } : null;
+  if (!id) return null;
+  const event = EVENTS[id];
+  return { id, ...event, steps: withExtras(event.steps, run.extras?.[run.index]) };
 }
 
 // ritorna true se la run è finita (tutti gli eventi completati)

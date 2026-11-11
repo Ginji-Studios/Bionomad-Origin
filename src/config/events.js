@@ -1,6 +1,12 @@
 // eventi della run (ne escono 3 a caso, in ordine di orario).
 // tipi di step: pickup, use, useSelf, talk, confirm, hold, prune, sit, exit, reach,
-// plant (sensore: light / temperature / vials / touch), busLeaves, emergency
+// plant (sensore: light / temperature / vials / irrigation), busLeaves, emergency
+//
+// negligenze sulla pianta (costano ossigeno):
+//  - timeoutMs: se non la scaldi / raffreddi in tempo te ne sei dimenticato
+//  - maxOver: scaldarla troppo la scotta
+//  - floodMs: leva dell'acqua lasciata aperta, la pianta si allaga
+//  - fiale: il colore deve corrispondere, quella sbagliata va tolta
 export const EVENTS = {
   ufficio_mattina: {
     title: "UFFICIO · MATTINA",
@@ -16,10 +22,28 @@ export const EVENTS = {
     title: "FOOD TRUCK · ACQUA",
     time: "13:00",
     location: "foodtruck",
-    description: "Non annaffi la tua pianta da un po'. Compra una bottiglia d'acqua al food truck e annaffiala.",
+    description: "Non annaffi la tua pianta da un po'. Compra l'acqua al food truck, versala nel serbatoio e attiva l'irrigazione.",
     steps: [
       { type: "pickup", target: "counter", item: "bottle", text: "COMPRA L'ACQUA", line: "Ecco la tua acqua, 1 credito!" },
-      { type: "useSelf", item: "bottle", effect: "water", text: "ANNAFFIA LA TUA PIANTA (SPAZIO)" }
+      {
+        type: "plant",
+        sensor: "irrigation",
+        on: true,
+        holdMs: 2500,
+        text: "ATTIVA L'IRRIGAZIONE",
+        hint: "Premi il pulsante dell'irrigazione sul vaso e lascia scorrere l'acqua.",
+        key: "R"
+      },
+      {
+        type: "plant",
+        sensor: "irrigation",
+        on: false,
+        holdMs: 400,
+        floodMs: 3500,
+        text: "SPEGNI L'IRRIGAZIONE",
+        hint: "Basta così: ripremi il pulsante per non allagare la pianta.",
+        key: "R"
+      }
     ]
   },
   ufficio_sera: {
@@ -93,10 +117,12 @@ Object.assign(EVENTS, {
         type: "plant",
         sensor: "temperature",
         riseBy: 3,
+        maxOver: 6,
         holdMs: 1500,
+        timeoutMs: 16000,
         baseTemperature: 16,
         text: "RISCALDA LA PIANTA",
-        hint: "Scalda la pianta con le mani o la torcia termica: la temperatura deve salire di 3 °C.",
+        hint: "Scalda con la torcia termica di 3 °C, senza esagerare: troppo calore la scotta.",
         key: "H"
       }
     ]
@@ -108,17 +134,16 @@ Object.assign(EVENTS, {
     evening: true,
     plant: true,
     endsAt: "home",
-    description: "Alla pianta serve il fertilizzante: raggiungi l'Home Hub e inserisci le fiale nel terriccio dove indicato.",
+    description: "Alla pianta serve il fertilizzante: raggiungi l'Home Hub e inserisci le fiale nel pozzetto apposito.",
     steps: [
       { type: "reach", target: "hub", text: "RAGGIUNGI L'HOME HUB" },
       {
         type: "plant",
         sensor: "vials",
-        atLeast: 2,
         holdMs: 600,
-        text: "INSERISCI LE FIALE",
-        hint: "Inserisci le 2 fiale di fertilizzante nei punti segnati sul vaso.",
-        key: "V"
+        text: "INSERISCI LE FIALE GIUSTE",
+        hint: "Metti nel pozzetto le 2 fiale del colore indicato. Se sbagli, toglila e rimettila.",
+        key: "1/2/3"
       }
     ]
   },
@@ -135,11 +160,34 @@ Object.assign(EVENTS, {
         type: "plant",
         sensor: "temperature",
         riseBy: 3,
+        maxOver: 6,
         holdMs: 2000,
+        timeoutMs: 16000,
         baseTemperature: 8,
         text: "SCALDA LA PIANTA",
         hint: "Fa freddo: scalda la pianta con le mani o la torcia termica.",
         key: "H"
+      }
+    ]
+  },
+  ondata_caldo: {
+    title: "PARCO · ONDATA DI CALORE",
+    time: "14:30",
+    location: "foodtruck",
+    plant: true,
+    description: "Il sole picchia sul parco e il BIONOMAD si sta surriscaldando: raffreddalo prima che la pianta appassisca.",
+    steps: [
+      { type: "reach", target: "bench", text: "METTITI ALL'OMBRA" },
+      {
+        type: "plant",
+        sensor: "temperature",
+        dropBy: 3,
+        holdMs: 1800,
+        timeoutMs: 16000,
+        baseTemperature: 34,
+        text: "RAFFREDDA LA PIANTA",
+        hint: "Fa troppo caldo: abbassa la temperatura di 3 °C prima che sia tardi.",
+        key: "F"
       }
     ]
   },
@@ -159,9 +207,27 @@ Object.assign(EVENTS, {
 
 // azioni di cura casuali durante l'emergenza
 export const EMERGENCY_ACTIONS = [
-  { type: "plant", sensor: "light", above: 0.8, holdMs: 1200, text: "ILLUMINALA!", hint: "Dai luce alla pianta.", key: "I", timeoutMs: 6000 },
-  { type: "plant", sensor: "temperature", riseBy: 2, holdMs: 800, text: "SCALDALA!", hint: "Scalda la pianta.", key: "H", timeoutMs: 6000 },
-  { type: "plant", sensor: "touch", holdMs: 900, text: "TOCCA UNA FOGLIA!", hint: "Tocca una foglia della pianta.", key: "Q / E", timeoutMs: 6000 }
+  { type: "plant", sensor: "light", above: 0.8, holdMs: 1200, text: "ILLUMINALA!", hint: "Accendi la torcia e puntala sulla pianta.", key: "I", timeoutMs: 6000 },
+  { type: "plant", sensor: "temperature", riseBy: 2, holdMs: 800, text: "SCALDALA!", hint: "Usa la torcia termica.", key: "H", timeoutMs: 6000 },
+  { type: "plant", sensor: "temperature", dropBy: 2, holdMs: 800, baseTemperature: 30, text: "RAFFREDDALA!", hint: "La febbre del parassita: abbassa la temperatura.", key: "F", timeoutMs: 6000 },
+  { type: "plant", sensor: "irrigation", on: true, holdMs: 1200, text: "IRRIGALA!", hint: "Attiva l'irrigazione, poi richiudi la leva.", key: "R", timeoutMs: 6000 }
 ];
+
+// task extra in base alla difficoltà:
+// MEDIO aggiunge una cura, DIFFICILE una cura + un rimedio a una negligenza
+export const EXTRA_TASKS = {
+  care: [
+    { type: "plant", sensor: "light", above: 0.75, holdMs: 2500, text: "+ ILLUMINALA", hint: "Accendi la torcia e puntala sulla pianta.", key: "I" },
+    { type: "plant", sensor: "temperature", riseBy: 2, maxOver: 5, holdMs: 1500, timeoutMs: 16000, text: "+ SCALDALA UN PO'", hint: "Due gradi in più con la torcia termica, non di più.", key: "H" },
+    { type: "plant", sensor: "vials", holdMs: 600, text: "+ NUTRILA", hint: "Inserisci nel pozzetto le 2 fiale del colore indicato.", key: "1/2/3" },
+    { type: "plant", sensor: "irrigation", on: true, holdMs: 2000, text: "+ DALLE UN SORSO", hint: "Apri la leva dell'acqua... e poi ricordati di richiuderla!", key: "R" }
+  ],
+  fix: [
+    { type: "plant", sensor: "irrigation", on: false, holdMs: 400, floodMs: 4500, setup: "leverOpen", text: "! CHIUDI LA LEVA APERTA", hint: "Hai lasciato l'irrigazione aperta: il vaso si sta allagando!", key: "R" },
+    { type: "plant", sensor: "vials", holdMs: 600, setup: "wrongVial", text: "! CAMBIA LA FIALA SBAGLIATA", hint: "Nel pozzetto c'è la fiala del colore sbagliato: toglila (0) e metti quella giusta.", key: "1/2/3" },
+    { type: "plant", sensor: "temperature", dropBy: 4, holdMs: 1500, timeoutMs: 14000, baseTemperature: 31, text: "! L'HAI SURRISCALDATA", hint: "Hai lasciato acceso il riscaldamento: raffreddala di 4 °C.", key: "F" },
+    { type: "plant", sensor: "light", above: 0.7, holdMs: 2000, timeoutMs: 14000, setup: "covered", text: "! L'HAI LASCIATA AL BUIO", hint: "Il vaso è rimasto coperto tutto il giorno: scoprilo e illuminalo.", key: "I" }
+  ]
+};
 
 export const EVENTS_PER_RUN = 3;
