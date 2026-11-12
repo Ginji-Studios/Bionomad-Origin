@@ -59,8 +59,14 @@ export class IntroScene extends Phaser.Scene {
       this.tweens.add({ targets: bubble, alpha: 0, y: bubble.y - 8, duration: 250, delay: 1500, onComplete: () => bubble.destroy() });
     };
 
-    this.input.keyboard.once("keydown-SPACE", () => this.finish());
-    this.input.keyboard.once("keydown-ENTER", () => this.finish());
+    // SPAZIO / INVIO: durante il comunicato lo chiudono, poi saltano la cutscene
+    const skip = () => {
+      if (this.protocolOpen) this.protocolSkip = true;
+      else this.finish();
+    };
+    this.input.keyboard.on("keydown-SPACE", skip);
+    this.input.keyboard.on("keydown-ENTER", skip);
+    this.input.on("pointerdown", () => this.protocolOpen && (this.protocolSkip = true));
 
     this.play(pack, hud, caption);
   }
@@ -150,16 +156,21 @@ export class IntroScene extends Phaser.Scene {
       y += t.height + 12;
       return t;
     });
+    const hint = bodyText(this, x + w - 22, y + 2, "SPAZIO  continua", { size: 20, color: COLORS.steel, origin: [1, 0] });
+    y += hint.height + 10;
     const h = y - top + 6;
     const g = drawPanel(this.add.graphics(), x, top, w, h, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(x, top, w, 42);
     g.fillStyle(COLORS.red, 1);
     g.fillRect(x + w - 26, top + 15, 10, 10);
-    layer.add([shade, g, header, ...body]);
+    layer.add([shade, g, header, ...body, hint]);
     this.tweens.add({ targets: layer, alpha: 1, duration: 400 });
     // tempo per leggere, poi sparisce
-    for (let i = 0; i < 70 && !this.done; i += 1) await this.wait(100);
+    this.protocolOpen = true;
+    this.protocolSkip = false;
+    for (let i = 0; i < 90 && !this.done && !this.protocolSkip; i += 1) await this.wait(100);
+    this.protocolOpen = false;
     this.tweens.add({ targets: layer, alpha: 0, duration: 350, onComplete: () => layer.destroy() });
     await this.wait(380);
   }

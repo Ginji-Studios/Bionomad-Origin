@@ -1,7 +1,7 @@
 // segni dell'inquinamento nel mondo di gioco: particolato che cade, droni del consorzio,
 // pannelli informativi del Protocollo di Protezione Respiratoria, torri di filtraggio
 import { COLORS, ditherRect, pixelDisc } from "../ui/theme.js";
-import { randomCrowdKey } from "../ui/pixelSprites.js";
+import { crowdVariant } from "../ui/pixelSprites.js";
 
 const VIEW_W = 960;
 const FONT = '"VT323", monospace';
@@ -325,7 +325,7 @@ export function addSidewalkCrowd(scene, pal, { parallax = false, evening = false
     const s = child ? 0.85 : 1.35;
     const p = scene.add.container(x, ground).setDepth(depth);
     if (parallax) p.setScrollFactor(0.8, 1);
-    const base = randomCrowdKey(true);
+    const base = crowdVariant(scene, true, { full: false });
     const pack = scene.add.image(-30 * (s / 4), -24 * (s / 4), "pack").setOrigin(0.5, 1).setScale(s);
     const body = scene.add.image(0, 0, base).setOrigin(0.5, 1).setScale(s);
     // un po' di foschia sulle figure lontane

@@ -360,18 +360,27 @@ export function getGender() {
   return currentGender;
 }
 
+// tutti i fotogrammi di un personaggio: [suffisso, righe, offset]
+let sheetCache = null;
+function heroSheets() {
+  if (sheetCache) return sheetCache;
+  const sheets = [["", HERO, 0], ["_mask", HERO_MASKED, 0]];
+  for (const [frame, changes] of Object.entries(FRAME_ROWS)) {
+    const off = frame.startsWith("p") ? 1 : 0;
+    // nei frame di passaggio testa e mascherina scendono di una riga
+    const passRows = (rows) => ["..............", ...rows.slice(0, 10), ...rows.slice(11)];
+    sheets.push([`_${frame}`, withRows(off ? passRows(HERO) : HERO, changes), off]);
+    const masked = off ? { ...changes, 11: "..rrsMMMMsrr.." } : changes;
+    sheets.push([`_mask_${frame}`, withRows(off ? passRows(HERO_MASKED) : HERO_MASKED, masked), off]);
+  }
+  sheetCache = sheets;
+  return sheets;
+}
+
 export function registerPixelTextures(scene) {
   for (const [key, overrides] of Object.entries(HERO_VARIANTS)) {
     const palette = shaded({ ...HERO_PALETTE, ...overrides });
-    const sheets = [["", HERO, 0], ["_mask", HERO_MASKED, 0]];
-    for (const [frame, changes] of Object.entries(FRAME_ROWS)) {
-      const off = frame.startsWith("p") ? 1 : 0;
-      // nei frame di passaggio testa e mascherina scendono di una riga
-      const passRows = (rows) => ["..............", ...rows.slice(0, 10), ...rows.slice(11)];
-      sheets.push([`_${frame}`, withRows(off ? passRows(HERO) : HERO, changes), off]);
-      const masked = off ? { ...changes, 11: "..rrsMMMMsrr.." } : changes;
-      sheets.push([`_mask_${frame}`, withRows(off ? passRows(HERO_MASKED) : HERO_MASKED, masked), off]);
-    }
+    const sheets = heroSheets();
     sheets.forEach(([suffix, rows, off]) => {
       makeTexture(scene, `${key}${suffix}`, rows, palette);
       // protagonisti e passanti hanno anche la versione donna (stesso set di frame)
@@ -414,12 +423,56 @@ export function characterTexture(originId, masked = false, gender) {
 // passanti generici: pesca un aspetto (e un genere) non ancora usato nella scena
 const CROWD = ["npc_a", "npc_b", "npc_c", "npc_d", "npc_e", "npc_f", "npc_g", "npc_h", "hero_nara", "hero_lio", "hero_sela"];
 export function crowdTexture(scene, masked = true) {
-  scene.crowdUsed ??= new Set();
-  const options = [];
-  CROWD.forEach((base) => ["", "_f"].forEach((g) => options.push(`${base}${g}`)));
-  const free = options.filter((k) => !scene.crowdUsed.has(k));
-  const key = free.length ? free[Math.floor(Math.random() * free.length)] : options[Math.floor(Math.random() * options.length)];
-  scene.crowdUsed.add(key);
+  return crowdVariant(scene, masked);
+}
+
+// varianti dei passanti: stessa figura e stessi fotogrammi dei personaggi, ma con
+// vestiti, capelli, pelle e mascherina ricombinati. Così nella stessa scena nessuno è uguale.
+const VARIANT_COLORS = {
+  shirt: [["#b4553f", "#8a3e2e"], ["#5e7f94", "#3f5a6c"], ["#163c4d", "#0f2a37"], ["#7e9c8c", "#5c7a6b"], ["#c98552", "#a06a40"], ["#a3a9a6", "#7e8683"], ["#9fb4c2", "#6f8798"], ["#e8c66a", "#c9a23d"], ["#6e5434", "#523e26"], ["#a35d6a", "#7d4450"], ["#dadfda", "#a3a9a6"], ["#3f6560", "#2a4844"]],
+  pants: [["#3b4f5c", "#2a3a45"], ["#1c2839", "#121b27"], ["#5e7f94", "#3f5a6c"], ["#6e7673", "#4f5654"], ["#8f775b", "#6e5a44"], ["#dadfda", "#a3a9a6"]],
+  hair: ["#1c2839", "#16181c", "#3a2a20", "#4b4440", "#6e5434", "#7a3a2e", "#a3a9a6", "#d8c48f", "#e8d29a", "#cdd2ce"],
+  skin: [["#e8dccd", "#c9b8a6"], ["#f3e6da", "#dcc8b6"], ["#d9b89c", "#bf9c80"], ["#c69a7a", "#a77c5e"], ["#b98a6a", "#9a6e52"], ["#8a6248", "#6e4c36"]],
+  mask: [["#f1f0ed", "#5e7f94"], ["#dfe7ea", "#163c4d"], ["#cfe3d4", "#2f5e4a"], ["#e6d6cc", "#b4553f"], ["#d6dade", "#5e7f94"]]
+};
+const POOL_MAX = { cv: 26, cb: 32 };
+const variantPool = { cv: [], cb: [] };
+const pickOf = (list) => list[Math.floor(Math.random() * list.length)];
+
+function makeVariant(scene, tag, full) {
+  const key = `${tag}_${variantPool[tag].length}`;
+  const base = pickOf(CROWD);
+  const female = Math.random() < 0.5;
+  const [r, R] = pickOf(VARIANT_COLORS.shirt);
+  const [b, B] = pickOf(VARIANT_COLORS.pants);
+  const [s, S] = Math.random() < 0.6 ? pickOf(VARIANT_COLORS.skin) : [null, null];
+  const [M, F] = pickOf(VARIANT_COLORS.mask);
+  const overrides = { ...HERO_VARIANTS[base], r, R, b, B, M, F };
+  if (Math.random() < 0.7) overrides.h = pickOf(VARIANT_COLORS.hair);
+  if (s) Object.assign(overrides, { s, S });
+  const palette = shaded({ ...HERO_PALETTE, ...overrides });
+  // per le comparse lontane bastano la posa con la mascherina e la camminata
+  const wanted = full ? null : new Set(["_mask", "_mask_w1", "_mask_p1", "_mask_w2", "_mask_p2"]);
+  heroSheets().forEach(([suffix, rows, off]) => {
+    if (wanted && !wanted.has(suffix)) return;
+    makeTexture(scene, `${key}${suffix}`, female ? longHair(rows, off) : rows, palette);
+  });
+  variantPool[tag].push(key);
+  return key;
+}
+
+export function crowdVariant(scene, masked = true, { full = true } = {}) {
+  const tag = full ? "cv" : "cb";
+  if (!scene.variantUsed) {
+    scene.variantUsed = new Set();
+    // la scena di Phaser viene riusata: alla chiusura si ricomincia da capo
+    scene.events.once("shutdown", () => (scene.variantUsed = null));
+  }
+  const pool = variantPool[tag];
+  const free = pool.filter((k) => !scene.variantUsed.has(k));
+  // finché il gruppo non è pieno se ne crea uno nuovo, poi si pesca tra quelli non usati nella scena
+  const key = pool.length < POOL_MAX[tag] ? makeVariant(scene, tag, full) : free.length ? pickOf(free) : pickOf(pool);
+  scene.variantUsed.add(key);
   return masked ? `${key}_mask` : key;
 }
 
