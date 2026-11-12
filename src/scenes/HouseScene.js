@@ -10,6 +10,7 @@ export class HouseScene extends Phaser.Scene {
   }
 
   create(data) {
+    this.indoor = true; // passi leggeri sul pavimento
     const { width } = this.scale;
     const hasPack = Boolean(this.registry.get("hasPack"));
     const { hud, objective } = addSceneChrome(this, {

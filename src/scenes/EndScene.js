@@ -15,6 +15,7 @@ export class EndScene extends Phaser.Scene {
   }
 
   create(data = {}) {
+    this.indoor = false;
     this.win = data.result === "win";
     this.fainted = Boolean(data.fainted);
     this.run = getRun(this.registry);
@@ -63,7 +64,8 @@ export class EndScene extends Phaser.Scene {
 
   async playWin() {
     const world = buildHouse(this, { evening: true, originId: this.origin.id });
-    setAmbient("indoor");
+    setAmbient(null);
+    this.indoor = true;
     this.hud = addHud(this, { oxygen: this.run?.oxygen ?? 0.5, location: this.origin.city, flag: this.origin.flag });
     const caption = addObjectiveBox(this, "20:30 · RITORNO A CASA");
     this.caption = caption;

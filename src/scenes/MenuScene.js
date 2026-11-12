@@ -26,7 +26,7 @@ export class MenuScene extends Phaser.Scene {
     this.selectedIndex = 0;
     this.rows = [];
     fadeIn(this, 400);
-    setAmbient("city");
+    setAmbient(null); // il vento si sente solo in città
 
     // sfondo a quadretti che scorre lentamente
     const grid = paperGrid(this, { step: 48 });

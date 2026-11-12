@@ -22,6 +22,7 @@ export class IntroScene extends Phaser.Scene {
     }
     this.origin = getOrigin(this.registry);
     this.done = false;
+    this.indoor = true;
     this.walking = false;
     fadeIn(this, 500);
 
@@ -76,7 +77,7 @@ export class IntroScene extends Phaser.Scene {
     const player = this.player;
     // cartello d'apertura, poi il cittadino si sveglia stiracchiandosi
     await this.wait(300);
-    setAmbient("indoor");
+    setAmbient(null);
     Sfx.announce();
     await this.showProtocol();
     if (this.done) return;

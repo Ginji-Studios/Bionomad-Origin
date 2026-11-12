@@ -10,6 +10,7 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   create(data) {
+    this.indoor = true; // passi leggeri sul pavimento
     const { width } = this.scale;
     addSceneChrome(this, {
       location: "UFFICIO",

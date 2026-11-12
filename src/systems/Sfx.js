@@ -106,7 +106,13 @@ export const Sfx = {
   },
   back: () => tone(392, 0.08, { vol: 0.06, slide: -80 }),
   whoosh: () => noise(0.32, { vol: 0.07, freq: 500, sweep: 1600, q: 0.8 }),
-  step: () => noise(0.04, { vol: 0.035, freq: 700, q: 2 }),
+  // passi: all'aperto un fruscio sul marciapiede, al chiuso un "toc" leggero sul pavimento
+  step: (indoor = false) => {
+    if (indoor) {
+      noise(0.06, { vol: 0.15, freq: 380, q: 1.4, type: "lowpass" });
+      tone(110 + Math.random() * 20, 0.06, { type: "sine", vol: 0.09 });
+    } else noise(0.04, { vol: 0.035, freq: 700, q: 2 });
+  },
   // ossigeno guadagnato: due note limpide che salgono
   o2Gain: (soft = false) => {
     const v = soft ? 0.025 : 0.07;

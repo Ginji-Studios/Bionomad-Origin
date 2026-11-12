@@ -159,7 +159,7 @@ export class TravelScene extends Phaser.Scene {
     this.route = { x0, x1, y };
   }
 
-  // picco di inquinamento: ogni tanto l'aria peggiora di colpo. Suona la sirena, il cielo
+  // picco di inquinamento: a volte l'aria peggiora di colpo. Suona la sirena, il cielo
   // si scurisce e tutti i passanti si fermano a curare il proprio BIONOMAD
   setupSmogPeaks() {
     const { width, height } = this.scale;
@@ -178,8 +178,21 @@ export class TravelScene extends Phaser.Scene {
       // l'ossigeno cala un po' più in fretta finché dura il picco
       this.peakUntil = this.time.now + 4500;
     };
-    this.time.addEvent({ delay: 26000 - level * 4000, loop: true, callback: peak });
-    this.time.delayedCall(9000, peak);
+    // l'avviso è casuale: in un tragitto può arrivare oppure no, in un momento qualsiasi.
+    // più l'aria è inquinata, più è probabile (Reykjavík 35% · Milano 50% · Delhi 65%);
+    // dopo un picco la probabilità di un secondo cala
+    let chance = 0.35 + level * 0.15;
+    const schedule = () => {
+      this.time.delayedCall(Phaser.Math.Between(5000, 16000), () => {
+        if (this.arrived) return;
+        if (Math.random() < chance) {
+          peak();
+          chance *= 0.4;
+        }
+        schedule();
+      });
+    };
+    schedule();
   }
 
   update(time, delta) {

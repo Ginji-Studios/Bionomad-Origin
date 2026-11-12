@@ -25,7 +25,7 @@ export function animateWalker(walker, delta, speedRatio, time) {
     const step = Math.floor(walker.walkPhase / (Math.PI / 2)) % 4;
     frame = ["w1", "p1", "w2", "p2"][step];
     // passi del protagonista: un tocco leggero a ogni appoggio
-    if (walker.stepSound && step !== walker.lastStep && (step === 0 || step === 2)) Sfx.step();
+    if (walker.stepSound && step !== walker.lastStep && (step === 0 || step === 2)) Sfx.step(Boolean(walker.scene.indoor));
     walker.lastStep = step;
     const bob = Math.abs(Math.sin(walker.walkPhase)) * 4 * speedRatio;
     walker.sprite.y = Math.round(-bob + hop);

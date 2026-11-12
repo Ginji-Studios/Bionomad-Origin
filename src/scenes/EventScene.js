@@ -46,8 +46,9 @@ export class EventScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg).setDepth(-100);
     const outdoor = MASKED.includes(this.event.location);
-    // sottofondo: in strada il vento e le torri di filtraggio, al chiuso il purificatore
-    setAmbient(outdoor ? (this.event.evening ? "night" : "city") : "indoor");
+    this.indoor = !outdoor; // in casa e in ufficio i passi suonano sul pavimento
+    // sottofondo: il vento e le torri di filtraggio solo in città, al chiuso silenzio
+    setAmbient(outdoor ? (this.event.evening ? "night" : "city") : null);
     this.world = BUILDERS[this.event.location](this, this.origin.id, { evening: Boolean(this.event.evening), ac: Boolean(this.event.ac) });
     this.plantPanel = new PlantPanel(this);
     this.emergencyTimer = 0;
