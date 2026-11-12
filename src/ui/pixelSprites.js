@@ -370,8 +370,7 @@ function applyOutfit(rows, outfit, off = 0) {
       break;
     case "hoodie": // felpa col cappuccio sulle spalle e la tasca davanti
       swap(11, all, "rt", "y");
-      swap(15, [5, 6, 7, 8], "R", "Y");
-      swap(14, [5, 8], "r", "Y");
+      swap(14, [5, 6, 7, 8], "r", "Y"); // tasca dritta, senza la forma a U
       break;
     case "overalls": // salopette sopra la maglia
       for (let y = 12; y <= 15; y += 1) swap(y, center, "rRt", "b");

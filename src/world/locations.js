@@ -664,7 +664,20 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
   sign.fillRect(tx - 40, 404, 12, 4);
 
   if (scene.textures.exists("logo_biodom")) scene.add.image(tx + 176, 214, "logo_biodom").setTint(COLORS.paper).setDepth(413);
-  const vendor = scene.add.image(tx + 140, 338, "npc_vendor").setOrigin(0.5, 1).setScale(3).setDepth(413);
+  // anche dentro il truck c'è l'hub: la piantina che tiene respirabile l'aria del bancone
+  const truckHub = scene.add.image(tx + 94, 334, "home_hub").setOrigin(0.5, 1).setScale(2).setDepth(412);
+  const hubLed = scene.add.rectangle(tx + 118, 324, 4, 2, 0x9fd4b0).setDepth(412);
+  scene.tweens.add({ targets: hubLed, alpha: 0.25, duration: 900, yoyo: true, repeat: -1 });
+  scene.time.addEvent({
+    delay: 900,
+    loop: true,
+    callback: () => {
+      const p = scene.add.rectangle(tx + 86 + Math.random() * 16, 304, 2, 2, 0xdff2e4, 0.9).setDepth(412);
+      scene.tweens.add({ targets: p, y: 284, alpha: 0, duration: 1300, onComplete: () => p.destroy() });
+    }
+  });
+  // il venditore lavora con la mascherina
+  const vendor = scene.add.image(tx + 140, 338, "npc_vendor_mask").setOrigin(0.5, 1).setScale(3).setDepth(413);
   vendor.setCrop(0, 0, 14, 16);
 
   // panchina

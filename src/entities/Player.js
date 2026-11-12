@@ -51,6 +51,8 @@ export function animateWalker(walker, delta, speedRatio, time) {
 const HOSE_DARK = 0x2c4556;
 const HOSE_RIB = 0x5e7f94;
 const STRAP = 0x163c4d;
+const STRAP_LIGHT = 0x2c566a;
+const BUCKLE = 0x9fb4c2;
 export function updateHose(walker, delta = 16) {
   const pack = walker.pack;
   const parent = pack?.parentContainer;
@@ -75,14 +77,17 @@ export function updateHose(walker, delta = 16) {
     hose.fillStyle(color, 1);
     hose.fillRect(gx + c * P, gy + r * P, P, P);
   };
-  // spallacci sul petto
-  [11, 12, 13].forEach((r) => {
-    cell(3, r, STRAP);
-    cell(10, r, STRAP);
+  // spallacci: due cinghie dritte dalle spalle alla vita, con il regolatore chiaro a metà
+  [11, 12, 13, 14].forEach((r) => {
+    cell(3, r, r === 13 ? STRAP_LIGHT : STRAP);
+    cell(10, r, r === 13 ? STRAP_LIGHT : STRAP);
   });
+  hose.fillStyle(BUCKLE, 1);
+  hose.fillRect(gx + 3 * P + 1, gy + 13 * P + 1, 2, 2);
+  hose.fillRect(gx + 10 * P + 1, gy + 13 * P + 1, 2, 2);
   if (!masked) return;
-  // tubo a U sotto la guancia: dalla valvola dello zaino alla mascherina
-  const path = [[0, 11], [1, 12], [2, 12], [3, 11]];
+  // tubo dalla valvola dello zaino alla mascherina: sale e entra di lato, senza curva a U
+  const path = [[0, 10], [1, 10], [2, 10], [3, 10]];
   path.forEach(([c, r], i) => cell(c, r, i % 2 ? HOSE_RIB : HOSE_DARK));
   // valvola rossa sul bordo dello zaino (segue lo zaino) e innesto sulla maschera
   hose.fillStyle(0xb4553f, 1);
