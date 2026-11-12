@@ -135,12 +135,14 @@ export class EndScene extends Phaser.Scene {
     const line = this.add.rectangle(width / 2, 208, width, 4, COLORS.red).setDepth(1291);
     band.scaleY = 0;
     line.scaleX = 0;
+    this.finaleTitle = [band, line];
     this.tweens.add({ targets: band, scaleY: 1, duration: 220, ease: "Cubic.easeOut" });
     this.tweens.add({ targets: line, scaleX: 1, duration: 420, delay: 100, ease: "Cubic.easeOut" });
     letters.forEach((char, i) => {
       if (char === " ") return;
       const l = pixelText(this, startX + i * size, -60, char, { size: 32, color: COLORS.paper, origin: 0.5 }).setDepth(1300);
       l.setShadow(3, 3, "#2c566a", 0, false, true);
+      this.finaleTitle.push(l);
       this.tweens.add({ targets: l, y: 166, duration: 600, delay: i * 70, ease: "Bounce.easeOut" });
       this.tweens.add({ targets: l, y: 162, duration: 400, delay: 1400 + i * 70, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     });
@@ -254,6 +256,11 @@ export class EndScene extends Phaser.Scene {
   async showSummary() {
     if (this.summaryShown) return;
     this.summaryShown = true;
+    // la scritta "FINE GIORNATA" lascia spazio al recap
+    (this.finaleTitle ?? []).forEach((o) => {
+      this.tweens.killTweensOf(o);
+      this.tweens.add({ targets: o, alpha: 0, duration: 200, onComplete: () => o.destroy() });
+    });
     this.skip.g.destroy();
     this.skip.label.destroy();
     this.caption?.hide();
