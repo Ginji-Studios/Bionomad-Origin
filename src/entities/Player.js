@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx } from "../systems/Sfx.js";
 
 export const SPRITE_SCALE = 4;
 
@@ -23,6 +24,9 @@ export function animateWalker(walker, delta, speedRatio, time) {
     // ciclo a 4 frame: appoggio → passaggio → appoggio → passaggio
     const step = Math.floor(walker.walkPhase / (Math.PI / 2)) % 4;
     frame = ["w1", "p1", "w2", "p2"][step];
+    // passi del protagonista: un tocco leggero a ogni appoggio
+    if (walker.stepSound && step !== walker.lastStep && (step === 0 || step === 2)) Sfx.step();
+    walker.lastStep = step;
     const bob = Math.abs(Math.sin(walker.walkPhase)) * 4 * speedRatio;
     walker.sprite.y = Math.round(-bob + hop);
     // lo zaino segue con un po' di ritardo e ondeggia di lato
@@ -294,6 +298,7 @@ export class Player extends Phaser.GameObjects.Container {
   constructor(scene, x, y, { texture = "hero", withPack = false, floor = [430, 490], obstacles = [], worldWidth } = {}) {
     super(scene, x, y);
     this.pack = scene.add.image(-30, -24, "pack").setOrigin(0.5, 1).setScale(SPRITE_SCALE);
+    this.stepSound = true;
     this.sprite = scene.add.image(0, 0, texture).setOrigin(0.5, 1).setScale(SPRITE_SCALE);
     this.baseTexture = texture;
     // ombra a retino sotto i piedi

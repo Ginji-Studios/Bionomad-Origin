@@ -1,4 +1,5 @@
 import { crowdTexture, randomPackKey } from "../ui/pixelSprites.js";
+import { Sfx } from "../systems/Sfx.js";
 import Phaser from "../phaser.js";
 import { COLORS, drawPanel, o2Label } from "../ui/theme.js";
 import { animateWalker, playAction, SPRITE_SCALE } from "./Player.js";
@@ -181,6 +182,7 @@ export class Npc extends Phaser.GameObjects.Container {
   showO2(gain) {
     const scene = this.scene;
     if (!scene?.sys?.isActive()) return;
+    gain ? Sfx.o2Gain(true) : Sfx.o2Loss(true);
     const color = gain ? 0x2f5e4a : COLORS.red;
     const top = this.y - (this.child ? 92 : 140);
     const tag = scene.add.container(this.x, top).setDepth(this.y + 400);

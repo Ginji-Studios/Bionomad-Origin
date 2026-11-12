@@ -114,6 +114,26 @@ const PACK = [
   "TTTTTTTT"
 ];
 
+// logo biodom+ piccolo, disegnato a mano in pixel: le lettere alte (b, d) sono alte quanto
+// le maiuscole del VT323 a 18 px, così sta accanto al testo delle insegne
+const SMALL_LOGO_GLYPHS = {
+  b: ["##....", "##....", "##....", "##....", "#####.", "##..##", "##..##", "##..##", "##..##", "#####."],
+  i: ["..", "..", "##", "..", "##", "##", "##", "##", "##", "##"],
+  o: ["......", "......", "......", "......", ".####.", "##..##", "##..##", "##..##", "##..##", ".####."],
+  d: ["....##", "....##", "....##", "....##", ".#####", "##..##", "##..##", "##..##", "##..##", ".#####"],
+  m: ["..........", "..........", "..........", "..........", "#########.", "##..##..##", "##..##..##", "##..##..##", "##..##..##", "##..##..##"],
+  plus: ["..#..", "..#..", "#####", "..#..", "..#..", ".....", ".....", ".....", ".....", "....."]
+};
+function smallLogoRows() {
+  const word = ["b", "i", "o", "d", "o", "m"];
+  const rows = Array.from({ length: 10 }, () => "");
+  word.forEach((ch, i) => {
+    SMALL_LOGO_GLYPHS[ch].forEach((r, y) => (rows[y] += r + (i < word.length - 1 ? ".." : ".")));
+  });
+  SMALL_LOGO_GLYPHS.plus.forEach((r, y) => (rows[y] += r));
+  return rows;
+}
+
 // colore del contorno dei personaggi
 // (niente contorno: i personaggi restano nello stile pieno delle tavole)
 const CHAR_OUTLINE = null;
@@ -543,6 +563,7 @@ export function registerPixelTextures(scene) {
     });
   }
   makeTexture(scene, "pack", PACK, PACK_PALETTE, { outline: CHAR_OUTLINE });
+  makeTexture(scene, "logo_biodom_s", smallLogoRows(), { "#": "#ffffff" });
   const extra = { u: "#8fb5ae", U: "#4f7a78", k: "#6a9a64", K: "#3f6a44", o: "#c9706a", O: "#9a4c48", p: "#8a7fb0" };
   for (const [name, top] of Object.entries(PACK_PLANTS)) {
     const rows = [...top, ...PACK.slice(4)];

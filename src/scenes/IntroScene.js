@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { animateWalker, Player, turnTo } from "../entities/Player.js";
 import { getOrigin } from "../config/origins.js";
 import { getRun } from "../systems/RunManager.js";
@@ -75,6 +76,8 @@ export class IntroScene extends Phaser.Scene {
     const player = this.player;
     // cartello d'apertura, poi il cittadino si sveglia stiracchiandosi
     await this.wait(300);
+    setAmbient("indoor");
+    Sfx.announce();
     await this.showProtocol();
     if (this.done) return;
     await titleCard(this, this.origin.city, `07:30 · PM2.5 ${Math.round(this.origin.pm25 * 9)} · ${this.origin.difficulty}`);
@@ -82,6 +85,7 @@ export class IntroScene extends Phaser.Scene {
     player.act("cheer", 500, 6);
     await this.wait(700);
     this.say("Uff... l'aria è pesante.");
+    this.time.delayedCall(500, () => Sfx.cough());
     // tossisce: due scossoni e una nuvoletta
     [0, 260].forEach((d) => this.time.delayedCall(d + 500, () => {
       this.tweens.add({ targets: player.sprite, x: 3, duration: 50, yoyo: true, repeat: 1 });
@@ -97,6 +101,7 @@ export class IntroScene extends Phaser.Scene {
     this.tweens.add({ targets: pack, x: player.x - 30, y: player.y - 24, alpha: 0, duration: 400, ease: "Sine.easeIn" });
     await this.wait(380);
     player.setPack(true);
+    Sfx.attach();
     player.setBaseTexture(characterTexture(this.origin.id, true));
     // lo zaino si aggancia: lampo, scintille e bollicine d'ossigeno
     this.cameras.main.flash(180, 159, 212, 176);

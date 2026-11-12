@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { animateImage } from "../entities/Player.js";
 import { PlantSensors } from "../input/PlantSensors.js";
@@ -25,6 +26,7 @@ export class MenuScene extends Phaser.Scene {
     this.selectedIndex = 0;
     this.rows = [];
     fadeIn(this, 400);
+    setAmbient("city");
 
     // sfondo a quadretti che scorre lentamente
     const grid = paperGrid(this, { step: 48 });
@@ -289,7 +291,7 @@ export class MenuScene extends Phaser.Scene {
     tag.add([tagBg, o2Label(this, 3, -1, { px: 22, color: COLORS.ink, suffix: "+" }), brandMarks(this, -34, -16, 68, 32, { color: COLORS.steel, gap: 7, lines: false })]);
     this.tweens.add({ targets: tag, y: 156, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
-    pixelText(this, 18, height - 31, "W/S  SCEGLI    INVIO  CONFERMA", { size: 8, color: COLORS.steelLight });
+    pixelText(this, 18, height - 31, "W/S  SCEGLI    INVIO  CONFERMA    M  AUDIO", { size: 8, color: COLORS.steelLight });
     // logotipo vero di biodom+ in pixel, con la dicitura
     // logo e dicitura centrati sulla stessa riga della barra
     const rowY = height - 27;
@@ -299,6 +301,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   move(step) {
+    Sfx.blip();
     this.select(Phaser.Math.Wrap(this.selectedIndex + step, 0, MENU_ITEMS.length));
   }
 
@@ -346,6 +349,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   confirm() {
+    Sfx.confirm();
     const item = MENU_ITEMS[this.selectedIndex];
     if (item.action === "plant") {
       this.connectPlant();

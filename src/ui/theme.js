@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx } from "../systems/Sfx.js";
 // tema grafico condiviso
 
 // palette dal branding BIODOM
@@ -332,6 +333,7 @@ export function addHud(scene, { oxygen = 1, location = "ITALIA", flag = "flag_it
       // sotto il 35% la cornice diventa rossa
       if (danger !== low) {
         low = danger;
+        if (danger) Sfx.alarm();
         drawFrame(danger ? COLORS.red : COLORS.paper);
       }
     },
@@ -498,6 +500,7 @@ export function fadeIn(scene, duration = 280) {
 export function goTo(scene, key, data) {
   if (scene.transitioning) return;
   scene.transitioning = true;
+  Sfx.whoosh();
   wipe(scene, 0, 1, 380, () => scene.scene.start(key, data));
 }
 

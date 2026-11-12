@@ -106,7 +106,9 @@ export function drawAirMonitor(scene, g, x, ground, { parallax = false, factor =
   scene.tweens.add({ targets: spot, alpha: 0.15, duration: 500, yoyo: true, repeat: -1 });
   const head = scene.add.text(x + 8, top + 5, "", { fontFamily: FONT, fontSize: "16px", color: "#9fb4c2" }).setDepth(depth);
   const value = scene.add.text(x + 8, top + 24, "", { fontFamily: FONT, fontSize: "22px", color: "#f1f0ed" }).setDepth(depth);
-  [spot, head, value].forEach((o) => parallax && o.setScrollFactor(factor, 1));
+  // il logo vero del consorzio, in pixel, al posto della scritta
+  const logo = scene.textures.exists("logo_biodom") ? scene.add.image(x + 8, top + 28, "logo_biodom").setOrigin(0, 0).setTint(0xf1f0ed).setDepth(depth).setVisible(false) : null;
+  [spot, head, value, logo].forEach((o) => o && parallax && o.setScrollFactor(factor, 1));
   // il testo si rimpicciolisce finché non sta nel pannello (niente sbordature)
   const fit = (t, text, size, maxW) => {
     t.setText(text);
@@ -118,7 +120,10 @@ export function drawAirMonitor(scene, g, x, ground, { parallax = false, factor =
   const show = () => {
     const [a, b, alarm] = messages[i % messages.length];
     fit(head, a, 16, w - 26);
-    fit(value, b, 22, w - 14);
+    const isLogo = b === "@logo" && logo;
+    value.setVisible(!isLogo);
+    logo?.setVisible(!!isLogo);
+    if (!isLogo) fit(value, b === "@logo" ? "biodom+" : b, 22, w - 14);
     value.setColor(alarm ? "#d98a7a" : "#f1f0ed");
     i += 1;
   };
@@ -258,7 +263,7 @@ export function streetMessages(origin) {
     ["PROTOCOLLO ONU", "ATTIVO"],
     ["ARIA ESTERNA", "NON RESPIRABILE", true],
     ["INDOSSA IL", "PRESIDIO"],
-    ["CONSORZIO", "biodom+"],
+    ["CONSORZIO", "@logo"],
     ["SOSTA ALL'APERTO", "VIETATA", true]
   ];
 }
@@ -269,6 +274,9 @@ export function skyTint(g, color, alpha, top = 46, bottom = 380) {
   g.fillRect(0, top, VIEW_W, bottom - top);
   ditherRect(g, 0, top, VIEW_W, 40, color, 3, 2, alpha + 0.2);
 }
+
+// distanza tra il punto in cui si posiziona un testo VT323 da 18 px e la cima delle maiuscole
+const SIGN_CAP_TOP = 5;
 
 // negozio del consorzio: vetrina con gli zaini BIONOMAD esposti e l'insegna "PUNTO biodom+"
 export function drawHubStore(scene, g, x, pal, { parallax = false, evening = false, ground = 380 } = {}) {
@@ -281,13 +289,15 @@ export function drawHubStore(scene, g, x, pal, { parallax = false, evening = fal
     g.fillStyle(i % 2 ? COLORS.paper : COLORS.ink, 1);
     g.fillRect(x + i * 10, top + 26, 10, 8);
   }
-  // insegna
+  // insegna: "PUNTO" e il logo vero del consorzio in pixel
   g.fillStyle(COLORS.ink, 1);
-  g.fillRect(x + 4, top + 4, w - 8, 20);
-  const sign = scene.add.text(x + 10, top + 5, "PUNTO biodom+", { fontFamily: FONT, fontSize: "18px", color: "#f1f0ed" }).setDepth(-6);
-  while (sign.width > w - 34) sign.setFontSize(parseInt(sign.style.fontSize, 10) - 1);
+  g.fillRect(x + 4, top + 2, w - 8, 24);
+  const sign = scene.add.text(x + 10, top + 4, "PUNTO", { fontFamily: FONT, fontSize: "18px", color: "#f1f0ed" }).setDepth(-6);
   if (parallax) sign.setScrollFactor(0.75, 1);
-  const led = scene.add.rectangle(x + w - 14, top + 14, 6, 6, 0x9fd4b0).setDepth(-6);
+  // logo piccolo: le aste di b e d alte come le maiuscole, sulla stessa linea di base
+  const mark = scene.add.image(x + 10 + sign.width + 8, top + 4 + SIGN_CAP_TOP, "logo_biodom_s").setOrigin(0, 0).setTint(0xf1f0ed).setDepth(-6);
+  if (parallax) mark.setScrollFactor(0.75, 1);
+  const led = scene.add.rectangle(x + 150, top + 54, 6, 6, 0x9fd4b0).setDepth(-6);
   if (parallax) led.setScrollFactor(0.75, 1);
   scene.tweens.add({ targets: led, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
   // vetrina

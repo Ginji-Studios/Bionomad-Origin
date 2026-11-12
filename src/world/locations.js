@@ -1416,7 +1416,12 @@ function drawMonumentPainting(g, x, y, kind, evening) {
     const snow = 0xf1f0ed;
     const rock = evening ? 0x3a4f66 : 0x7d9aad;
     [[ix + 16, 26], [ix + iw - 16, 30]].forEach(([mx, mh]) => {
-      for (let i = 0; i < mh; i += 2) px(mx - i, ground - mh + i, i * 2, 2, i < 8 ? snow : rock);
+      for (let i = 0; i < mh; i += 2) {
+        // ogni riga della montagna resta dentro il dipinto
+        const left = Math.max(ix, mx - i);
+        const right = Math.min(ix + iw, mx + i);
+        if (right > left) px(left, ground - mh + i, right - left, 2, i < 8 ? snow : rock);
+      }
     });
     const cx = ix + iw / 2;
     const white = evening ? 0xcdd2ce : 0xf6f6f2;

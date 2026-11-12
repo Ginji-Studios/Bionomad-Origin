@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { faint, Player } from "../entities/Player.js";
 import { Npc } from "../entities/Npc.js";
 import { crowdTexture } from "../ui/pixelSprites.js";
@@ -45,6 +46,8 @@ export class EventScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg).setDepth(-100);
     const outdoor = MASKED.includes(this.event.location);
+    // sottofondo: in strada il vento e le torri di filtraggio, al chiuso il purificatore
+    setAmbient(outdoor ? (this.event.evening ? "night" : "city") : "indoor");
     this.world = BUILDERS[this.event.location](this, this.origin.id, { evening: Boolean(this.event.evening), ac: Boolean(this.event.ac) });
     this.plantPanel = new PlantPanel(this);
     this.emergencyTimer = 0;
@@ -290,6 +293,7 @@ export class EventScene extends Phaser.Scene {
       flood: "IPER-IDRATAZIONE · leva dell'acqua aperta!",
       wrongVial: "INTOSSICAZIONE · fiala sbagliata, toglila!"
     };
+    Sfx.negligence();
     const cost = { forgot: 0.18, overheat: 0.12, flood: 0.2, wrongVial: 0.12 }[type] ?? 0.1;
     this.hud.setOxygen(this.hud.oxygen - cost);
     this.cameras.main.shake(220, 0.006);
@@ -451,6 +455,7 @@ export class EventScene extends Phaser.Scene {
   }
 
   completeStep() {
+    Sfx.o2Gain();
     this.stepIndex += 1;
     this.showChecklist(this.stepIndex - 1, this.stepIndex < this.event.steps.length);
     this.time.delayedCall(250, () => this.player?.act("cheer", 450, 10));
@@ -1024,6 +1029,7 @@ export class EventScene extends Phaser.Scene {
     this.objective.setText("EVENTO COMPLETATO");
     this.addOxygen(EVENT_BONUS);
     this.banner("TASK COMPLETATA!", COLORS.ink);
+    Sfx.task();
     [0, 500, 1000].forEach((delay) => this.time.delayedCall(delay, () => this.player.act("cheer", 420, 14)));
     this.time.delayedCall(1800, () => {
       // niente teletrasporto

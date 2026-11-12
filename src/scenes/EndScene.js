@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { EVENTS } from "../config/events.js";
 import { getOrigin } from "../config/origins.js";
 import { animateWalker, faint, Player, turnTo } from "../entities/Player.js";
@@ -62,6 +63,7 @@ export class EndScene extends Phaser.Scene {
 
   async playWin() {
     const world = buildHouse(this, { evening: true, originId: this.origin.id });
+    setAmbient("indoor");
     this.hud = addHud(this, { oxygen: this.run?.oxygen ?? 0.5, location: this.origin.city, flag: this.origin.flag });
     const caption = addObjectiveBox(this, "20:30 · RITORNO A CASA");
     this.caption = caption;
@@ -127,6 +129,7 @@ export class EndScene extends Phaser.Scene {
     });
     await this.wait(900);
     if (this.summaryShown) return;
+    Sfx.win();
     const letters = "FINE GIORNATA".split("");
     const size = 40;
     const startX = width / 2 - (letters.length * size) / 2 + size / 2;
@@ -155,6 +158,7 @@ export class EndScene extends Phaser.Scene {
   async playLose() {
     const { width, height } = this.scale;
     buildStreet(this, this.origin.id, { evening: true });
+    setAmbient("night");
     this.hud = addHud(this, { oxygen: Math.max(0.2, this.run?.oxygen ?? 0.3), location: this.origin.city, flag: this.origin.flag });
     const caption = addObjectiveBox(this, "OSSIGENO IN ESAURIMENTO");
     this.caption = caption;
@@ -192,6 +196,7 @@ export class EndScene extends Phaser.Scene {
     if (this.summaryShown) return;
 
     // "GAME OVER" lettera per lettera
+    Sfx.gameOver();
     const letters = "GAME OVER".split("");
     const size = 48;
     const startX = width / 2 - (letters.length * size) / 2 + size / 2;

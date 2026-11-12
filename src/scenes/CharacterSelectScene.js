@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { ORIGINS } from "../config/origins.js";
 import { startRun } from "../systems/RunManager.js";
 import { characterTexture, getGender, setGender } from "../ui/pixelSprites.js";
@@ -54,7 +55,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.step = "origin";
     this.gender = getGender();
     const keys = this.input.keyboard;
-    const side = (dir) => (this.step === "gender" ? this.pickGender(dir > 0 ? "f" : "m") : this.changeSelection(dir));
+    const side = (dir) => (Sfx.blip(), this.step === "gender" ? this.pickGender(dir > 0 ? "f" : "m") : this.changeSelection(dir));
     ["LEFT", "A"].forEach((key) => keys.on(`keydown-${key}`, () => side(-1)));
     ["RIGHT", "D"].forEach((key) => keys.on(`keydown-${key}`, () => side(1)));
     ["ENTER", "SPACE"].forEach((key) => keys.on(`keydown-${key}`, () => (this.step === "gender" ? this.confirmGender() : this.confirmSelection())));
@@ -165,6 +166,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   confirmGender() {
+    Sfx.confirm();
     if (this.transitioning || this.confirming) return;
     this.confirming = true;
     setGender(this.gender);
@@ -285,6 +287,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   confirmSelection() {
+    Sfx.confirm();
     if (this.transitioning || this.confirming) return;
     if (this.step !== "origin") return;
     const card = this.cards[this.selectedIndex];

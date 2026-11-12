@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { faint, Player } from "../entities/Player.js";
 import { Npc } from "../entities/Npc.js";
 import { MockPlantInput } from "../input/MockPlantInput.js";
@@ -7,7 +8,7 @@ import { failRun, getRun, nextDestination } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { drawSign, drawStreetFloor } from "../world/locations.js";
 import { drawCityscape, ZONES } from "../world/cityscape.js";
-import { addHud, addObjectiveBox, bodyText, COLORS, ditherRect, drawPanel, dropShadow, fadeIn, goTo, pixelArrow, pixelDisc, pixelText, targetMarker, textChip } from "../ui/theme.js";
+import { addHud, addObjectiveBox, bodyText, COLORS, ditherRect, drawPanel, dropShadow, fadeIn, goTo, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
 
 const WORLD_W = 1920;
 const NAMES = { home: "CASA", office: "UFFICIO", foodtruck: "FOOD TRUCK", busstop: "FERMATA BUS", bus: "FERMATA BUS", street: "CITTÀ" };
@@ -87,6 +88,8 @@ export class TravelScene extends Phaser.Scene {
     textChip(this, 14, height - 30, `QUARTIERE ${this.zone.toUpperCase()}`, { size: 18 });
     textChip(this, width - 14, height - 30, "D / →  cammina", { size: 20, originX: 1 });
     this.createRouteBar(from, to);
+    setAmbient(evening ? "night" : "city");
+    this.setupSmogPeaks();
 
     this.input.keyboard.once("keydown-ESC", () => goTo(this, "MenuScene"));
   }
@@ -156,6 +159,29 @@ export class TravelScene extends Phaser.Scene {
     this.route = { x0, x1, y };
   }
 
+  // picco di inquinamento: ogni tanto l'aria peggiora di colpo. Suona la sirena, il cielo
+  // si scurisce e tutti i passanti si fermano a curare il proprio BIONOMAD
+  setupSmogPeaks() {
+    const { width, height } = this.scale;
+    const level = this.origin.smog ?? 0;
+    const veil = this.add.rectangle(width / 2, height / 2, width, height, level >= 2 ? 0x8a6a3a : 0x6e6a60, 0).setScrollFactor(0).setDepth(600);
+    const peak = () => {
+      if (this.arrived) return;
+      Sfx.siren();
+      showToast(this, "PICCO DI PM2.5 · CURA IL TUO PRESIDIO", { color: COLORS.red, y: 150, duration: 3200 });
+      this.tweens.add({ targets: veil, fillAlpha: 0.16 + level * 0.06, duration: 900, yoyo: true, hold: 3200, ease: "Sine.easeInOut" });
+      this.cameras.main.shake(300, 0.002);
+      // i cittadini rispondono: si fermano e si prendono cura della pianta
+      this.npcs.forEach((npc, i) => {
+        if (!npc.busy) npc.careTimer = 200 + i * 260;
+      });
+      // l'ossigeno cala un po' più in fretta finché dura il picco
+      this.peakUntil = this.time.now + 4500;
+    };
+    this.time.addEvent({ delay: 26000 - level * 4000, loop: true, callback: peak });
+    this.time.delayedCall(9000, peak);
+  }
+
   update(time, delta) {
     if (!this.player || this.arrived) return;
     this.player.update(this.inputProvider.getState(), delta, time);
@@ -173,7 +199,8 @@ export class TravelScene extends Phaser.Scene {
     this.routeDot.setX(x0 + (x1 - x0) * progress);
 
     // in strada l'ossigeno scende, ma a metà velocità rispetto agli eventi
-    this.hud.setOxygen(this.hud.oxygen - delta / (this.origin.drainSeconds * 2000));
+    const peakFactor = this.peakUntil && this.time.now < this.peakUntil ? 1.6 : 1;
+    this.hud.setOxygen(this.hud.oxygen - (delta * peakFactor) / (this.origin.drainSeconds * 2000));
     if (this.hud.oxygen <= 0) {
       this.arrived = true;
       this.hud.setOxygen(0);
