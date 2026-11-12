@@ -89,7 +89,7 @@ export class EventScene extends Phaser.Scene {
     [["ONE", 1], ["TWO", 2], ["THREE", 3], ["NUMPAD_ONE", 1], ["NUMPAD_TWO", 2], ["NUMPAD_THREE", 3]].forEach(([key, color]) =>
       keys.on(`keydown-${key}`, () => {
         if (!plantStep("vials")) return;
-        PlantSensors.insertVial(color);
+        PlantSensors.insertVial(color, this.plantPanel.step?.required);
         this.player.act("act", 300, 0);
       })
     );

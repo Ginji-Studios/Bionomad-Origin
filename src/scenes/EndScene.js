@@ -367,9 +367,11 @@ export class EndScene extends Phaser.Scene {
 
     // negligenze commesse durante la run
     const careless = this.run?.negligence ?? 0;
-    const neglect = bodyText(this, x + w - 260, y + 242, careless ? `SCOSTAMENTI DI CONFORMITÀ: ${careless}` : "OPERATORE CONFORME", {
+    // il flusso interrotto (game over) è sempre uno scostamento: l'operatore non è conforme
+    const status = !win ? "OPERATORE NON CONFORME" : careless ? `SCOSTAMENTI DI CONFORMITÀ: ${careless}` : "OPERATORE CONFORME";
+    const neglect = bodyText(this, x + w - 260, y + 242, status, {
       size: 22,
-      color: careless ? COLORS.red : 0x5c7a6b,
+      color: !win || careless ? COLORS.red : 0x5c7a6b,
       fit: 230
     });
     neglect.setAlpha(0);
@@ -377,13 +379,13 @@ export class EndScene extends Phaser.Scene {
     this.tweens.add({ targets: neglect, alpha: 1, duration: 260 });
 
     // il cittadino saluta (o resta a terra)
-    const hero = this.add.image(x + w - 145, y + 350, characterTexture(this.origin.id, !win)).setOrigin(0.5, 1).setScale(4).setAlpha(0);
+    const hero = this.add.image(x + w - 145, y + 370, characterTexture(this.origin.id, !win)).setOrigin(0.5, 1).setScale(4).setAlpha(0);
     box.add(hero);
     this.tweens.add({ targets: hero, alpha: 1, duration: 300 });
     if (win) {
       const base = characterTexture(this.origin.id, false);
       this.time.addEvent({ delay: 420, loop: true, callback: () => hero.setTexture(hero.texture.key === base ? `${base}_cheer` : base) });
-      this.tweens.add({ targets: hero, y: hero.y - 10, duration: 210, yoyo: true, repeat: -1, ease: "Quad.easeOut" });
+      this.tweens.add({ targets: hero, y: hero.y - 6, duration: 210, yoyo: true, repeat: -1, ease: "Quad.easeOut" });
     } else {
       hero.setTint(0x9fb4c2).setScale(4, 3.2);
     }

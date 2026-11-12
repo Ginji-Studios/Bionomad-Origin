@@ -96,9 +96,21 @@ export const PlantSensors = {
   },
 
   // fiale simulate: 1/2/3 inseriscono una fiala colorata, 0 toglie l'ultima
-  insertVial(color) {
+  // se il pozzetto è pieno, la nuova fiala prende il posto di quella non richiesta (o di troppo):
+  // così basta premere il colore giusto anche dopo un errore
+  insertVial(color, required = null) {
     if (state.connected) return;
-    const free = state.slots.indexOf(0);
+    let free = state.slots.indexOf(0);
+    if (free === -1 && required) {
+      const remaining = [...required];
+      const keep = state.slots.map((value) => {
+        const k = remaining.indexOf(value);
+        if (k === -1) return false;
+        remaining.splice(k, 1);
+        return true;
+      });
+      free = keep.indexOf(false);
+    }
     if (free !== -1) state.slots[free] = color;
   },
 

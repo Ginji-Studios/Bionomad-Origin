@@ -54,6 +54,7 @@ export class PlantPanel {
 
     // indicatore del sensore
     this.valueLabel = bodyText(scene, x + 152, y + 70, "", { size: 22, color: COLORS.ink, fit: W - 168 });
+    this.valueMaxW = W - 168;
     this.gauge = scene.add.graphics();
     this.progressLabel = pixelText(scene, x + 152, y + 128, "COMPLETAMENTO", { size: 8, color: COLORS.steel });
     this.progressBar = scene.add.graphics();
@@ -159,7 +160,14 @@ export class PlantPanel {
       const correct = matched.filter(Boolean).length;
       satisfied = correct === required.length;
       fill = correct / required.length;
-      this.valueLabel.setText(`POZZETTO: ${required.map((c) => VIAL_COLORS[c].name).join(" + ")}`);
+      // in simulazione accanto a ogni colore c'è il tasto da premere
+      const keyHint = (c) => (s.connected ? VIAL_COLORS[c].name : `${VIAL_COLORS[c].name} [${c}]`);
+      const text = `POZZETTO: ${required.map(keyHint).join(" + ")}`;
+      if (this.valueLabel.text !== text) {
+        this.valueLabel.setText(text).setFontSize(22);
+        let size = 22;
+        while (this.valueLabel.width > this.valueMaxW && size > 14) this.valueLabel.setFontSize((size -= 1));
+      }
       slots.forEach((value, i) => {
         if (value && value !== this.lastSlots[i] && !matched[i]) negligence = "wrongVial";
       });
