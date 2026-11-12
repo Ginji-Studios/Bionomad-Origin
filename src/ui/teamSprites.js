@@ -121,6 +121,9 @@ function polish(rows) {
     if (y === 8) [3, 10].forEach((x) => (r = set(r, x, "s", "4")));
     if (y === 10) [5, 6, 7, 8].forEach((x) => (r = set(r, x, "s", "5")));
     if (y === 20) [5, 11].forEach((x) => (r = set(r, x, "k", "6")));
+    // lato destro in ombra: maglia e pantaloni
+    if (y >= 11 && y <= 14) [10, 11].forEach((x) => (r = set(r, x, "r", "7")));
+    if (y >= 16 && y <= 19) [9, 10].forEach((x) => (r = set(r, x, "b", "8")));
     return r;
   });
 }
@@ -132,17 +135,42 @@ function mix(a, b, t) {
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
 }
 
+// frame per l'animazione nei crediti: occhi chiusi e saluto con la mano
+const blinkRows = (rows) => rows.map((row, y) => (y === 6 || y === 7 ? row.replace(/E/g, "s").replace(/3/g, "s") : row));
+const waveRows = (rows) =>
+  rows.map((row, y) => {
+    if (y >= 8 && y <= 10) return row.slice(0, 13) + "s";
+    if (y === 13) return row.slice(0, 12) + ".." ;
+    return row;
+  });
+
 export function registerTeamTextures(scene, makeTexture) {
   TEAM.forEach(({ key, rows, palette }) => {
     const full = { ...SKIN, ...palette };
-    makeTexture(scene, key, polish(rows), {
+    const pal = {
       ...full,
       1: mix(full.h, "#ffffff", 0.3),
       2: mix(full.h, "#000000", 0.22),
       3: "#f1f0ed",
       4: mix(full.s, "#d0685a", 0.3),
       5: full.S,
-      6: mix(full.k, "#808890", 0.5)
+      6: mix(full.k, "#808890", 0.5),
+      7: mix(full.r ?? "#888888", "#000000", 0.2),
+      8: mix(full.b ?? "#888888", "#000000", 0.25)
+    };
+    const base = polish(rows);
+    makeTexture(scene, `${key}_blink`, blinkRows(base), pal);
+    makeTexture(scene, `${key}_wave`, waveRows(base), pal);
+    makeTexture(scene, key, base, {
+      ...full,
+      1: mix(full.h, "#ffffff", 0.3),
+      2: mix(full.h, "#000000", 0.22),
+      3: "#f1f0ed",
+      4: mix(full.s, "#d0685a", 0.3),
+      5: full.S,
+      6: mix(full.k, "#808890", 0.5),
+      7: mix(full.r ?? "#888888", "#000000", 0.2),
+      8: mix(full.b ?? "#888888", "#000000", 0.25)
     });
   });
 }

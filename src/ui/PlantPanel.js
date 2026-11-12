@@ -143,31 +143,58 @@ export class PlantPanel {
         for (let i = 0; i < 5; i += 1) this.fx.fillRect(x + 34 + i * 20, y + 180 - ((t / 12 + i * 30) % 100), 3, 6);
       }
     } else if (step.sensor === "vials") {
-      // due fiale del colore giusto nel pozzetto; una fiala sbagliata è negligenza
+      // servono le 2 fiale del colore indicato, in qualsiasi ordine;
+      // una fiala di un colore non richiesto (o di troppo) è negligenza
       const required = step.required ?? [1, 2];
       const slots = s.slots;
-      satisfied = slots[0] === required[0] && slots[1] === required[1];
-      fill = slots.filter((v, i) => v && v === required[i]).length / 2;
+      // abbina ogni fiala inserita a un colore richiesto ancora libero
+      const remaining = [...required];
+      const matched = slots.map((value) => {
+        if (!value) return false;
+        const k = remaining.indexOf(value);
+        if (k === -1) return false;
+        remaining.splice(k, 1);
+        return true;
+      });
+      const correct = matched.filter(Boolean).length;
+      satisfied = correct === required.length;
+      fill = correct / required.length;
       this.valueLabel.setText(`POZZETTO: ${required.map((c) => VIAL_COLORS[c].name).join(" + ")}`);
       slots.forEach((value, i) => {
-        if (value && value !== this.lastSlots[i] && value !== required[i]) negligence = "wrongVial";
+        if (value && value !== this.lastSlots[i] && !matched[i]) negligence = "wrongVial";
       });
       this.lastSlots = [...slots];
+      // in alto i colori richiesti, che si spuntano man mano; sotto i due posti del pozzetto
+      const got = [...required].map(() => false);
+      slots.forEach((value, i) => {
+        if (!matched[i]) return;
+        const k = required.findIndex((c, j) => c === value && !got[j]);
+        if (k !== -1) got[k] = true;
+      });
+      required.forEach((c, i) => {
+        const rx = x + 40 + i * 40;
+        this.fx.fillStyle(VIAL_COLORS[c].color, got[i] ? 0.35 : 1);
+        this.fx.fillRect(rx, y + 78, 12, 12);
+        this.fx.fillStyle(COLORS.ink, 1);
+        this.fx.fillRect(rx, y + 90, 12, 2);
+        if (got[i]) {
+          this.fx.fillStyle(COLORS.ink, 1);
+          this.fx.fillRect(rx - 2, y + 83, 16, 2);
+        }
+      });
       [x + 56, x + 96].forEach((vx, i) => {
-        const want = VIAL_COLORS[required[i]].color;
         const value = slots[i];
-        // contorno del colore richiesto
-        this.fx.fillStyle(want, 1);
+        // posto del pozzetto
+        this.fx.fillStyle(COLORS.ink, 1);
         this.fx.fillRect(vx - 8, y + 156, 16, 4);
         this.fx.fillRect(vx - 8, y + 156, 4, 14);
         this.fx.fillRect(vx + 4, y + 156, 4, 14);
         if (value) {
-          const wrong = value !== required[i];
           this.fx.fillStyle(COLORS.inkDeep, 1);
           this.fx.fillRect(vx - 4, y + 124, 8, 34);
           this.fx.fillStyle(VIAL_COLORS[value].color, 1);
           this.fx.fillRect(vx - 2, y + 136, 4, 20);
-          if (wrong && Math.floor(this.scene.time.now / 200) % 2) {
+          if (!matched[i] && Math.floor(this.scene.time.now / 200) % 2) {
             this.fx.fillStyle(COLORS.red, 1);
             this.fx.fillRect(vx - 10, y + 118, 20, 3);
           }

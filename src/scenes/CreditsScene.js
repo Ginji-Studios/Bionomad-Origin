@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { TEAM } from "../ui/teamSprites.js";
 import { TITLE_WORD } from "../ui/pixelSprites.js";
-import { addTopBar, bodyText, COLORS, hex, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { ditherRect, addTopBar, bodyText, COLORS, hex, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 // crediti in due pagine
 const BIODOM_TEXT =
@@ -173,8 +173,8 @@ export class CreditsScene extends Phaser.Scene {
     const page = this.add.container(0, 0);
     const x = width / 2 - 340;
     const g = this.add.graphics();
-    dropShadow(g, x, 64, 680, 412, 8);
-    drawPanel(g, x, 64, 680, 412, { fill: COLORS.paper, border: COLORS.ink });
+    dropShadow(g, x, 64, 680, 424, 8);
+    drawPanel(g, x, 64, 680, 424, { fill: COLORS.paper, border: COLORS.ink });
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(x, 64, 680, 28);
     const items = [g, pixelText(this, x + 14, 72, "CREDITI", { size: 8, color: COLORS.paper })];
@@ -193,13 +193,33 @@ export class CreditsScene extends Phaser.Scene {
 
     // il team
     items.push(pixelText(this, width / 2, 226, "IL TEAM", { size: 8, color: COLORS.steel, origin: 0.5 }));
+    // pedana a retino e il team: respirano, sbattono le palpebre e ogni tanto salutano
     g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x + 60, 322, 560, 6);
+    g.fillRect(x + 60, 322, 560, 4);
+    ditherRect(g, x + 60, 326, 560, 6, COLORS.panelLight, 6, 2);
     TEAM.forEach(({ key }, i) => {
       const px = width / 2 - 250 + i * 100;
+      const shadow = this.add.graphics();
+      ditherRect(shadow, px - 24, 318, 48, 6, COLORS.ink, 6, 2, 0.35);
       const sprite = this.add.image(px, 322, key).setOrigin(0.5, 1).setScale(4);
-      this.tweens.add({ targets: sprite, y: 318, duration: 500 + i * 40, delay: i * 120, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-      items.push(sprite);
+      // respiro: si allunga di un pixel e torna
+      this.tweens.add({ targets: sprite, scaleY: 4.2, duration: 900 + i * 60, delay: i * 140, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      const loop = () => {
+        if (!sprite.active) return;
+        const roll = Math.random();
+        if (roll < 0.35) {
+          // saluto con un saltello
+          sprite.setTexture(`${key}_wave`);
+          this.tweens.add({ targets: sprite, y: 314, duration: 140, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
+          this.time.delayedCall(900, () => sprite.active && sprite.setTexture(key));
+        } else {
+          sprite.setTexture(`${key}_blink`);
+          this.time.delayedCall(140, () => sprite.active && sprite.setTexture(key));
+        }
+        this.time.delayedCall(Phaser.Math.Between(1600, 3800), loop);
+      };
+      this.time.delayedCall(600 + i * 350, loop);
+      items.push(shadow, sprite);
     });
 
     const rows = [
@@ -208,12 +228,15 @@ export class CreditsScene extends Phaser.Scene {
       ["FONT", "VT323 (SIL Open Font License)"]
     ];
     rows.forEach(([label, value], i) => {
-      const y = 348 + i * 42;
+      const y = 340 + i * 38;
       items.push(pixelText(this, width / 2, y, label, { size: 8, color: COLORS.steel, origin: 0.5 }));
-      items.push(bodyText(this, width / 2, y + 20, value, { size: 24, color: COLORS.ink, origin: 0.5, fit: 640 }));
+      items.push(bodyText(this, width / 2, y + 18, value, { size: 22, color: COLORS.ink, origin: 0.5, fit: 640 }));
     });
 
-    items.push(bodyText(this, width / 2, 494, "Grazie per aver giocato.", { size: 20, color: COLORS.steel, origin: 0.5 }));
+    // ringraziamento dentro la scheda, con un filetto e spazio prima del bordo
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(width / 2 - 120, 456, 240, 2);
+    items.push(bodyText(this, width / 2, 470, "Grazie per aver giocato.", { size: 20, color: COLORS.steel, origin: 0.5 }));
     page.add(items);
     return page;
   }

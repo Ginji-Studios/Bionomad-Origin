@@ -349,7 +349,8 @@ export function addObjectiveBox(scene, text) {
   const { width, height } = scene.scale;
   const fix = (o, d) => o.setDepth(d).setScrollFactor(0);
   const g = fix(scene.add.graphics(), 1000);
-  const tag = fix(pixelText(scene, 0, 0, "OBIETTIVO", { size: 8, color: COLORS.steelLight, origin: [0, 0.5] }), 1001);
+  // stessa dimensione del testo dell'obiettivo, solo in un colore più spento
+  const tag = fix(bodyText(scene, 0, 0, "OBIETTIVO", { size: 24, color: COLORS.steelLight, origin: [0, 0.5] }), 1001);
   const label = fix(bodyText(scene, 0, 0, "", { size: 24, color: COLORS.paper, origin: [0, 0.5] }), 1001);
   const cy = height - 28;
 
@@ -377,7 +378,7 @@ export function addObjectiveBox(scene, text) {
       g.fillRect(x + 2 + tab / 2 - 5, cy - 1, 10, 2);
       g.fillStyle(COLORS.steel, 1);
       g.fillRect(x + tab + 12 + tag.width + 5, y + 8, 1, h - 16);
-      tag.setPosition(x + tab + 12, cy);
+      tag.setPosition(x + tab + 12, cy - 1);
       label.setPosition(x + tab + 12 + tag.width + 12, cy - 1);
       if (changed) {
         label.setAlpha(0).x += 10;

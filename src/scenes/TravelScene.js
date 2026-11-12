@@ -81,7 +81,10 @@ export class TravelScene extends Phaser.Scene {
   drawProps(evening, from, to) {
     const g = this.add.graphics().setDepth(380);
     // lampioni lungo la strada
+    // niente lampioni dove ci sono i cartelli, così non si sovrappongono
+    const signXs = [150, WORLD_W / 2, WORLD_W - 150];
     for (let x = 240; x < WORLD_W; x += 360) {
+      if (signXs.some((sx) => Math.abs(sx - x) < 130)) continue;
       g.fillStyle(COLORS.inkDeep, 1);
       g.fillRect(x, 230, 6, 150);
       g.fillRect(x - 14, 230, 34, 4);

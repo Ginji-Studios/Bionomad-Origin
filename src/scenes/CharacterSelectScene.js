@@ -24,7 +24,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.selectedIndex = saved >= 0 ? saved : 1;
 
     paperGrid(this);
-    addTopBar(this, "ORIGINE", "GIOCATORE 1");
+    addTopBar(this, "PERSONAGGIO");
 
     pixelText(this, width / 2, 70, "SCEGLI LA TUA ORIGINE", { size: 24, origin: 0.5, shadow: true, fit: 760 });
     pixelText(this, width / 2, 106, "SELEZIONANE UNA SOLA", { size: 8, color: COLORS.steel, origin: 0.5 });

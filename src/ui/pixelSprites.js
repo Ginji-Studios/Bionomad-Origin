@@ -39,6 +39,10 @@ const FRAME_ROWS = {
   // passaggio: la testa scende di una riga (la costruisce passRows), gambe unite
   p1: { 13: ".srrrrrrrrrrs.", 14: ".srrrrrrrrrrs.", 18: "....bbbbbb....", 19: "....bbBBbb....", 20: "...kkkkkkkK..." },
   p2: { 13: ".srrrrrrrrrrs.", 14: ".srrrrrrrrrrs.", 18: "....bbbbbb....", 19: "....bbBBbb....", 20: "...kkkkkkkK..." },
+  // seduto: cosce in avanti (pantaloni più larghi), piedi appoggiati, gambe accorciate
+  sit: { 16: "..bbbbbbbbbb..", 17: "..bbBbbbbBbb..", 18: "..kkkK..kkkK..", 19: "..............", 20: ".............." },
+  // seduto mentre porta il cibo alla bocca: braccio destro piegato verso il viso
+  sitEat: { 10: "....ssssss.s..", 11: "...rrrrrrrrs..", 12: "..rrrrrrrrrrs.", 13: ".srrrrrrrrrr..", 14: ".sRRRRRRRRRR..", 16: "..bbbbbbbbbb..", 17: "..bbBbbbbBbb..", 18: "..kkkK..kkkK..", 19: "..............", 20: ".............." },
   // respiro da fermo: spalle leggermente più basse
   idle: { 11: "....rttttr....", 13: ".srrrrrrrrrrs." },
   // azione

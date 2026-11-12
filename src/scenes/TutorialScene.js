@@ -27,18 +27,8 @@ export class TutorialScene extends Phaser.Scene {
     paperGrid(this);
     addTopBar(this, "TUTORIAL", "BIODOM+");
 
-    // il "what if" del progetto al posto del titolo, con l'etichetta del brand
-    const whatIf = pixelText(this, 0, 64, "E SE DOVESSIMO COLTIVARE L'ARIA CHE RESPIRIAMO?", { size: 16, origin: [0, 0.5], shadow: true, fit: 640 });
-    const tagLabel = pixelText(this, 0, 64, "WHAT IF", { size: 8, color: COLORS.paper, origin: [0, 0.5] });
-    const tagW = tagLabel.width + 16;
-    const total = tagW + 14 + whatIf.displayWidth;
-    const left = Math.round(width / 2 - total / 2);
-    const tag = this.add.graphics();
-    tag.fillStyle(COLORS.red, 1);
-    tag.fillRect(left, 52, tagW, 24);
-    tagLabel.x = left + 8;
-    tagLabel.setDepth(1);
-    whatIf.x = left + tagW + 14;
+    // il "what if" del progetto al posto del titolo
+    pixelText(this, width / 2, 64, "E SE DOVESSIMO COLTIVARE L'ARIA CHE RESPIRIAMO?", { size: 16, origin: 0.5, shadow: true, fit: 760 });
 
     bodyText(
       this,

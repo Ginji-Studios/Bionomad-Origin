@@ -130,11 +130,18 @@ export class EndScene extends Phaser.Scene {
     const letters = "FINE GIORNATA".split("");
     const size = 40;
     const startX = width / 2 - (letters.length * size) / 2 + size / 2;
+    // fascia scura dietro la scritta, così resta leggibile su qualsiasi sfondo
+    const band = this.add.rectangle(width / 2, 168, width, 84, COLORS.inkDeep, 0.88).setDepth(1290);
+    const line = this.add.rectangle(width / 2, 208, width, 4, COLORS.red).setDepth(1291);
+    band.scaleY = 0;
+    line.scaleX = 0;
+    this.tweens.add({ targets: band, scaleY: 1, duration: 220, ease: "Cubic.easeOut" });
+    this.tweens.add({ targets: line, scaleX: 1, duration: 420, delay: 100, ease: "Cubic.easeOut" });
     letters.forEach((char, i) => {
       if (char === " ") return;
-      const l = pixelText(this, startX + i * size, -60, char, { size: 32, color: COLORS.inkDeep, origin: 0.5 }).setDepth(1300);
-      l.setShadow(4, 4, "#9fd4b0", 0, false, true);
-      this.tweens.add({ targets: l, y: 170, duration: 600, delay: i * 70, ease: "Bounce.easeOut" });
+      const l = pixelText(this, startX + i * size, -60, char, { size: 32, color: COLORS.paper, origin: 0.5 }).setDepth(1300);
+      l.setShadow(3, 3, "#2c566a", 0, false, true);
+      this.tweens.add({ targets: l, y: 166, duration: 600, delay: i * 70, ease: "Bounce.easeOut" });
       this.tweens.add({ targets: l, y: 162, duration: 400, delay: 1400 + i * 70, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     });
     await this.wait(2600);

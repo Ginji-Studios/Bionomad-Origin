@@ -147,7 +147,7 @@ const OFFICE_THEMES = {
   reykjavik: { wall: 0xe4dccd, wallDark: 0xcbbfa8, floorA: 0xc9a77c, floorB: 0xb38e62, floor: "planks", desk: 0x7d5f41 }
 };
 
-function drawRoom(scene, evening, theme = OFFICE_THEMES.milano) {
+function drawRoom(scene, evening, theme = OFFICE_THEMES.milano, { lamps: withLamps = true } = {}) {
   const g = scene.add.graphics();
   const dim = (c, t) => {
     const r = ((c >> 16) & 255) * t, gg = ((c >> 8) & 255) * t, b = (c & 255) * t;
@@ -195,7 +195,7 @@ function drawRoom(scene, evening, theme = OFFICE_THEMES.milano) {
 
   // plafoniere con cono di luce a retino
   const lamps = scene.add.graphics();
-  [240, 720].forEach((lx) => {
+  (withLamps ? [240, 720] : []).forEach((lx) => {
     lamps.fillStyle(COLORS.ink, 1);
     lamps.fillRect(lx - 30, 50, 60, 6);
     lamps.fillStyle(evening ? 0xe8c66a : COLORS.paper, 1);
@@ -210,8 +210,7 @@ function drawRoom(scene, evening, theme = OFFICE_THEMES.milano) {
   return g;
 }
 
-// vista dalla finestra: piccola città a livelli che scorre in parallasse
-// mentre il personaggio si muove nella stanza (più lontano = si muove meno)
+// vista dalla finestra: piccola città a livelli, ferma, con foschia e riflesso sul vetro
 export function windowView(scene, originId, win, { evening = false } = {}) {
   const pad = 140;
   const inner = { x: win.x + 6, y: win.y + 6, w: win.w - 12, h: win.h - 12 };
@@ -268,33 +267,78 @@ export function windowView(scene, originId, win, { evening = false } = {}) {
   for (let i = 0; i < 4; i += 1) glare.fillRect(inner.x + 20 + i * 4, inner.y + 10 + i * 8, 4, inner.h - 40 - i * 16);
   const maxShift = pad - 2;
   const onUpdate = () => {
-    const px = scene.player?.x ?? W / 2;
+    const px = W / 2;
     layers.forEach(({ img, factor }) => {
       const off = Phaser.Math.Clamp(Math.round((W / 2 - px) * factor), -maxShift, maxShift);
       img.x = inner.x - pad + off;
       img.setCrop(pad - off, 0, inner.w, inner.h);
     });
   };
+  // vista ferma: la città dalla finestra non si muove col personaggio
   onUpdate();
-  scene.events.on("update", onUpdate);
-  scene.events.once("shutdown", () => scene.events.off("update", onUpdate));
   return { sky, layers, haze };
 }
 
 // elementi
 
 function drawHub(scene, x, baseY, evening) {
-  // hub BIODOM
+  // hub BIODOM d'ufficio: mobile tecnico con schermo, serra in vetro con la pianta,
+  // tubi dell'acqua, prese d'aria e spie che lampeggiano
   const g = standing(scene, baseY);
-  ditherRect(g, x - 74, baseY - 2, 148, 8, COLORS.inkDeep, 6);
-  drawPanel(g, x - 70, baseY - 70, 140, 70, { fill: COLORS.paper, border: COLORS.ink });
+  ditherRect(g, x - 78, baseY - 2, 156, 10, COLORS.inkDeep, 7, 2);
+  // mobile
+  drawPanel(g, x - 70, baseY - 72, 140, 72, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
   g.fillStyle(COLORS.steel, 1);
-  g.fillRect(x - 66, baseY - 66, 132, 10);
+  g.fillRect(x - 67, baseY - 69, 134, 8);
+  g.fillStyle(0xffffff, 1);
+  g.fillRect(x - 67, baseY - 61, 134, 2);
+  ditherRect(g, x - 67, baseY - 18, 134, 15, COLORS.panelLight, 8, 2);
+  // prese d'aria a lato
+  g.fillStyle(COLORS.ink, 1);
+  for (let i = 0; i < 4; i += 1) g.fillRect(x + 38, baseY - 50 + i * 7, 22, 2);
+  // schermo (usato dalla modalità notte)
   drawPanel(g, x - 30, baseY - 52, 60, 34, { fill: evening ? 0x2c566a : COLORS.inkDeep, border: COLORS.ink });
-  g.fillStyle(evening ? 0xe8c66a : 0x7e9c8c, 1);
+  g.fillStyle(evening ? 0xe8c66a : 0x7fae86, 1);
   g.fillRect(x - 22, baseY - 44, 30, 4);
   g.fillRect(x - 22, baseY - 34, 18, 4);
-  const plant = scene.add.image(x + 44, baseY - 66, "plant_tall").setOrigin(0.5, 1).setScale(3).setDepth(baseY);
+  g.fillStyle(COLORS.steel, 1);
+  g.fillRect(x + 12, baseY - 44, 10, 14);
+  // piedini
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(x - 64, baseY, 10, 4);
+  g.fillRect(x + 54, baseY, 10, 4);
+  // serra in vetro sopra il mobile
+  const gx = x - 54;
+  const gy = baseY - 150;
+  g.fillStyle(0xdfe7ea, 0.55);
+  g.fillRect(gx, gy, 72, 78);
+  g.lineStyle(3, COLORS.ink, 1);
+  g.strokeRect(gx, gy, 72, 78);
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(gx - 4, gy - 6, 80, 6);
+  g.fillRect(gx + 34, gy, 2, 78);
+  g.fillStyle(0xffffff, 0.6);
+  g.fillRect(gx + 6, gy + 6, 3, 50);
+  g.fillRect(gx + 12, gy + 6, 2, 30);
+  // tubo che scende dalla serra al mobile
+  g.fillStyle(COLORS.steel, 1);
+  g.fillRect(gx + 78, gy + 20, 4, 60);
+  g.fillRect(gx + 66, gy + 20, 16, 4);
+  const plant = scene.add.image(gx + 36, gy + 76, "plant_tall").setOrigin(0.5, 1).setScale(3).setDepth(baseY);
+  // spie: verde fissa e blu che pulsa
+  const ledA = scene.add.rectangle(x - 56, baseY - 52, 6, 6, 0x7fae86).setDepth(baseY + 1);
+  const ledB = scene.add.rectangle(x - 56, baseY - 40, 6, 6, 0x9fb4c2).setDepth(baseY + 1);
+  scene.tweens.add({ targets: ledB, alpha: 0.25, duration: 600, yoyo: true, repeat: -1 });
+  scene.tweens.add({ targets: ledA, alpha: 0.6, duration: 1400, yoyo: true, repeat: -1 });
+  // bollicine d'ossigeno nella serra
+  scene.time.addEvent({
+    delay: 700,
+    loop: true,
+    callback: () => {
+      const bub = scene.add.rectangle(gx + 14 + Math.random() * 44, gy + 60, 4, 4, COLORS.paper).setStrokeStyle(1, COLORS.steel).setDepth(baseY + 1);
+      scene.tweens.add({ targets: bub, y: gy + 10, alpha: 0, duration: 1600, onComplete: () => bub.destroy() });
+    }
+  });
   return { g, plant, screen: { x: x - 30, y: baseY - 52 } };
 }
 
@@ -393,36 +437,114 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
   drawBackdrop(scene, originId, { evening, zone: "parco" });
   drawStreetFloor(scene, evening);
 
-  // food truck
+  // food truck BIODOM: carrozzeria a due toni con angoli arrotondati, tendalino a festoni,
+  // bancone con bottiglie e tazze, menu, fari, paraurti, ruote con cerchi, luci a festone
   const t = standing(scene, 412);
   const tx = 540;
-  ditherRect(t, tx - 8, 404, 336, 12, COLORS.inkDeep, 6);
-  drawPanel(t, tx, 228, 320, 170, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 4 });
-  t.fillStyle(COLORS.steel, 1);
-  t.fillRect(tx + 4, 340, 312, 54);
-  // tendalino a strisce
-  for (let i = 0; i < 10; i += 1) {
+  const body = COLORS.paper;
+  const lower = COLORS.steel;
+  ditherRect(t, tx - 12, 402, 344, 14, COLORS.inkDeep, 7, 2);
+  // carrozzeria
+  t.fillStyle(COLORS.ink, 1);
+  t.fillRect(tx + 4, 224, 312, 176);
+  t.fillRect(tx, 228, 320, 168);
+  t.fillStyle(body, 1);
+  t.fillRect(tx + 8, 230, 304, 110);
+  t.fillRect(tx + 4, 234, 312, 104);
+  t.fillStyle(lower, 1);
+  t.fillRect(tx + 4, 340, 312, 52);
+  // filetto ruggine e luce/ombra sulla lamiera
+  t.fillStyle(COLORS.red, 1);
+  t.fillRect(tx + 4, 336, 312, 4);
+  t.fillStyle(0xffffff, 1);
+  t.fillRect(tx + 10, 234, 296, 2);
+  ditherRect(t, tx + 4, 372, 312, 20, COLORS.ink, 5, 2);
+  // tetto: unità di raffreddamento e camino
+  drawPanel(t, tx + 30, 206, 70, 20, { fill: COLORS.stone, border: COLORS.ink, borderWidth: 2 });
+  t.fillStyle(COLORS.ink, 1);
+  for (let i = 0; i < 6; i += 1) t.fillRect(tx + 36 + i * 10, 212, 6, 2);
+  t.fillRect(tx + 250, 196, 10, 30);
+  t.fillRect(tx + 246, 194, 18, 4);
+  // insegna con logo
+  drawPanel(t, tx + 116, 200, 120, 28, { fill: COLORS.ink, border: COLORS.inkDeep, borderWidth: 2 });
+  // tendalino a strisce con festone
+  for (let i = 0; i < 11; i += 1) {
     t.fillStyle(i % 2 ? COLORS.paper : COLORS.red, 1);
-    t.fillRect(tx + 30 + i * 22, 240, 22, 22);
+    t.fillRect(tx + 26 + i * 20, 240, 20, 18);
+    pixelDisc(t, tx + 36 + i * 20, 258, 10, i % 2 ? COLORS.paper : COLORS.red, 1, 2);
   }
   t.fillStyle(COLORS.ink, 1);
-  t.fillRect(tx + 30, 262, 220, 4);
-  // finestra di servizio + bancone
-  drawPanel(t, tx + 40, 268, 200, 70, { fill: COLORS.inkDeep, border: COLORS.ink });
-  t.fillStyle(COLORS.stone, 1);
-  t.fillRect(tx + 30, 336, 220, 10);
-  // insegna
-  drawPanel(t, tx + 70, 200, 140, 30, { fill: COLORS.ink, border: COLORS.ink });
-  // ruote
-  [tx + 60, tx + 250].forEach((wx) => {
-    pixelDisc(t, wx, 400, 22, COLORS.inkDeep, 1, 4);
-    pixelDisc(t, wx, 400, 8, COLORS.stone, 1, 4);
+  t.fillRect(tx + 26, 238, 220, 2);
+  // finestra di servizio con cornice e bancone
+  drawPanel(t, tx + 36, 270, 208, 66, { fill: COLORS.inkDeep, border: COLORS.ink, borderWidth: 3 });
+  ditherRect(t, tx + 40, 274, 200, 10, 0xe8c66a, evening ? 6 : 3, 2, 0.8);
+  t.fillStyle(0xdadfda, 1);
+  t.fillRect(tx + 28, 334, 224, 8);
+  t.fillStyle(COLORS.ink, 1);
+  t.fillRect(tx + 28, 342, 224, 2);
+  // bottiglie e tazze sul bancone
+  [[52, 0x9fb4c2], [64, 0x9fb4c2], [210, 0xb4553f], [224, 0xf1f0ed]].forEach(([dx, c], i) => {
+    t.fillStyle(c, 1);
+    if (i < 2) {
+      t.fillRect(tx + dx, 318, 6, 16);
+      t.fillRect(tx + dx + 2, 314, 2, 4);
+    } else {
+      t.fillRect(tx + dx, 326, 8, 8);
+      t.fillRect(tx + dx + 8, 328, 2, 4);
+    }
   });
-  // colonnina di ricarica
-  drawPanel(t, tx + 274, 300, 30, 60, { fill: COLORS.ink, border: COLORS.inkDeep });
-  t.fillStyle(0x7e9c8c, 1);
-  t.fillRect(tx + 282, 310, 14, 8);
+  // menu a lavagna sul lato
+  drawPanel(t, tx + 258, 254, 44, 56, { fill: 0x2c3e52, border: COLORS.ink, borderWidth: 2 });
+  t.fillStyle(COLORS.paper, 1);
+  for (let i = 0; i < 5; i += 1) t.fillRect(tx + 264, 262 + i * 9, 20 + ((i * 7) % 12), 2);
+  t.fillStyle(0xe8c66a, 1);
+  t.fillRect(tx + 290, 262, 6, 2);
+  // fari, frecce e paraurti
+  t.fillStyle(0xe8c66a, 1);
+  t.fillRect(tx + 306, 352, 8, 10);
+  t.fillStyle(COLORS.red, 1);
+  t.fillRect(tx + 6, 352, 6, 10);
+  t.fillStyle(COLORS.ink, 1);
+  t.fillRect(tx - 4, 386, 328, 6);
+  // passaruota e ruote con cerchi
+  [tx + 64, tx + 250].forEach((wx) => {
+    pixelDisc(t, wx, 396, 28, COLORS.ink, 1, 2);
+    pixelDisc(t, wx, 400, 22, 0x1c2028, 1, 2);
+    pixelDisc(t, wx, 400, 12, COLORS.stone, 1, 2);
+    pixelDisc(t, wx, 400, 6, COLORS.steel, 1, 2);
+    t.fillStyle(0x1c2028, 1);
+    t.fillRect(wx - 1, 392, 2, 16);
+    t.fillRect(wx - 8, 399, 16, 2);
+  });
+  // colonnina di ricarica BIODOM con cavo e spia
+  drawPanel(t, tx + 330, 296, 30, 104, { fill: COLORS.ink, border: COLORS.inkDeep, borderWidth: 2 });
+  drawPanel(t, tx + 334, 306, 22, 20, { fill: 0x2c3e52, border: COLORS.inkDeep, borderWidth: 2 });
+  t.fillStyle(COLORS.red, 1);
+  t.fillRect(tx + 342, 294, 6, 2);
+  t.fillStyle(COLORS.steel, 1);
+  for (let i = 0; i < 6; i += 1) t.fillRect(tx + 326 - i * 2, 340 + i * 6, 2, 6);
+  const led = scene.add.rectangle(tx + 345, 316, 10, 6, 0x7fae86).setDepth(413);
+  scene.tweens.add({ targets: led, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
+  // luci a festone sopra il bancone
+  for (let i = 0; i < 9; i += 1) {
+    const bx = tx + 40 + i * 24;
+    const by = 230 + Math.round(Math.sin((i / 8) * Math.PI) * 6);
+    const bulb = scene.add.rectangle(bx, by, 4, 4, 0xe8c66a).setDepth(413);
+    if (evening) scene.tweens.add({ targets: bulb, alpha: 0.5, duration: 400 + i * 90, yoyo: true, repeat: -1 });
+  }
+  // cartello a cavalletto davanti
+  const sign = standing(scene, 430);
+  sign.fillStyle(COLORS.ink, 1);
+  sign.fillRect(tx - 40, 394, 4, 36);
+  sign.fillRect(tx - 14, 394, 4, 36);
+  drawPanel(sign, tx - 46, 380, 42, 36, { fill: 0x2c3e52, border: COLORS.ink, borderWidth: 2 });
+  sign.fillStyle(COLORS.paper, 1);
+  sign.fillRect(tx - 40, 388, 24, 2);
+  sign.fillRect(tx - 40, 396, 18, 2);
+  sign.fillStyle(0x7fae86, 1);
+  sign.fillRect(tx - 40, 404, 12, 4);
 
+  if (scene.textures.exists("logo_biodom")) scene.add.image(tx + 176, 214, "logo_biodom").setTint(COLORS.paper).setDepth(413);
   const vendor = scene.add.image(tx + 140, 338, "npc_vendor").setOrigin(0.5, 1).setScale(3).setDepth(413);
   vendor.setCrop(0, 0, 14, 16);
 
@@ -447,7 +569,7 @@ export function buildFoodTruck(scene, originId, { evening = false } = {}) {
     ],
     points: {
       counter: { x: tx + 140, y: 424 },
-      charger: { x: tx + 290, y: 424 },
+      charger: { x: tx + 345, y: 430 },
       bench: { x: 190, y: 454 }
     },
     benchSeat: { x: 190, y: 430 }
@@ -465,26 +587,93 @@ export function buildBusStop(scene, originId, { evening = true } = {}) {
   drawBackdrop(scene, originId, { evening, zone: "residenziale" });
   drawStreetFloor(scene, evening);
 
-  // pensilina
+  // pensilina moderna: tetto piatto scuro su quattro montanti, tre pannelli pubblicitari
+  // (due larghi e uno stretto con il manifesto BIODOM), due panchine in legno, marciapiede rialzato
   const s = standing(scene, 410);
-  ditherRect(s, 296, 404, 288, 10, COLORS.inkDeep, 5);
-  s.fillStyle(COLORS.ink, 1);
-  s.fillRect(300, 230, 280, 12);
-  s.fillRect(306, 242, 8, 168);
-  s.fillRect(566, 242, 8, 168);
-  s.fillStyle(0x9fb4c2, 0.45);
-  s.fillRect(314, 250, 252, 120);
-  // manifesto BIODOM nella bacheca della pensilina
-  s.fillStyle(COLORS.ink, 1);
-  s.fillRect(476, 250, 72, 98);
-  scene.add.image(480, 254, "poster_1").setOrigin(0, 0).setDepth(411);
-  s.fillStyle(COLORS.ink, 1);
-  s.fillRect(330, 372, 200, 8);
-  s.fillRect(340, 380, 8, 28);
-  s.fillRect(512, 380, 8, 28);
-
-  // palina BUS
-  drawSign(scene, 663, "BUS", { sub: "linea 92", depth: 430, top: 214, ground: 430 });
+  const steel = 0x2c3236;
+  const L = 220;
+  const R = 740;
+  // marciapiede a cubetti con cordolo
+  s.fillStyle(evening ? 0x9aa3ad : 0xcdd2ce, 1);
+  s.fillRect(L - 30, 396, R - L + 60, 14);
+  s.fillStyle(evening ? 0x7e8683 : 0xa3a9a6, 1);
+  for (let x = L - 30; x < R + 30; x += 16) s.fillRect(x, 396, 2, 14);
+  s.fillRect(L - 30, 408, R - L + 60, 2);
+  // montanti
+  s.fillStyle(steel, 1);
+  [L + 10, 452, 548, R - 18].forEach((px) => s.fillRect(px, 228, 8, 170));
+  // tetto con travetti e bordo
+  s.fillStyle(steel, 1);
+  s.fillRect(L - 20, 212, R - L + 40, 8);
+  s.fillStyle(0x4a5257, 1);
+  s.fillRect(L - 14, 220, R - L + 28, 6);
+  s.fillStyle(steel, 1);
+  for (let x = L; x < R; x += 70) s.fillRect(x, 220, 30, 4);
+  s.fillRect(L + 10, 236, R - L - 20, 4); // traversa
+  // pannelli: cornice scura, fondo chiaro retroilluminato
+  const panels = [[L + 30, 246, 196, 108], [468, 246, 64, 108], [560, 246, 160, 108]];
+  panels.forEach(([px, py, pw, ph]) => {
+    s.fillStyle(steel, 1);
+    s.fillRect(px - 4, py - 4, pw + 8, ph + 8);
+    s.fillStyle(evening ? 0xe8e4d4 : COLORS.paper, 1);
+    s.fillRect(px, py, pw, ph);
+    ditherRect(s, px, py, pw, 12, 0xffffff, 6, 2, 0.6);
+    ditherRect(s, px, py + ph - 14, pw, 14, COLORS.panelLight, 5, 2);
+  });
+  // contenuti: manifesto BIODOM al centro, logo e slogan nei pannelli larghi
+  scene.add.image(500, 300, "poster_1").setDisplaySize(64, 100).setDepth(411);
+  // manifesti delle tavole del progetto: "Each breath is a choice" e il diagramma Symbiosis
+  scene.add.image(panels[0][0], panels[0][1], "poster_4").setOrigin(0, 0).setDisplaySize(panels[0][2], panels[0][3]).setDepth(411);
+  scene.add.image(panels[2][0], panels[2][1], "poster_5").setOrigin(0, 0).setDisplaySize(panels[2][2], panels[2][3]).setDepth(411);
+  // il diagramma viene ridisegnato sopra in pixel, così le scritte restano leggibili
+  {
+    const [px, py] = panels[2];
+    const d = scene.add.graphics().setDepth(412);
+    const lab = (tx, ty, text, size = 13, color = "#f1f0ed") =>
+      scene.add.text(px + tx, py + ty, text, { fontFamily: '"VT323", monospace', fontSize: `${size}px`, color }).setDepth(413);
+    // le linee passano sempre sotto o sopra le parole, mai attraverso
+    const top = lab(30, 14, "Life preservation");
+    const care = lab(8, 60, "Care");
+    const commit = lab(100, 88, "Commitment");
+    lab(4, 2, "[01]", 11, "#9fb4c2");
+    const lineY = py + 14 + top.height + 3;
+    const leftX = px + 18;
+    const rightX = px + 124;
+    d.fillStyle(COLORS.paper, 0.9);
+    d.fillRect(leftX, lineY, rightX - leftX + 1, 1);
+    d.fillRect(leftX, lineY, 1, care.y - lineY - 3);
+    // chip SYMBIOSIS sul ramo destro (copre anche il residuo chiaro dello sfondo)
+    const chipY = py + 44;
+    d.fillRect(rightX, lineY, 1, chipY - lineY);
+    d.fillStyle(0xdadfda, 1);
+    d.fillRect(px + 94, chipY, 60, 12);
+    lab(98, 44, "SYMBIOSIS", 11, "#163c4d");
+    d.fillStyle(COLORS.paper, 0.9);
+    d.fillRect(rightX, chipY + 12, 1, commit.y - (chipY + 12) - 3);
+  }
+  if (evening) {
+    panels.forEach(([px, py, pw, ph]) => {
+      const glow = scene.add.rectangle(px + pw / 2, py + ph / 2, pw + 16, ph + 16, 0xe8e4d4, 0.12).setDepth(409);
+      scene.tweens.add({ targets: glow, alpha: 0.5, duration: 1600, yoyo: true, repeat: -1 });
+    });
+  }
+  // panchine: seduta in legno e gambe in metallo
+  const bench = standing(scene, 412);
+  [[300, 120], [575, 120]].forEach(([bx, bw]) => {
+    bench.fillStyle(0xb39572, 1);
+    bench.fillRect(bx, 372, bw, 8);
+    bench.fillStyle(0x8f775b, 1);
+    bench.fillRect(bx, 378, bw, 2);
+    bench.fillStyle(0x9aa3ad, 1);
+    bench.fillRect(bx + 6, 380, 4, 18);
+    bench.fillRect(bx + bw - 10, 380, 4, 18);
+  });
+  // palina con il numero della linea, piccola e accanto alla pensilina
+  const pole = standing(scene, 432);
+  pole.fillStyle(steel, 1);
+  pole.fillRect(R + 40, 250, 4, 180);
+  drawPanel(pole, R + 24, 230, 36, 36, { fill: COLORS.ink, border: steel, borderWidth: 2 });
+  scene.add.text(R + 42, 248, "92", { fontFamily: '"VT323", monospace', fontSize: "22px", color: "#f1f0ed" }).setOrigin(0.5).setDepth(433);
 
   // lampione acceso
   const l = scene.add.graphics();
@@ -500,37 +689,232 @@ export function buildBusStop(scene, originId, { evening = true } = {}) {
     floor: FLOOR,
     spawn: { x: 60, y: 450 },
     obstacles: [
-      { x: 330, y: 396, w: 200, h: 14 }, // panchina
-      { x: 300, y: 396, w: 14, h: 16 },
-      { x: 566, y: 396, w: 14, h: 16 },
-      { x: 656, y: 420, w: 14, h: 12 } // palina
+      { x: 300, y: 396, w: 120, h: 14 }, // panchine
+      { x: 575, y: 396, w: 120, h: 14 },
+      { x: 778, y: 420, w: 10, h: 12 } // palina
     ],
     points: {
       man: { x: 760, y: 450 }
     },
-    busLabel: { x: 664, y: 248 }
+    busLabel: { x: 782, y: 248 }
   };
 }
 
 export function buildHouse(scene, { evening = false, originId = "milano" } = {}) {
-  drawRoom(scene, evening);
+  // in casa niente plafoniere da ufficio: ogni casa ha la sua luce (lampadario, ventilatore, sospensione)
+  drawRoom(scene, evening, undefined, { lamps: false });
   decorateHome(scene, originId, evening);
   const hub = drawHomeHub(scene, 60, 396, originId, evening);
   const g = scene.add.graphics();
-  drawDoor(g, 840, 196);
+  drawHomeDoor(g, originId);
+  const packY = furnishHome(scene, g, originId, evening);
 
   return {
     floor: FLOOR,
     spawn: { x: 420, y: 440 },
     hub,
-    obstacles: [{ x: hub.x, y: 380, w: hub.w, h: 24 }],
+    obstacles: [{ x: hub.x, y: 380, w: hub.w, h: 24 }, { x: 606, y: 384, w: 108, h: 20 }],
     points: {
-      pack: { x: 660, y: 430 },
+      pack: { x: 660, y: packY },
       door: { x: 882, y: 410 },
       hub: { x: hub.center, y: 432 }
     },
     door: { x: 840, top: 196 }
   };
+}
+
+// porta di casa diversa per paese (stessa posizione: 840, alta da 196 al pavimento)
+function drawHomeDoor(g, originId) {
+  const x = 840;
+  const top = 196;
+  const h = HORIZON - top;
+  if (originId === "delhi") {
+    // doppia porta in legno intagliato con arco, borchie d'ottone e toran sopra
+    g.fillStyle(0x4a3826, 1);
+    g.fillRect(x - 6, top - 10, 96, h + 10);
+    pixelDisc(g, x + 42, top - 6, 48, 0x4a3826, 1, 2);
+    g.fillStyle(0x7a5532, 1);
+    g.fillRect(x, top, 84, h);
+    pixelDisc(g, x + 42, top + 2, 40, 0x7a5532, 1, 2);
+    g.fillStyle(0x5a3a20, 1);
+    g.fillRect(x + 41, top - 30, 2, h + 30);
+    g.fillStyle(0xc9a24a, 1);
+    for (let yy = top + 10; yy < HORIZON - 10; yy += 18) [x + 10, x + 30, x + 54, x + 74].forEach((bx) => g.fillRect(bx, yy, 3, 3));
+    g.fillRect(x + 34, top + 90, 4, 8);
+    g.fillRect(x + 46, top + 90, 4, 8);
+    for (let i = 0; i < 8; i += 1) pixelDisc(g, x - 2 + i * 13, top - 46 + Math.round(Math.sin((i / 7) * Math.PI) * 6), 4, i % 2 ? 0x5c8a4e : 0xe8a33d, 1, 2);
+    return;
+  }
+  if (originId === "reykjavik") {
+    // porta dipinta di blu con oblò e cornice bianca, come le case islandesi
+    g.fillStyle(COLORS.paper, 1);
+    g.fillRect(x - 6, top - 6, 96, h + 6);
+    g.fillStyle(0x3b6fb0, 1);
+    g.fillRect(x, top, 84, h);
+    g.fillStyle(0x2a5590, 1);
+    g.fillRect(x + 10, top + 76, 64, 2);
+    g.fillRect(x + 10, top + 120, 64, 2);
+    pixelDisc(g, x + 42, top + 36, 18, COLORS.paper, 1, 2);
+    pixelDisc(g, x + 42, top + 36, 14, 0x9fb4c2, 1, 2);
+    g.fillStyle(0xe8c66a, 1);
+    g.fillRect(x + 70, top + 96, 6, 6);
+    return;
+  }
+  // milano: portoncino blindato in noce a pannelli con maniglia d'ottone e spioncino
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(x - 6, top - 6, 96, h + 6);
+  g.fillStyle(0x6e5434, 1);
+  g.fillRect(x, top, 84, h);
+  g.fillStyle(0x5a4430, 1);
+  [[x + 10, top + 12, 64, 64], [x + 10, top + 88, 64, 82]].forEach(([px, py, pw, ph]) => {
+    g.fillRect(px, py, pw, ph);
+    g.fillStyle(0x7e6040, 1);
+    g.fillRect(px + 4, py + 4, pw - 8, ph - 8);
+    g.fillStyle(0x5a4430, 1);
+  });
+  g.fillStyle(0xc9a24a, 1);
+  g.fillRect(x + 66, top + 92, 10, 4);
+  g.fillRect(x + 40, top + 40, 4, 4);
+}
+
+// arredi dell'ingresso diversi per ogni paese (niente oggetti ripetuti tra le case).
+// Ritorna l'altezza del piano su cui è appoggiato lo zaino
+function furnishHome(scene, g, originId, evening) {
+  const front = (y) => standing(scene, y);
+  if (originId === "delhi") {
+    // chowki: panca bassa in legno intagliato con la lota d'ottone; sandali lasciati all'ingresso;
+    // vaso di tulsi; calendario appeso; cuscini a terra
+    const c = front(404);
+    ditherRect(c, 606, 398, 112, 6, COLORS.inkDeep, 6, 2);
+    c.fillStyle(0x5a3a20, 1);
+    c.fillRect(606, 370, 108, 8);
+    c.fillStyle(0x7a5532, 1);
+    c.fillRect(608, 366, 104, 6);
+    for (let lx = 612; lx < 712; lx += 24) c.fillRect(lx, 378, 6, 22);
+    c.fillStyle(0xc9a24a, 1);
+    for (let lx = 620; lx < 708; lx += 12) c.fillRect(lx, 380, 4, 2);
+    pixelDisc(c, 700, 358, 7, 0xc9a24a, 1, 2);
+    c.fillRect(697, 348, 6, 4);
+    const shoes = front(428);
+    shoes.fillStyle(0x6e4a2a, 1);
+    [[852, 420], [870, 424], [892, 418]].forEach(([sx, sy]) => shoes.fillRect(sx, sy, 14, 6));
+    shoes.fillStyle(0xb4553f, 1);
+    [[854, 418], [872, 422], [894, 416]].forEach(([sx, sy]) => shoes.fillRect(sx + 4, sy, 6, 2));
+    const tulsi = front(430);
+    tulsi.fillStyle(0xc98552, 1);
+    tulsi.fillRect(752, 400, 30, 30);
+    tulsi.fillStyle(0xb06a35, 1);
+    tulsi.fillRect(748, 396, 38, 6);
+    for (let i = 0; i < 9; i += 1) pixelDisc(tulsi, 756 + (i % 3) * 10, 372 + Math.floor(i / 3) * 8, 5, i % 2 ? 0x5c8a4e : 0x2f5e4a, 1, 2);
+    // calendario a muro
+    drawPanel(g, 284, 100, 36, 46, { fill: COLORS.paper, border: 0x6e4a2a, borderWidth: 2 });
+    g.fillStyle(0xb4553f, 1);
+    g.fillRect(286, 102, 32, 12);
+    g.fillStyle(0x6e4a2a, 1);
+    for (let r = 0; r < 4; r += 1) for (let k = 0; k < 4; k += 1) g.fillRect(290 + k * 7, 120 + r * 6, 3, 2);
+    // cuscini a terra
+    const cushions = front(470);
+    [[300, 0xb4553f], [340, 0xe8c66a]].forEach(([cx, col]) => {
+      cushions.fillStyle(col, 1);
+      cushions.fillRect(cx, 452, 34, 16);
+      cushions.fillStyle(0x6e2a26, 1);
+      cushions.fillRect(cx, 466, 34, 2);
+    });
+    return 366;
+  }
+  if (originId === "reykjavik") {
+    // panca per le scarpe in legno chiaro con gli scarponi, ganci a muro con parka e berretto di lana,
+    // candele alla finestra, lampada scandinava a sospensione
+    const c = front(404);
+    ditherRect(c, 606, 398, 112, 6, COLORS.inkDeep, 6, 2);
+    c.fillStyle(0x8f775b, 1);
+    c.fillRect(606, 356, 108, 6);
+    c.fillStyle(0xc8b089, 1);
+    c.fillRect(608, 352, 104, 6);
+    c.fillRect(612, 362, 6, 38);
+    c.fillRect(702, 362, 6, 38);
+    c.fillRect(612, 380, 96, 4);
+    c.fillStyle(0x3a2a20, 1);
+    c.fillRect(630, 388, 16, 12);
+    c.fillRect(650, 388, 16, 12);
+    c.fillStyle(0xf1f0ed, 1);
+    c.fillRect(630, 386, 16, 2);
+    c.fillRect(650, 386, 16, 2);
+    // ganci con parka e berretto
+    g.fillStyle(0x8f775b, 1);
+    g.fillRect(780, 236, 56, 6);
+    g.fillStyle(0xb4553f, 1);
+    g.fillRect(786, 242, 20, 56);
+    g.fillStyle(0x8a3e2e, 1);
+    g.fillRect(786, 290, 20, 8);
+    g.fillStyle(0xdadfda, 1);
+    g.fillRect(814, 242, 16, 12);
+    g.fillStyle(0x5e7f94, 1);
+    for (let i = 0; i < 4; i += 1) g.fillRect(816 + i * 4, 246, 2, 6);
+    // candele sul davanzale
+    [410, 420, 470].forEach((cx, i) => {
+      g.fillStyle(0xf1f0ed, 1);
+      g.fillRect(cx, 222 - i * 2, 6, 10 + i * 2);
+      const f = scene.add.rectangle(cx + 3, 218 - i * 2, 2, 4, 0xe8c66a);
+      scene.tweens.add({ targets: f, alpha: 0.5, duration: 260 + i * 70, yoyo: true, repeat: -1 });
+    });
+    // lampada a sospensione a petali
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(299, 46, 2, 70);
+    for (let i = 0; i < 4; i += 1) {
+      g.fillStyle(i % 2 ? 0xf1f0ed : 0xdadfda, 1);
+      g.fillRect(284 + i * 2, 116 + i * 6, 32 - i * 4, 6);
+    }
+    if (evening) ditherRect(g, 270, 140, 60, 120, 0xe8c66a, 2, 2, 0.6);
+    return 352;
+  }
+  // milano: consolle in noce con svuotatasche, lampada ad arco, citofono, ficus in vaso
+  const c = front(404);
+  ditherRect(c, 606, 398, 112, 6, COLORS.inkDeep, 6, 2);
+  c.fillStyle(0x4a3826, 1);
+  c.fillRect(606, 352, 108, 8);
+  c.fillStyle(0x6e5434, 1);
+  c.fillRect(608, 348, 104, 6);
+  c.fillRect(614, 360, 6, 40);
+  c.fillRect(700, 360, 6, 40);
+  c.fillRect(618, 380, 84, 4);
+  c.fillStyle(COLORS.stone, 1);
+  c.fillRect(690, 342, 16, 6);
+  c.fillStyle(0xe8c66a, 1);
+  c.fillRect(694, 340, 6, 2);
+  // lampada da terra classica: base tonda in ottone, stelo dritto, paralume a tamburo in tessuto
+  const lamp = front(402);
+  lamp.fillStyle(0x9a7a3a, 1);
+  lamp.fillRect(320, 394, 28, 6);
+  lamp.fillRect(326, 390, 16, 4);
+  lamp.fillStyle(0xc9a24a, 1);
+  lamp.fillRect(332, 250, 4, 140);
+  lamp.fillRect(330, 300, 8, 4);
+  // paralume: trapezio a gradini con bordo
+  for (let i = 0; i < 9; i += 1) {
+    lamp.fillStyle(evening ? 0xf0dca0 : 0xe8dccd, 1);
+    lamp.fillRect(316 - i, 214 + i * 4, 36 + i * 2, 4);
+  }
+  lamp.fillStyle(evening ? 0xd8bc78 : 0xcdbfae, 1);
+  lamp.fillRect(307, 250, 54, 2);
+  lamp.fillRect(316, 214, 36, 2);
+  if (evening) {
+    ditherRect(lamp, 300, 252, 68, 140, 0xe8c66a, 2, 2, 0.6);
+    ditherRect(lamp, 310, 190, 48, 24, 0xe8c66a, 3, 2, 0.6);
+  }
+  // citofono accanto alla porta
+  drawPanel(g, 812, 250, 18, 30, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 2 });
+  g.fillStyle(COLORS.ink, 1);
+  g.fillRect(816, 256, 10, 6);
+  g.fillRect(816, 268, 4, 4);
+  // ficus in vaso di terracotta
+  const ficus = front(430);
+  ficus.fillStyle(0xb06a35, 1);
+  ficus.fillRect(750, 404, 28, 26);
+  ficus.fillStyle(0x6e4a2a, 1);
+  ficus.fillRect(763, 368, 2, 36);
+  for (let i = 0; i < 10; i += 1) pixelDisc(ficus, 752 + (i % 4) * 8, 344 + Math.floor(i / 4) * 10, 7, i % 3 ? 0x2f5e4a : 0x5c8a4e, 1, 2);
+  return 348;
 }
 
 // materiali dell'Home Hub in base al paese
@@ -630,56 +1014,137 @@ export function drawHomeHub(scene, x, bottom, originId = "milano", evening = fal
 
 // interno del bus
 export function buildBus(scene, originId, { evening = false } = {}) {
+  // interno di un autobus urbano: soffitto con luci e corrimano, maniglie a cinghia,
+  // pali gialli, finestrini arrotondati con pubblicità sopra, display di linea, porte a soffietto
+  const wall = evening ? 0xaab3b6 : 0xdfe3e1;
   const g = scene.add.graphics();
-  g.fillStyle(evening ? 0xb9c2c4 : COLORS.bgSoft, 1);
+  g.fillStyle(wall, 1);
   g.fillRect(0, 46, W, HORIZON - 46);
 
-  // città che scorre fuori dai finestrini (parallasse)
+  // città che scorre fuori dai finestrini
   const outside = scene.add.container(0, 0);
   const strip = scene.add.graphics();
-  bandGradient(strip, 0, 90, W * 2, 170, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
+  bandGradient(strip, 0, 120, W * 2, 150, evening ? SKY_EVENING : SKY[originId] ?? SKY.milano);
   strip.fillStyle(evening ? 0x34485e : COLORS.steelLight, 1);
-  for (let x = 0; x < W * 2; x += 70) strip.fillRect(x, 260 - ((x * 37) % 90) - 40, 56, 140);
+  for (let x = 0; x < W * 2; x += 70) strip.fillRect(x, 270 - ((x * 37) % 90) - 40, 56, 140);
   strip.fillStyle(evening ? 0x1c2839 : COLORS.steel, 1);
-  for (let x = 30; x < W * 2; x += 110) strip.fillRect(x, 260 - ((x * 53) % 60) - 20, 70, 140);
-  outside.add(strip);
-  scene.tweens.add({ targets: outside, x: -W, duration: 9000, repeat: -1 });
-
-  // cornice con i finestrini (copre la città tra un finestrino e l'altro)
-  const frame = scene.add.graphics();
-  frame.fillStyle(evening ? 0xb9c2c4 : COLORS.bgSoft, 1);
-  frame.fillRect(0, 46, W, 44);
-  frame.fillRect(0, 250, W, HORIZON - 250);
-  for (let x = 0; x < W; x += 240) frame.fillRect(x, 90, 24, 160);
-  frame.fillStyle(COLORS.ink, 1);
-  for (let x = 0; x < W; x += 240) {
-    frame.fillRect(x + 24, 86, 216, 4);
-    frame.fillRect(x + 24, 250, 216, 4);
+  for (let x = 30; x < W * 2; x += 110) strip.fillRect(x, 270 - ((x * 53) % 60) - 20, 70, 140);
+  if (evening) {
+    strip.fillStyle(0xe8c66a, 1);
+    for (let x = 10; x < W * 2; x += 23) strip.fillRect(x, 200 + ((x * 31) % 60), 3, 4);
   }
-  // mancorrente e pali
-  frame.fillRect(0, 70, W, 6);
-  for (let x = 120; x < W; x += 240) frame.fillRect(x, 76, 6, HORIZON - 76);
-  // sedili
-  for (let x = 40; x < W; x += 240) {
-    drawPanel(frame, x, 300, 70, 50, { fill: COLORS.steel, border: COLORS.ink });
+  outside.add(strip);
+  scene.tweens.add({ targets: outside, x: -W, duration: 7000, repeat: -1 });
+
+  const frame = scene.add.graphics();
+  // pareti tra i finestrini
+  frame.fillStyle(wall, 1);
+  frame.fillRect(0, 46, W, 74);
+  frame.fillRect(0, 270, W, HORIZON - 270);
+  const wins = [];
+  for (let x = 20; x < W; x += 230) wins.push(x);
+  for (let x = 0; x < W; x += 230) frame.fillRect(x, 120, 20, 150);
+  // finestrini con bordo in gomma e angoli arrotondati
+  frame.fillStyle(COLORS.ink, 1);
+  wins.forEach((x) => {
+    frame.fillRect(x + 4, 118, 202, 4);
+    frame.fillRect(x + 4, 268, 202, 4);
+    frame.fillRect(x, 122, 4, 146);
+    frame.fillRect(x + 206, 122, 4, 146);
+    frame.fillStyle(wall, 1);
+    [[x, 118], [x + 206, 118], [x, 268], [x + 206, 268]].forEach(([cx, cy]) => frame.fillRect(cx, cy, 4, 4));
     frame.fillStyle(COLORS.ink, 1);
-    frame.fillRect(x + 6, 350, 6, 30);
-    frame.fillRect(x + 58, 350, 6, 30);
+    frame.fillRect(x + 4, 190, 202, 2); // vetro scorrevole
+  });
+  // pannelli pubblicitari sopra i finestrini (uno BIODOM)
+  wins.forEach((x, i) => {
+    drawPanel(frame, x + 20, 86, 170, 26, { fill: i === 1 ? COLORS.ink : COLORS.paper, border: COLORS.ink, borderWidth: 2 });
+    frame.fillStyle(i === 1 ? COLORS.red : COLORS.steel, 1);
+    frame.fillRect(x + 28, 94, 30, 10);
+    frame.fillStyle(i === 1 ? COLORS.paper : COLORS.ink, 1);
+    frame.fillRect(x + 66, 96, 90 - (i % 2) * 20, 2);
+    frame.fillRect(x + 66, 102, 60, 2);
+  });
+  if (scene.textures.exists("logo_biodom")) scene.add.image(wins[1] + 150, 99, "logo_biodom").setTint(COLORS.paper).setScale(0.5).setDepth(1);
+  // soffitto con luci e corrimano
+  frame.fillStyle(COLORS.ink, 1);
+  frame.fillRect(0, 46, W, 6);
+  frame.fillStyle(evening ? 0xe8c66a : COLORS.paper, 1);
+  for (let x = 40; x < W; x += 160) frame.fillRect(x, 52, 100, 4);
+  frame.fillStyle(0xc9a23d, 1);
+  frame.fillRect(0, 66, W, 4);
+  // display di linea
+  drawPanel(frame, 380, 56, 200, 24, { fill: 0x1c2028, border: COLORS.ink, borderWidth: 2 });
+  const stops = { milano: "DUOMO", delhi: "RAJIV CHOWK", reykjavik: "HLEMMUR" };
+  const line = scene.add.text(480, 68, `92 → ${stops[originId] ?? "CENTRO"}`, { fontFamily: '"VT323", monospace', fontSize: "18px", color: "#e8a33d" }).setOrigin(0.5).setDepth(2);
+  // il display lampeggia come i LED veri
+  scene.tweens.add({ targets: line, alpha: 0.55, duration: 900, yoyo: true, repeat: -1, ease: "Stepped", easeParams: [2] });
+  // porte a soffietto con vetri
+  const door = { x: 620 };
+  frame.fillStyle(COLORS.ink, 1);
+  frame.fillRect(door.x - 4, 110, 128, HORIZON - 110);
+  frame.fillStyle(0x6e7673, 1);
+  frame.fillRect(door.x, 114, 58, HORIZON - 114);
+  frame.fillRect(door.x + 62, 114, 58, HORIZON - 114);
+  frame.fillStyle(0x9fb4c2, 0.6);
+  frame.fillRect(door.x + 6, 124, 46, 150);
+  frame.fillRect(door.x + 68, 124, 46, 150);
+  frame.fillStyle(COLORS.red, 1);
+  frame.fillRect(door.x + 50, 290, 20, 10); // pulsante apertura
+  // obliteratrice
+  drawPanel(frame, 560, 250, 26, 34, { fill: 0xe8c66a, border: COLORS.ink, borderWidth: 2 });
+  frame.fillStyle(COLORS.ink, 1);
+  frame.fillRect(566, 258, 14, 4);
+  frame.fillRect(571, 284, 4, 96);
+  // sedili con passeggeri seduti (si vedono testa e spalle sopra lo schienale)
+  const seats = [40, 270, 830];
+  const seated = [];
+  seats.forEach((sx) => {
+    for (let k = 0; k < 2; k += 1) seated.push({ x: sx + 18 + k * 48, y: 332 });
+  });
+  const seatFront = scene.add.graphics().setDepth(HORIZON - 1);
+  seats.forEach((sx) => {
+    drawPanel(seatFront, sx, 300, 104, 48, { fill: 0x3b6fb0, border: COLORS.ink });
+    seatFront.fillStyle(0x2a5590, 1);
+    for (let k = 0; k < 104; k += 8) seatFront.fillRect(sx + 4 + k, 304, 4, 40);
+    seatFront.fillStyle(COLORS.ink, 1);
+    seatFront.fillRect(sx + 10, 348, 6, 32);
+    seatFront.fillRect(sx + 88, 348, 6, 32);
+  });
+  // pali gialli e maniglie a cinghia che dondolano
+  const poles = scene.add.graphics().setDepth(HORIZON);
+  poles.fillStyle(0xe8c66a, 1);
+  [200, 470, 780].forEach((px) => poles.fillRect(px, 70, 6, HORIZON - 70));
+  for (let hx = 30; hx < W; hx += 46) {
+    const strap = scene.add.graphics().setDepth(HORIZON).setPosition(hx, 70);
+    strap.fillStyle(COLORS.ink, 1);
+    strap.fillRect(-1, 0, 2, 22);
+    strap.lineStyle(2, COLORS.ink, 1);
+    strap.strokeRect(-5, 22, 10, 10);
+    scene.tweens.add({ targets: strap, x: hx + 3, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: (hx % 5) * 60 });
   }
   frame.fillStyle(COLORS.ink, 1);
   frame.fillRect(0, HORIZON - 4, W, 4);
 
+  // pavimento antiscivolo con la linea gialla delle porte
   const floor = scene.add.graphics();
-  floor.fillStyle(evening ? 0x6e7673 : COLORS.stone, 1);
+  floor.fillStyle(evening ? 0x5f6663 : 0x7e8683, 1);
   floor.fillRect(0, HORIZON, W, 160);
-  floor.fillStyle(0x8e9693, 1);
-  for (let y = HORIZON + 24; y < 540; y += 24) floor.fillRect(0, y, W, 2);
+  floor.fillStyle(evening ? 0x4f5653 : 0x6e7673, 1);
+  for (let y = HORIZON + 6; y < 540; y += 10) for (let x = (y % 20) / 2; x < W; x += 10) floor.fillRect(x, y, 4, 2);
+  floor.fillStyle(0xe8c66a, 1);
+  floor.fillRect(door.x - 4, HORIZON + 4, 128, 4);
   ditherRect(floor, 0, HORIZON, W, 8, COLORS.inkDeep, 4);
 
+  // folla: due file di persone in piedi, molto fitte (lo spazio libero è solo attorno al giocatore)
+  const crowd = [];
+  for (let x = 24; x < W; x += 44) crowd.push({ x: x + ((x * 7) % 9), y: 424 });
+  for (let x = 50; x < W; x += 62) if (Math.abs(x - 480) > 46) crowd.push({ x: x + ((x * 13) % 11), y: 486 });
   return {
-    floor: [430, 470],
-    spawn: { x: 480, y: 452 },
-    crowd: [180, 270, 360, 590, 680, 770, 860],
+    floor: [440, 470],
+    spawn: { x: 480, y: 456 },
+    crowd,
+    seated,
     obstacles: [],
     points: {}
   };
@@ -714,10 +1179,6 @@ export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390,
   g.fillRect(x - 12, ground - 4, 24, 4);
   ditherRect(g, x - 16, ground, 32, 4, 0x1c2839, 6);
 
-  // ombra
-  g.fillStyle(0x1c2839, 0.22);
-  g.fillRect(left + 5, top + 5, w + tip, h);
-
   // targa con punta a freccia
   g.fillStyle(0x163c4d, 1);
   const bodyX = dir === "left" ? left + tip : left;
@@ -746,12 +1207,130 @@ export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390,
 }
 
 // arredi tipici della casa in base al paese
+// quadro con il monumento della città: cornice in legno, passe-partout e dipinto in pixel art
+function drawMonumentPainting(g, x, y, kind, evening) {
+  const W2 = 112;
+  const H2 = 88;
+  // cornice e passe-partout
+  g.fillStyle(0x4a3826, 1);
+  g.fillRect(x - 2, y - 2, W2 + 4, H2 + 4);
+  g.fillStyle(0x8f6a3e, 1);
+  g.fillRect(x, y, W2, H2);
+  g.fillStyle(0xc9a26a, 1);
+  g.fillRect(x + 2, y + 2, W2 - 4, 2);
+  g.fillStyle(0xf1ebdc, 1);
+  g.fillRect(x + 6, y + 6, W2 - 12, H2 - 12);
+  const ix = x + 12;
+  const iy = y + 12;
+  const iw = W2 - 24;
+  const ih = H2 - 24;
+  const ground = iy + ih;
+  const px = (cx, cy, w, h, color) => {
+    g.fillStyle(color, 1);
+    g.fillRect(cx, cy, w, h);
+  };
+  if (kind === "milano") {
+    // cielo pallido, Duomo in marmo rosato con guglie, rosone, portali e la Madonnina dorata
+    bandGradient(g, ix, iy, iw, ih, evening ? [0x34485e, 0x2c3e52, 0x25354a] : [0xe6e9e5, 0xd9dfe0, 0xc9d3d8]);
+    const marble = evening ? 0xb9b2aa : 0xece2d6;
+    const shade = evening ? 0x8f8880 : 0xc9bcab;
+    const cx = ix + iw / 2;
+    px(ix + 6, ground - 26, iw - 12, 26, marble); // corpo
+    // facciata a capanna, a gradini
+    for (let i = 0; i < 8; i += 1) px(cx - 26 + i * 2, ground - 26 - i * 2, 52 - i * 4, 2, marble);
+    // guglie a intervalli, con la punta
+    [ix + 6, ix + 14, ix + 22, cx - 24, cx + 22, ix + iw - 24, ix + iw - 16, ix + iw - 8].forEach((sx, i) => {
+      const h = 10 + (i % 2) * 6;
+      px(sx, ground - 26 - h, 2, h, marble);
+      px(sx, ground - 28 - h, 2, 2, shade);
+    });
+    // tiburio e guglia maggiore con la Madonnina
+    px(cx - 4, ground - 52, 8, 10, marble);
+    px(cx - 1, ground - 62, 2, 10, marble);
+    px(cx - 1, ground - 66, 2, 4, 0xe8c66a);
+    // contrafforti, rosone e portali
+    [ix + 10, ix + 26, cx - 10, cx + 8, ix + iw - 28, ix + iw - 12].forEach((bx) => px(bx, ground - 24, 2, 24, shade));
+    px(cx - 3, ground - 30, 6, 6, shade);
+    px(cx - 1, ground - 28, 2, 2, marble);
+    [cx - 16, cx - 3, cx + 10].forEach((dx, i) => px(dx, ground - (i === 1 ? 12 : 8), i === 1 ? 6 : 6, i === 1 ? 12 : 8, evening ? 0x3a3633 : 0x6e5434));
+    px(ix, ground - 2, iw, 2, evening ? 0x4b4440 : 0xb3aa9c);
+  } else if (kind === "delhi") {
+    // India Gate al tramonto: arco in arenaria, cornicione, cupoletta, prato e fiamma
+    bandGradient(g, ix, iy, iw, ih, evening ? [0x34485e, 0x5c4a5e, 0x8f5a4e] : [0xf0d9b0, 0xe8b880, 0xd98a4b]);
+    const sand = evening ? 0x9e6e52 : 0xc98552;
+    const shade = evening ? 0x7a5240 : 0xa86a3e;
+    const cx = ix + iw / 2;
+    px(ix, ground - 8, iw, 8, evening ? 0x2e4a3a : 0x5c8a4e); // prato
+    px(cx - 22, ground - 44, 44, 36, sand);
+    px(cx - 24, ground - 48, 48, 4, shade); // cornicione
+    px(cx - 14, ground - 54, 28, 6, sand);
+    px(cx - 8, ground - 58, 16, 4, sand);
+    px(cx - 4, ground - 62, 8, 4, shade); // cupoletta
+    // arco centrale
+    px(cx - 8, ground - 34, 16, 26, evening ? 0x25354a : 0xf0d9b0);
+    px(cx - 6, ground - 36, 12, 2, evening ? 0x25354a : 0xf0d9b0);
+    px(cx - 22, ground - 44, 2, 36, shade);
+    px(cx + 20, ground - 44, 2, 36, shade);
+    // fiamma del milite ignoto
+    px(cx - 1, ground - 12, 2, 4, 0xe8c66a);
+    // stormo di aquiloni
+    [[ix + 14, iy + 10, 0xb4553f], [ix + iw - 20, iy + 16, 0x2e7d4f]].forEach(([kx, ky, kc]) => {
+      px(kx, ky, 4, 4, kc);
+      px(kx + 2, ky + 4, 1, 6, 0x3f3a33);
+    });
+  } else {
+    // Hallgrímskirkja: torre a gradoni bianca tra montagne innevate, aurora di sera
+    bandGradient(g, ix, iy, iw, ih, evening ? [0x1f2c40, 0x25354a, 0x2c3e52] : [0xeaf0f2, 0xd8e5ec, 0xc4d8e4]);
+    if (evening) {
+      g.fillStyle(0x7fd6a0, 0.6);
+      for (let ax = ix; ax < ix + iw; ax += 2) g.fillRect(ax, iy + 6 + Math.round(Math.sin(ax / 7) * 3), 2, 8);
+    }
+    const snow = 0xf1f0ed;
+    const rock = evening ? 0x3a4f66 : 0x7d9aad;
+    [[ix + 16, 26], [ix + iw - 16, 30]].forEach(([mx, mh]) => {
+      for (let i = 0; i < mh; i += 2) px(mx - i, ground - mh + i, i * 2, 2, i < 8 ? snow : rock);
+    });
+    const cx = ix + iw / 2;
+    const white = evening ? 0xcdd2ce : 0xf6f6f2;
+    const shade = evening ? 0x9aa5aa : 0xc4ccd0;
+    [[24, 12], [20, 18], [16, 26], [12, 34], [8, 44]].forEach(([half, h]) => px(cx - half, ground - h, half * 2, h, white));
+    [[24, 12], [20, 18], [16, 26], [12, 34]].forEach(([half, h]) => px(cx + half - 2, ground - h, 2, h, shade));
+    px(cx - 2, ground - 56, 4, 12, white); // guglia
+    px(cx - 1, ground - 60, 2, 4, shade);
+    px(cx - 3, ground - 24, 6, 8, evening ? 0xe8c66a : 0x5e7f94); // finestra
+    px(ix, ground - 2, iw, 2, snow);
+  }
+  // riflesso sul vetro del quadro
+  g.fillStyle(0xffffff, 0.25);
+  g.fillRect(ix + 4, iy + 4, 2, 18);
+  g.fillRect(ix + 8, iy + 4, 2, 10);
+}
+
 function decorateHome(scene, originId, evening) {
   const g = scene.add.graphics();
   if (originId === "delhi") {
     // pareti calde, finestra ad arco con grata jali, ventilatore, lumini diya, tappeto
     g.fillStyle(evening ? 0xcdbb98 : 0xe6d6b8, 1);
     g.fillRect(0, 46, W, HORIZON - 60);
+    // fregio dipinto in alto: fascia ocra con motivo a fiori stilizzati
+    g.fillStyle(0xc98552, 1);
+    g.fillRect(0, 62, W, 14);
+    for (let fx = 8; fx < W; fx += 24) {
+      g.fillStyle(0xb4553f, 1);
+      g.fillRect(fx, 66, 6, 6);
+      g.fillStyle(0xe8c66a, 1);
+      g.fillRect(fx + 2, 68, 2, 2);
+    }
+    // pavimento in marmo chiaro con venature e cornice intarsiata
+    const floorD = scene.add.graphics().setDepth(0);
+    floorD.fillStyle(evening ? 0xcfc8b8 : 0xeee6d6, 1);
+    floorD.fillRect(0, HORIZON + 8, W, 160);
+    floorD.fillStyle(evening ? 0xb8b0a0 : 0xd6ccb8, 1);
+    for (let vx = 0; vx < W; vx += 60) for (let i = 0; i < 6; i += 1) floorD.fillRect(vx + i * 6, HORIZON + 20 + i * 4 + (vx % 120 ? 30 : 0), 6, 2);
+    floorD.fillStyle(0x8f6a3e, 1);
+    floorD.fillRect(0, HORIZON + 14, W, 4);
+    floorD.fillStyle(0x2e5a3a, 1);
+    for (let bx = 4; bx < W; bx += 16) floorD.fillRect(bx, HORIZON + 15, 4, 2);
     g.fillStyle(0xd8c49c, 1);
     for (let x = 0; x < W; x += 96) g.fillRect(x, 46, 2, HORIZON - 60);
     g.fillStyle(0x8f6a3e, 1);
@@ -766,6 +1345,7 @@ function decorateHome(scene, originId, evening) {
     g.fillRect(598, 46, 4, 26);
     g.fillRect(560, 72, 80, 4);
     pixelDisc(g, 600, 74, 6, 0x3f3a33, 1, 2);
+    drawMonumentPainting(g, 684, 120, "delhi", evening);
     g.fillStyle(0x8f6a3e, 1);
     g.fillRect(680, 250, 120, 8);
     [700, 740, 780].forEach((dx) => {
@@ -786,6 +1366,21 @@ function decorateHome(scene, originId, evening) {
     // pareti in legno, finestra sulle montagne, stufa con il fuoco, pelliccia
     g.fillStyle(evening ? 0xa38a6c : 0xc9ad88, 1);
     g.fillRect(0, 46, W, HORIZON - 60);
+    // travi chiare a soffitto
+    g.fillStyle(evening ? 0x8f775b : 0xb39572, 1);
+    g.fillRect(0, 46, W, 10);
+    for (let bx = 60; bx < W; bx += 200) g.fillRect(bx, 46, 22, 18);
+    // pavimento a doghe larghe di pino
+    const floorR = scene.add.graphics().setDepth(0);
+    floorR.fillStyle(evening ? 0xb8a07c : 0xdcc6a0, 1);
+    floorR.fillRect(0, HORIZON + 8, W, 160);
+    floorR.fillStyle(evening ? 0x9e8662 : 0xc4ab82, 1);
+    for (let y = HORIZON + 8; y < 540; y += 22) {
+      floorR.fillRect(0, y, W, 2);
+      for (let x = ((y / 22) % 2) * 90; x < W; x += 180) floorR.fillRect(x, y, 2, 22);
+    }
+    floorR.fillStyle(evening ? 0x8f775b : 0xb39572, 1);
+    for (let k = 0; k < 30; k += 1) floorR.fillRect((k * 97) % W, HORIZON + 14 + ((k * 53) % 140), 4, 2);
     g.fillStyle(evening ? 0x8f775b : 0xb39572, 1);
     for (let y = 60; y < HORIZON - 14; y += 18) g.fillRect(0, y, W, 2);
     drawPanel(g, 392, 140, 100, 90, { fill: evening ? 0x1f2c40 : 0xd8e5ec, border: 0x6e5434, borderWidth: 6 });
@@ -799,6 +1394,7 @@ function decorateHome(scene, originId, evening) {
     }
     g.fillStyle(0x6e5434, 1);
     g.fillRect(442, 140, 4, 90);
+    drawMonumentPainting(g, 544, 130, "reykjavik", evening);
     g.fillStyle(0x1c2028, 1);
     g.fillRect(700, 280, 70, 100);
     g.fillRect(726, 46, 18, 234);
@@ -809,7 +1405,28 @@ function decorateHome(scene, originId, evening) {
     rug.fillStyle(0xdadfda, 1);
     rug.fillRect(560, 460, 80, 4);
   } else {
-    // milano: parquet, quadro del Duomo, libreria con la moka, termosifone
+    // milano: boiserie bianca, lampadario, parquet a spina, quadro del Duomo, libreria, termosifone
+    g.fillStyle(evening ? 0xc8ccc8 : 0xf1f0ed, 1);
+    g.fillRect(0, HORIZON - 104, W, 90);
+    g.fillStyle(evening ? 0xaab0ae : 0xdadfda, 1);
+    g.fillRect(0, HORIZON - 106, W, 4);
+    for (let px = 12; px < W - 40; px += 96) {
+      g.fillRect(px, HORIZON - 94, 76, 2);
+      g.fillRect(px, HORIZON - 30, 76, 2);
+      g.fillRect(px, HORIZON - 94, 2, 66);
+      g.fillRect(px + 74, HORIZON - 94, 2, 66);
+    }
+    // lampadario a bracci con le lampadine
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(479, 46, 2, 30);
+    g.fillRect(450, 76, 60, 3);
+    [450, 466, 494, 508].forEach((lx) => {
+      g.fillStyle(COLORS.ink, 1);
+      g.fillRect(lx, 70, 2, 8);
+      g.fillStyle(evening ? 0xe8c66a : COLORS.paper, 1);
+      g.fillRect(lx - 2, 64, 6, 6);
+    });
+    if (evening) ditherRect(g, 420, 84, 120, 160, 0xe8c66a, 2, 2, 0.5);
     const floor = scene.add.graphics().setDepth(0);
     floor.fillStyle(evening ? 0xb39572 : 0xc9ad88, 1);
     floor.fillRect(0, HORIZON + 8, W, 160);
@@ -817,10 +1434,7 @@ function decorateHome(scene, originId, evening) {
     for (let y = HORIZON + 8; y < 540; y += 16) {
       for (let x = ((y / 16) % 2) * 24; x < W; x += 48) floor.fillRect(x, y, 24, 2);
     }
-    drawPanel(g, 400, 130, 90, 70, { fill: COLORS.paper, border: 0x6e5434, borderWidth: 4 });
-    g.fillStyle(COLORS.steel, 1);
-    g.fillRect(410, 170, 70, 22);
-    for (let x = 412; x < 480; x += 8) g.fillRect(x, 160 - ((x - 412) % 24 === 0 ? 8 : 0), 3, 12);
+    drawMonumentPainting(g, 390, 118, "milano", evening);
     g.fillStyle(0x6e5434, 1);
     g.fillRect(680, 200, 130, 6);
     g.fillRect(680, 270, 130, 6);

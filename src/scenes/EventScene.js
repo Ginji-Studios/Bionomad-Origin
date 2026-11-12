@@ -1,6 +1,8 @@
 import Phaser from "../phaser.js";
 import { faint, Player } from "../entities/Player.js";
 import { Npc } from "../entities/Npc.js";
+import { crowdTexture } from "../ui/pixelSprites.js";
+const HORIZON_SEAT = 378;
 import { MockPlantInput } from "../input/MockPlantInput.js";
 import { getOrigin } from "../config/origins.js";
 import { completeEvent, currentEvent, failRun, getRun } from "../systems/RunManager.js";
@@ -84,14 +86,14 @@ export class EventScene extends Phaser.Scene {
       PlantSensors.state.irrigation = !PlantSensors.state.irrigation;
       this.player.act("act", 300, 0);
     });
-    [["ONE", 1], ["TWO", 2], ["THREE", 3]].forEach(([key, color]) =>
+    [["ONE", 1], ["TWO", 2], ["THREE", 3], ["NUMPAD_ONE", 1], ["NUMPAD_TWO", 2], ["NUMPAD_THREE", 3]].forEach(([key, color]) =>
       keys.on(`keydown-${key}`, () => {
         if (!plantStep("vials")) return;
         PlantSensors.insertVial(color);
         this.player.act("act", 300, 0);
       })
     );
-    keys.on("keydown-ZERO", () => plantStep("vials") && PlantSensors.removeVial());
+    ["ZERO", "NUMPAD_ZERO", "BACKSPACE"].forEach((key) => keys.on(`keydown-${key}`, () => plantStep("vials") && PlantSensors.removeVial()));
     textChip(this, 14, height - 30, PlantSensors.state.connected ? "PIANTA: COLLEGATA" : "PIANTA: SIMULATA", { size: 18 });
 
     this.showIntroCard();
@@ -102,13 +104,32 @@ export class EventScene extends Phaser.Scene {
   createNpcs() {
     this.npcs = [];
     // bus affollato
-    (this.world.crowd ?? []).forEach((x, i) => {
-      const textures = ["npc_a_mask", "npc_b_mask", "npc_c_mask", "npc_d_mask", "npc_old_mask"];
-      const npc = new Npc(this, x, 440 + (i % 2) * 14, "", { texture: textures[i % textures.length], withPack: i % 3 !== 0 });
+    (this.world.crowd ?? []).forEach((p, i) => {
+      const pos = typeof p === "number" ? { x: p, y: 440 + (i % 2) * 14 } : p;
+      const npc = new Npc(this, pos.x, pos.y, "", { texture: "npc_a_mask", withPack: i % 3 !== 0 });
       npc.scaleX = i % 2 ? -1 : 1;
-      this.tweens.add({ targets: npc, x: x + 6, duration: 1400 + i * 90, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      npc.setDepth(pos.y);
+      // tutti oscillano insieme con le curve del bus, ognuno con un piccolo ritardo
+      this.tweens.add({ targets: npc, x: pos.x + 5, duration: 1600, delay: (i % 5) * 70, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       this.npcs.push(npc);
     });
+    // passeggeri seduti: busto dietro lo schienale
+    (this.world.seated ?? []).forEach((p) => {
+      const img = this.add.image(p.x, p.y, crowdTexture(this, true)).setOrigin(0.5, 1).setScale(3).setDepth(HORIZON_SEAT);
+      img.setCrop(0, 0, 14, 13);
+      this.tweens.add({ targets: img, y: p.y + 1, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: Math.random() * 600 });
+    });
+    // scossoni del bus: ogni tanto una buca fa sobbalzare tutti
+    if (this.world.crowd?.length) {
+      this.time.addEvent({
+        delay: 4200,
+        loop: true,
+        callback: () => {
+          this.cameras.main.shake(140, 0.003);
+          this.npcs.forEach((n, i) => this.time.delayedCall(i * 15, () => n.active && this.tweens.add({ targets: n.sprite, y: -4, duration: 90, yoyo: true })));
+        }
+      });
+    }
     if (this.event.location === "busstop") {
       const p = this.world.points.man;
       this.man = new Npc(this, p.x + 20, p.y - 6, "Signore", { texture: "npc_old_mask", withPack: true });
@@ -162,21 +183,35 @@ export class EventScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const card = this.add.container(0, 0).setDepth(2000);
     const dim = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.55);
-    const w = 580;
-    const h = 260;
-    const x = width / 2 - w / 2;
-    const y = height / 2 - h / 2;
+    const w = 600;
+    const pad = 20;
+    // prima si creano i testi, poi la scheda prende l'altezza che serve: niente sovrapposizioni
+    const title = pixelText(this, 0, 0, this.event.title, { size: 16, fit: w - pad * 2 });
+    const desc = bodyText(this, 0, 0, this.event.description, { size: 22, color: COLORS.ink, wrap: w - pad * 2, lineSpacing: -2 });
+    const list = bodyText(this, 0, 0, this.event.steps.map((st, i) => `${i + 1}. ${st.text}`).join("\n"), { size: 20, color: COLORS.steel, lineSpacing: -2, wrap: w - pad * 2 });
+    const go = pixelText(this, 0, 0, "SPAZIO PER INIZIARE", { size: 8, color: COLORS.red, origin: [0.5, 0] });
+    const headH = 30;
+    const h = Math.min(height - 70, headH + 14 + 26 + 10 + desc.height + 12 + list.height + 18 + go.height + 16);
+    const x = Math.round(width / 2 - w / 2);
+    const y = Math.round(Math.max(56, height / 2 - h / 2));
     const g = this.add.graphics();
     dropShadow(g, x, y, w, h, 8);
     drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
     g.fillStyle(COLORS.ink, 1);
-    g.fillRect(x, y, w, 30);
+    g.fillRect(x, y, w, headH);
     const head = pixelText(this, x + 14, y + 11, `EVENTO ${this.run.index + 1}/${this.run.events.length}`, { size: 8, color: COLORS.paper });
     const time = pixelText(this, x + w - 14, y + 11, this.event.time, { size: 8, color: COLORS.steelLight, origin: [1, 0] });
-    const title = pixelText(this, x + 20, y + 46, this.event.title, { size: 16, fit: w - 40 });
-    const desc = bodyText(this, x + 20, y + 76, this.event.description, { size: 24, color: COLORS.ink, wrap: w - 40, lineSpacing: -2 });
-    const list = bodyText(this, x + 20, y + 150, this.event.steps.map((s, i) => `${i + 1}. ${s.text}`).join("\n"), { size: 20, color: COLORS.steel });
-    const go = pixelText(this, width / 2, y + h - 22, "SPAZIO PER INIZIARE", { size: 8, color: COLORS.red, origin: 0.5 });
+    let cy = y + headH + 14;
+    title.setPosition(x + pad, cy);
+    cy += 26 + 10;
+    desc.setPosition(x + pad, cy);
+    cy += desc.height + 12;
+    // filetto tra descrizione e lista delle task
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(x + pad, cy - 7, w - pad * 2, 2);
+    list.setPosition(x + pad, cy);
+    cy += list.height + 18;
+    go.setPosition(width / 2, Math.min(cy, y + h - go.height - 12));
     this.tweens.add({ targets: go, alpha: 0.3, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     card.add([dim, brandMarks(this, x, y, w, h, { color: COLORS.paper, alpha: 0.8 }), g, head, time, title, desc, list, go]);
     card.setAlpha(0).y = 16;
@@ -883,32 +918,84 @@ export class EventScene extends Phaser.Scene {
   sitAndEat(duration) {
     this.mode = "busy";
     const seat = this.world.benchSeat;
-    this.player.velocity.set(0, 0);
+    const player = this.player;
+    player.velocity.set(0, 0);
+    // va alla panchina, si gira verso il pubblico e si siede con un piccolo rimbalzo
     this.tweens.add({
-      targets: this.player,
+      targets: player,
       x: seat.x,
       y: seat.y,
-      duration: 400,
+      duration: 420,
       ease: "Sine.easeInOut",
       onComplete: () => {
-        this.player.setDepth(460);
-        // mangia
-        this.time.addEvent({ delay: 500, repeat: Math.floor(duration / 500) - 2, callback: () => this.player.act("act", 220, 0) });
-        const food = this.add.rectangle(this.player.x + 20 * this.player.facing, this.player.y - 46, 14, 10, 0xd98a4b).setDepth(470);
-        this.tweens.add({ targets: food, scaleX: 0.2, duration: duration - 400, ease: "Stepped", easeParams: [4] });
+        player.setDepth(460);
+        const now = this.time.now;
+        player.actionFrame = "sit";
+        player.actionUntil = now + duration + 200;
+        player.sprite.setScale(4.4, 3.4);
+        this.tweens.add({ targets: player.sprite, scaleX: 4, scaleY: 4, duration: 260, ease: "Back.easeOut" });
+
+        // panino in pixel art: pane, insalata e pomodoro
+        const food = this.add.graphics().setDepth(470);
+        food.fillStyle(0xd9a75a, 1);
+        food.fillRect(-8, -6, 16, 4);
+        food.fillStyle(0x7fae86, 1);
+        food.fillRect(-9, -2, 18, 2);
+        food.fillStyle(0xb4553f, 1);
+        food.fillRect(-8, 0, 16, 2);
+        food.fillStyle(0xc98a42, 1);
+        food.fillRect(-8, 2, 16, 4);
+        const hand = { x: player.x + 18 * player.facing, y: player.y - 40 };
+        const mouth = { x: player.x + 6 * player.facing, y: player.y - 58 };
+        food.setPosition(hand.x, hand.y);
+
+        // morsi: il braccio porta il panino alla bocca, briciole che cadono, il panino si accorcia
+        const bites = Math.max(3, Math.floor((duration - 600) / 650));
+        let left = 1;
+        for (let i = 0; i < bites; i += 1) {
+          this.time.delayedCall(300 + i * 650, () => {
+            if (!food.active) return;
+            player.actionFrame = "sitEat";
+            this.tweens.add({
+              targets: food,
+              x: mouth.x,
+              y: mouth.y,
+              duration: 160,
+              ease: "Quad.easeOut",
+              yoyo: true,
+              hold: 120,
+              onYoyo: () => {
+                left = Math.max(0.25, left - 0.75 / bites);
+                food.setScale(left, 1);
+                for (let k = 0; k < 3; k += 1) {
+                  const crumb = this.add.rectangle(mouth.x + Phaser.Math.Between(-6, 6), mouth.y + 4, 2, 2, 0xd9a75a).setDepth(471);
+                  this.tweens.add({ targets: crumb, y: player.y - 4, x: crumb.x + Phaser.Math.Between(-8, 8), alpha: 0, duration: 500, ease: "Quad.easeIn", onComplete: () => crumb.destroy() });
+                }
+              },
+              onComplete: () => {
+                player.actionFrame = "sit";
+              }
+            });
+          });
+        }
         ["gnam", "gnam!", "o2"].forEach((word, i) => {
-          this.time.delayedCall(400 + i * 650, () => {
-            const x = this.player.x + Phaser.Math.Between(-30, 30);
+          this.time.delayedCall(600 + i * 700, () => {
+            const x = player.x + Phaser.Math.Between(-30, 30);
             const t = (word === "o2"
-              ? o2Label(this, x, this.player.y - 110, { px: 22, color: COLORS.ink, prefix: "+" })
-              : bodyText(this, x, this.player.y - 110, word, { size: 22, color: COLORS.ink, origin: 0.5 })
+              ? o2Label(this, x, player.y - 110, { px: 22, color: COLORS.ink, prefix: "+" })
+              : bodyText(this, x, player.y - 110, word, { size: 22, color: COLORS.ink, origin: 0.5 })
             ).setDepth(980);
             this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 800, onComplete: () => t.destroy() });
           });
         });
+        // si alza, si stiracchia ed esulta
         this.time.delayedCall(duration, () => {
           food.destroy();
-          this.tweens.add({ targets: this.player, y: this.world.points.bench.y, duration: 300, ease: "Sine.easeOut" });
+          player.actionUntil = 0;
+          player.sprite.setScale(3.6, 4.6);
+          this.tweens.add({ targets: player.sprite, scaleX: 4, scaleY: 4, duration: 260, ease: "Back.easeOut" });
+          this.tweens.add({ targets: player, y: this.world.points.bench.y, duration: 300, ease: "Sine.easeOut" });
+          this.time.delayedCall(260, () => player.act("cheer", 500, 10));
           this.completeStep();
         });
       }
@@ -936,7 +1023,7 @@ export class EventScene extends Phaser.Scene {
     this.prompt.setVisible(false);
     this.objective.setText("EVENTO COMPLETATO");
     this.addOxygen(EVENT_BONUS);
-    this.banner("TASK COMPLETATE!", COLORS.ink);
+    this.banner("TASK COMPLETATA!", COLORS.ink);
     [0, 500, 1000].forEach((delay) => this.time.delayedCall(delay, () => this.player.act("cheer", 420, 14)));
     this.time.delayedCall(1800, () => {
       // niente teletrasporto

@@ -31,8 +31,9 @@ export class IntroScene extends Phaser.Scene {
     textChip(this, width - 14, height - 30, "SPAZIO  salta", { size: 20, originX: 1 });
 
     // lo zaino BIONOMAD+ appoggiato a terra
-    const pack = this.add.image(this.world.points.pack.x, 432, "pack").setOrigin(0.5, 1).setScale(4).setDepth(431);
-    this.tweens.add({ targets: pack, y: 426, duration: 600, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    // lo zaino è appoggiato sulla consolle; la pianta "respira" con un leggero bagliore
+    const pack = this.add.image(this.world.points.pack.x - 20, this.world.points.pack.y, "pack").setOrigin(0.5, 1).setScale(4).setDepth(405);
+    this.tweens.add({ targets: pack, scaleY: 4.12, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
     const player = new Player(this, 420, 440, { texture: characterTexture(this.origin.id), withPack: false, floor: this.world.floor });
     player.frozen = true;
@@ -81,7 +82,7 @@ export class IntroScene extends Phaser.Scene {
     }));
     await this.wait(1400);
     caption.setText("INDOSSA BIONOMAD+");
-    await this.walk(this.world.points.pack.x - 50, 440, 1100);
+    await this.walk(this.world.points.pack.x - 60, 418, 1100);
     await this.wait(300);
     player.act("act", 500, 0);
     this.tweens.killTweensOf(pack);
