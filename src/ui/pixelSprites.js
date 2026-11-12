@@ -103,13 +103,13 @@ const PACK = [
   "..G.G.G.",
   ".gG.GgG.",
   ".GGgGGG.",
-  "GgGGgGgG",
+  "cGgGGgGc",
   "TTTTTTTT",
-  "TttttttT",
+  "TtvttttT",
   "TtwwwwtT",
   "TtwggwtT",
   "TtwwwwtT",
-  "TttttttT",
+  "TltttttT",
   "TttttttT",
   "TTTTTTTT"
 ];
@@ -119,7 +119,10 @@ const PACK_PALETTE = {
   G: "#2f5e4a",
   T: "#163c4d",
   t: "#2c566a",
-  w: "#cdd2ce"
+  w: "#cdd2ce",
+  c: "#9fb4c2",
+  v: "#b4553f",
+  l: "#9fd4b0"
 };
 
 // sansevieria: foglie a spada dritte, verde scuro con bande chiare a zig-zag
@@ -418,4 +421,10 @@ export function crowdTexture(scene, masked = true) {
   const key = free.length ? free[Math.floor(Math.random() * free.length)] : options[Math.floor(Math.random() * options.length)];
   scene.crowdUsed.add(key);
   return masked ? `${key}_mask` : key;
+}
+
+// aspetto a caso per le comparse lontane (non consuma quelli dei passanti in primo piano)
+export function randomCrowdKey(masked = true) {
+  const base = CROWD[Math.floor(Math.random() * CROWD.length)] + (Math.random() < 0.5 ? "_f" : "");
+  return masked ? `${base}_mask` : base;
 }

@@ -90,6 +90,7 @@ function decorateOffice(scene, originId, evening, { ac }) {
 import Phaser from "../phaser.js";
 import { COLORS, bandGradient, ditherRect, drawPanel, pixelDisc } from "../ui/theme.js";
 import { drawCityscape } from "./cityscape.js";
+import { drawNotice, drawPurifier, sealWindow } from "./pollution.js";
 
 const W = 960;
 const HORIZON = 380;
@@ -260,7 +261,13 @@ export function windowView(scene, originId, win, { evening = false } = {}) {
   const layers = [layer("far", 0.04, pal.far, 50, 120, false), layer("mid", 0.1, pal.mid, 30, 90, true), layer("near", 0.2, pal.near, 14, 46, true)];
   // foschia a retino davanti alla città (più fitta dove l'aria è peggiore)
   const haze = scene.add.graphics();
-  ditherRect(haze, inner.x, inner.y + Math.round(inner.h * 0.45), inner.w, Math.round(inner.h * 0.55), evening ? 0x4b5664 : 0xffffff, originId === "delhi" ? 6 : originId === "milano" ? 4 : 2, 2, 0.5);
+  // smog color ocra/grigio: la città fuori è velata, più fitta dove l'aria è peggiore
+  const smog = evening ? 0x4b5664 : originId === "delhi" ? 0xb09872 : 0x9a9d96;
+  haze.fillStyle(smog, originId === "delhi" ? 0.35 : originId === "milano" ? 0.22 : 0.12);
+  haze.fillRect(inner.x, inner.y, inner.w, inner.h);
+  ditherRect(haze, inner.x, inner.y + Math.round(inner.h * 0.4), inner.w, Math.round(inner.h * 0.6), smog, originId === "delhi" ? 6 : originId === "milano" ? 4 : 2, 2, 0.6);
+  // finestra sigillata: nastro sugli angoli, non si apre più
+  sealWindow(haze, inner.x, inner.y, inner.w, inner.h);
   // riflesso sul vetro
   const glare = scene.add.graphics();
   glare.fillStyle(0xffffff, 0.25);
@@ -392,6 +399,9 @@ export function buildOffice(scene, originId, { evening = false, ac = false } = {
   g.fillStyle(COLORS.ink, 1);
   g.fillRect(652, 128, 72, 98);
   scene.add.image(656, 132, "poster_2").setOrigin(0, 0);
+  // purificatore d'aria sopra la porta e avviso del consorzio sulla conformità
+  drawPurifier(scene, 40, 96, { evening });
+  drawNotice(g, 246, 150, { evening });
   drawDesk(scene, 150, evening, theme.desk);
   drawDesk(scene, 690, evening, theme.desk);
   decorateOffice(scene, originId, evening, { ac });
@@ -704,6 +714,9 @@ export function buildHouse(scene, { evening = false, originId = "milano" } = {})
   // in casa niente plafoniere da ufficio: ogni casa ha la sua luce (lampadario, ventilatore, sospensione)
   drawRoom(scene, evening, undefined, { lamps: false });
   decorateHome(scene, originId, evening);
+  // purificatore d'aria: in casa si respira solo grazie ai filtri
+  const pur = { milano: [540, 104], delhi: [540, 104], reykjavik: [270, 96] }[originId] ?? [540, 104];
+  drawPurifier(scene, pur[0], pur[1], { evening });
   const hub = drawHomeHub(scene, 60, 396, originId, evening);
   const g = scene.add.graphics();
   drawHomeDoor(g, originId);

@@ -202,7 +202,7 @@ export class EndScene extends Phaser.Scene {
       this.tweens.add({ targets: l, y: height / 2 - 40, duration: 700, delay: i * 90, ease: "Bounce.easeOut" });
     });
     await this.wait(900);
-    const sub = pixelText(this, width / 2, height / 2 + 20, "TASK FALLITE", { size: 16, color: COLORS.red, origin: 0.5 }).setDepth(1300).setAlpha(0);
+    const sub = pixelText(this, width / 2, height / 2 + 20, "FLUSSO INTERROTTO", { size: 16, color: COLORS.red, origin: 0.5 }).setDepth(1300).setAlpha(0);
     this.tweens.add({ targets: sub, alpha: 1, duration: 300 });
     this.tweens.add({ targets: sub, alpha: 0.4, duration: 500, delay: 300, yoyo: true, repeat: -1 });
     await this.wait(1800);
@@ -367,7 +367,7 @@ export class EndScene extends Phaser.Scene {
 
     // negligenze commesse durante la run
     const careless = this.run?.negligence ?? 0;
-    const neglect = bodyText(this, x + w - 260, y + 242, careless ? `NEGLIGENZE: ${careless}` : "NESSUNA NEGLIGENZA", {
+    const neglect = bodyText(this, x + w - 260, y + 242, careless ? `SCOSTAMENTI DI CONFORMITÀ: ${careless}` : "OPERATORE CONFORME", {
       size: 22,
       color: careless ? COLORS.red : 0x5c7a6b,
       fit: 230

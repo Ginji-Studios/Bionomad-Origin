@@ -69,7 +69,9 @@ export class IntroScene extends Phaser.Scene {
     const player = this.player;
     // cartello d'apertura, poi il cittadino si sveglia stiracchiandosi
     await this.wait(300);
-    await titleCard(this, this.origin.city, `07:30 · PM2.5 ${this.origin.pm25.toFixed(1)} · ${this.origin.difficulty}`);
+    await this.showProtocol();
+    if (this.done) return;
+    await titleCard(this, this.origin.city, `07:30 · PM2.5 ${Math.round(this.origin.pm25 * 9)} · ${this.origin.difficulty}`);
     if (this.done) return;
     player.act("cheer", 500, 6);
     await this.wait(700);
@@ -126,6 +128,40 @@ export class IntroScene extends Phaser.Scene {
     this.tweens.add({ targets: player, alpha: 0, scale: 0.8, y: player.y - 14, duration: 500, ease: "Sine.easeIn" });
     await this.wait(600);
     this.finish();
+  }
+
+  // comunicato ufficiale che apre la giornata: perché tutti portano il presidio
+  async showProtocol() {
+    const { width, height } = this.scale;
+    const layer = this.add.container(0, 0).setDepth(2000).setAlpha(0);
+    const shade = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.88);
+    const w = 660;
+    const x = (width - w) / 2;
+    const top = 92;
+    const lines = [
+      "A causa dell'elevata contaminazione tossica nell'atmosfera, l'aria esterna non è respirabile e rappresenta un grave pericolo per la salute.",
+      "L'ONU ha attivato il Protocollo di Protezione Respiratoria, distribuendo su scala nazionale il presidio BIONOMAD via consorzio biodom+.",
+      "La stabilità della biomassa è affidata al titolare del presidio: ogni interruzione del flusso per mancata manutenzione è registrata come scostamento di conformità dell'operatore."
+    ];
+    const header = bodyText(this, x + 18, top + 10, "COMUNICATO · PROTOCOLLO DI PROTEZIONE RESPIRATORIA", { size: 22, color: COLORS.paper, fit: w - 36 });
+    let y = top + 58;
+    const body = lines.map((line, i) => {
+      const t = bodyText(this, x + 22, y, line, { size: 22, color: i === 2 ? COLORS.red : COLORS.ink, wrap: w - 44 });
+      y += t.height + 12;
+      return t;
+    });
+    const h = y - top + 6;
+    const g = drawPanel(this.add.graphics(), x, top, w, h, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
+    g.fillStyle(COLORS.ink, 1);
+    g.fillRect(x, top, w, 42);
+    g.fillStyle(COLORS.red, 1);
+    g.fillRect(x + w - 26, top + 15, 10, 10);
+    layer.add([shade, g, header, ...body]);
+    this.tweens.add({ targets: layer, alpha: 1, duration: 400 });
+    // tempo per leggere, poi sparisce
+    for (let i = 0; i < 70 && !this.done; i += 1) await this.wait(100);
+    this.tweens.add({ targets: layer, alpha: 0, duration: 350, onComplete: () => layer.destroy() });
+    await this.wait(380);
   }
 
   update(time, delta) {

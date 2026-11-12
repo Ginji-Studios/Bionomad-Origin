@@ -35,9 +35,9 @@ export class CityScene extends Phaser.Scene {
     this.drawStreet(width);
 
     this.walkers = [
-      new Npc(this, 120, 452, "Ada", { texture: "npc_a_mask", speed: 38, direction: 1 }),
+      new Npc(this, 120, 452, "Ada", { texture: "npc_a_mask", speed: 38, direction: 1, lively: true }),
       new Npc(this, 300, 470, "Bruno", { texture: "hero_lio_mask", speed: 46, direction: -1 }),
-      new Npc(this, 620, 446, "Carla", { texture: "npc_b_mask", speed: 32, direction: 1 }),
+      new Npc(this, 620, 446, "Carla", { texture: "npc_b_mask", speed: 32, direction: 1, lively: true }),
       new Npc(this, 860, 476, "Dario", { texture: "npc_c_mask", speed: 42, direction: -1 })
     ];
 

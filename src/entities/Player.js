@@ -43,6 +43,77 @@ export function animateWalker(walker, delta, speedRatio, time) {
   }
   const key = frameKey(walker, frame);
   if (walker.sprite.texture.key !== key) walker.sprite.setTexture(key);
+  updateHose(walker, delta);
+}
+
+// tubo che collega lo zaino BIONOMAD alla mascherina: pende sotto il mento come una U
+// e ogni tanto dalla piantina sale un filo d'ossigeno (pochi pixel chiari)
+const HOSE_DARK = 0x163c4d;
+const HOSE_LIGHT = 0x9fb4c2;
+export function updateHose(walker, delta = 16) {
+  const pack = walker.pack;
+  const parent = pack?.parentContainer;
+  if (!parent || !walker.sprite) return;
+  const masked = /_mask/.test(walker.baseTexture ?? "");
+  if (!walker.hose) {
+    walker.hose = walker.scene.add.graphics();
+    parent.add(walker.hose);
+  }
+  const hose = walker.hose;
+  hose.clear();
+  const sx = walker.sprite.x;
+  const sy = walker.sprite.y;
+  // attacco sullo zaino (lato visibile) e attacco sulla mascherina (angolo in basso)
+  const ax = pack.x + 2;
+  const ay = pack.y - 20;
+  const bx = sx - 12;
+  const by = sy - 42;
+  const show = pack.visible && masked && !walker.fainted && Math.hypot(bx - ax, by - ay) < 40;
+  hose.setVisible(show);
+  if (!show) return;
+  const cx = (ax + bx) / 2;
+  const cy = Math.max(ay, by) + 10;
+  const cells = new Set();
+  for (let i = 0; i <= 12; i += 1) {
+    const t = i / 12;
+    const x = (1 - t) * (1 - t) * ax + 2 * (1 - t) * t * cx + t * t * bx;
+    const y = (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * cy + t * t * by;
+    cells.add(`${Math.round(x / 2) * 2},${Math.round(y / 2) * 2}`);
+  }
+  hose.fillStyle(HOSE_DARK, 1);
+  cells.forEach((c) => {
+    const [x, y] = c.split(",").map(Number);
+    hose.fillRect(x - 2, y - 2, 4, 4);
+  });
+  hose.fillStyle(HOSE_LIGHT, 1);
+  cells.forEach((c) => {
+    const [x, y] = c.split(",").map(Number);
+    hose.fillRect(x - 1, y - 2, 2, 2);
+  });
+  // raccordi: valvola sullo zaino e innesto sulla maschera
+  hose.fillStyle(0xb4553f, 1);
+  hose.fillRect(ax - 3, ay - 3, 6, 6);
+  hose.fillStyle(HOSE_DARK, 1);
+  hose.fillRect(bx - 2, by - 3, 4, 4);
+
+  // l'ossigeno che esce lievemente dalla piantina dello zaino
+  walker.o2Leak = (walker.o2Leak ?? Math.random() * 800) - delta;
+  if (walker.o2Leak <= 0) {
+    walker.o2Leak = 700 + Math.random() * 900;
+    const scene = walker.scene;
+    const size = Math.random() < 0.3 ? 4 : 2;
+    const p = scene.add.rectangle(pack.x - 8 + Math.round(Math.random() * 16), pack.y - 48, size, size, Math.random() < 0.5 ? 0xdff2e4 : 0x9fd4b0, 0.9);
+    parent.addAt(p, parent.getIndex(pack));
+    scene.tweens.add({
+      targets: p,
+      y: p.y - 24 - Math.random() * 16,
+      x: p.x + (Math.random() < 0.5 ? -4 : 4),
+      alpha: 0,
+      duration: 1200 + Math.random() * 600,
+      ease: "Sine.easeOut",
+      onComplete: () => p.destroy()
+    });
+  }
 }
 
 // girata con un po' di peso: cambio di verso immediato, schiacciamento elastico,
@@ -87,6 +158,7 @@ export function faint(walker, { instant = false } = {}) {
   const tween = (config) => new Promise((resolve) => (instant ? resolve() : scene.tweens.add({ ...config, onComplete: resolve })));
   const wait = (ms) => new Promise((resolve) => (instant ? resolve() : scene.time.delayedCall(ms, resolve)));
   walker.fainted = true;
+  if (walker.hose) walker.hose.clear().setVisible(false);
   walker.frozen = true;
   walker.velocity?.set(0, 0);
   scene.tweens.killTweensOf([sprite, pack]);

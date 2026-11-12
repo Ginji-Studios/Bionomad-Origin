@@ -50,12 +50,25 @@ export class TravelScene extends Phaser.Scene {
 
     this.drawProps(evening, from, to);
 
-    // passanti con zaino e mascherina
+    // passanti con zaino e mascherina, anche famiglie con i bambini (zainetto e maschera piccoli);
+    // ognuno ogni tanto si ferma a curare il proprio BIONOMAD (o lo trascura)
     const textures = this.origin.id === "delhi" ? ["npc_d_mask", "npc_a_mask", "npc_b_mask"] : ["npc_a_mask", "npc_b_mask", "npc_c_mask"];
-    this.npcs = [300, 820, 1300, 1700].map((x, i) => {
-      const npc = new Npc(this, x, 440 + (i % 3) * 18, "", { texture: textures[i % 3], speed: 28 + i * 6, direction: i % 2 ? -1 : 1 });
+    this.npcs = [];
+    [260, 700, 1100, 1500, 1820].forEach((x, i) => {
+      const speed = 28 + i * 6;
+      const direction = i % 2 ? -1 : 1;
+      const y = 440 + (i % 3) * 18;
+      const npc = new Npc(this, x, y, "", { texture: textures[i % 3], speed, direction, lively: true });
       npc.worldWidth = WORLD_W;
-      return npc;
+      this.npcs.push(npc);
+      // genitore con il figlio per mano
+      if (i % 2 === 0) {
+        const kid = new Npc(this, x + 44 * direction, y + 8, "", { texture: textures[(i + 1) % 3], speed, direction, child: true, lively: true });
+        kid.worldWidth = WORLD_W;
+        npc.partner = kid;
+        kid.partner = npc;
+        this.npcs.push(kid);
+      }
     });
 
     this.player = new Player(this, 70, 456, {
@@ -80,21 +93,6 @@ export class TravelScene extends Phaser.Scene {
 
   drawProps(evening, from, to) {
     const g = this.add.graphics().setDepth(380);
-    // lampioni lungo la strada
-    // niente lampioni dove ci sono i cartelli, così non si sovrappongono
-    const signXs = [150, WORLD_W / 2, WORLD_W - 150];
-    for (let x = 240; x < WORLD_W; x += 360) {
-      if (signXs.some((sx) => Math.abs(sx - x) < 130)) continue;
-      g.fillStyle(COLORS.inkDeep, 1);
-      g.fillRect(x, 230, 6, 150);
-      g.fillRect(x - 14, 230, 34, 4);
-      g.fillStyle(evening ? 0xe8c66a : COLORS.paper, 1);
-      g.fillRect(x - 8, 234, 20, 8);
-      if (evening) {
-        g.fillStyle(0xe8c66a, 0.16);
-        g.fillRect(x - 36, 242, 78, 138);
-      }
-    }
     // aiuole con piante filtranti
     [520, 1120, 1560].forEach((x) => {
       this.add.image(x, 404, "plant_tall").setOrigin(0.5, 1).setScale(3).setDepth(404);

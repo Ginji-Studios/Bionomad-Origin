@@ -1,6 +1,7 @@
 // città disegnata a livelli, con parallasse quando la
 import { BAYER, COLORS, bandGradient, ditherRect, pixelDisc } from "../ui/theme.js";
 import { ORIGINS } from "../config/origins.js";
+import { addAsh, addDrones, addSidewalkCrowd, drawHubStore, drawAirMonitor, drawDeadTree, drawDomedTree, drawFilterTower, skyTint, streetMessages } from "./pollution.js";
 
 const HORIZON = 380;
 const VIEW_W = 960;
@@ -34,6 +35,9 @@ let snowyRoofs = false;
 // stile architettonico della città corrente (facciate, tetti, dettagli tipici)
 let cityStyle = "milano";
 let cityEvening = false;
+// livello di smog della città corrente (0 = aria solo nociva, 2 = letale)
+let smogLevel = 0;
+let treeIndex = 0;
 
 // colori delle facciate tipici per città (di giorno); di sera si scuriscono verso il blu
 const FACADES = {
@@ -59,6 +63,10 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
   snowyRoofs = originId === "reykjavik";
   cityStyle = originId;
   cityEvening = evening;
+  const origin = ORIGINS.find((o) => o.id === originId);
+  smogLevel = origin?.smog ?? 0;
+  treeIndex = 0;
+  const smogColor = (evening ? SMOG.evening : SMOG.day)[Math.max(1, smogLevel)];
   const span = (f) => (parallax ? Math.ceil(VIEW_W + (width - VIEW_W) * f) + 80 : width);
 
   // cielo
@@ -68,10 +76,13 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
     sky.fillStyle(COLORS.paper, 0.8);
     for (let i = 0; i < 40; i += 1) sky.fillRect(Math.floor(rand() * VIEW_W), 50 + Math.floor(rand() * 150), 2, 2);
   }
+  // il cielo è sempre velato dal particolato, anche dove l'aria è "migliore"
+  skyTint(sky, smogColor, 0.12 + smogLevel * 0.1);
   if (sun) {
-    const sunColor = evening ? 0xdadfda : COLORS.paper;
-    pixelDisc(sky, 760, 132, evening ? 24 : 40, sunColor, 1, 2);
-    if (!evening) ditherRect(sky, 720, 100, 80, 64, pal.sky[1], 2);
+    // il sole è un disco opaco, ingiallito dallo smog
+    const sunColor = evening ? 0xb9b3a0 : mixC(COLORS.paper, 0xd9b48c, 0.25 + smogLevel * 0.3);
+    pixelDisc(sky, 760, 132, evening ? 22 : 34, sunColor, 1, 2);
+    ditherRect(sky, 720, 112, 80, 44, smogColor, 3 + smogLevel, 2);
   }
 
   // nuvole a retino che scorrono piano
@@ -139,10 +150,12 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
       [mx + 470, mx + 520].forEach((bx, k) => {
         far.fillStyle(pal.mid, 1);
         far.fillRect(bx, HORIZON - 180 - k * 30, 34, 180 + k * 30);
-        ditherRect(far, bx - 4, HORIZON - 176 - k * 30, 42, 172 + k * 30, pal.tree, 6, 2);
+        ditherRect(far, bx - 4, HORIZON - 176 - k * 30, 42, 172 + k * 30, mixC(pal.tree, 0x8a7f66, 0.6), 6, 2);
       });
     }
   }
+  // torri di filtraggio biodom+: il nuovo profilo di ogni città
+  for (let tx = 90; tx < span(0.15); tx += 560) drawFilterTower(scene, far, tx + Math.floor(rand() * 120), HORIZON, pal.mid, { parallax, h: 230 + Math.floor(rand() * 60) });
   ditherRect(far, 0, HORIZON - 70, span(0.15), 70, pal.sky[3], 4);
 
   // edifici e monumenti
@@ -187,22 +200,45 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
   ditherRect(mid, 0, HORIZON - 26, midSpan, 26, pal.near, 3);
   if (originId === "reykjavik") ditherRect(mid, 0, HORIZON - 12, midSpan, 12, 0xf1f0ed, 5);
 
-  // alberi e cartelloni
+  // strada: alberi, manifesti, pannelli del Protocollo, negozi del consorzio e luoghi tipici,
+  // messi in fila uno dopo l'altro così niente si sovrappone
   const near = layer(scene, 0.75, parallax, -6);
   const nearSpan = span(0.75);
-  const gap = zone === "parco" ? 90 : zone === "residenziale" ? 150 : 200;
-  for (let x = 60; x < nearSpan; x += gap + Math.floor(rand() * 140)) {
-    if (zone !== "parco" && rand() < 0.35) drawPosterWall(scene, near, x, pal, parallax);
-    else drawTree(near, x, pal, rand, originId);
+  const gap = zone === "parco" ? 40 : zone === "residenziale" ? 70 : 90;
+  localIndex = 0;
+  let k = 0;
+  for (let x = 40; x < nearSpan; k += 1) {
+    let w;
+    // i pannelli LED solo nel percorso a scorrimento: nelle scene ferme
+    // finirebbero dietro ai mezzi e ai banchi in primo piano, con il testo tagliato
+    if (parallax && k % 5 === 2) {
+      drawAirMonitor(scene, near, x, HORIZON - 2, { parallax, messages: streetMessages(origin) });
+      w = 138;
+    } else if (zone !== "parco" && k % 7 === 4) {
+      w = drawHubStore(scene, near, x, pal, { parallax, evening });
+    } else if (originId === "milano" && zone === "centro" && k % 6 === 0) {
+      drawMetroEntrance(scene, near, x, parallax, evening);
+      w = 124;
+    } else if (zone !== "industriale" && k % 6 === 3 && originId !== "reykjavik") {
+      w = drawLocalItem(scene, near, x, originId, pal, { parallax });
+    } else if (zone !== "parco" && rand() < 0.35) {
+      w = drawPosterWall(scene, near, x, pal, parallax);
+    } else {
+      drawTree(near, x + 36, pal, rand, originId);
+      w = 72;
+    }
+    x += w + gap + Math.floor(rand() * 110);
   }
-
-  drawLocalDetails(scene, near, originId, pal, { evening, parallax, rand, span: nearSpan });
-  // Milano centro: ingressi della metropolitana col cartello rosso "M"
-  if (originId === "milano" && zone === "centro") {
-    for (let mx = 260; mx < nearSpan; mx += 640) drawMetroEntrance(scene, near, mx, parallax, evening);
+  if (originId === "reykjavik") {
+    // neve sul marciapiede e cumuli ai piedi degli edifici
+    for (let x = 0; x < nearSpan; x += 70 + Math.floor(rand() * 60)) pixelDisc(near, x, HORIZON, 12 + Math.floor(rand() * 10), 0xdadfda, 1, 2);
+    ditherRect(near, 0, HORIZON - 8, nearSpan, 8, 0xdadfda, 6);
   }
+  // persone sul marciapiede in fondo: tutti con il presidio, anche i bambini
+  addSidewalkCrowd(scene, pal, { parallax, evening, span: nearSpan, rand });
   addLife(scene, pal, { evening, parallax, rand, originId });
   addSmog(scene, originId, { evening, parallax, rand });
+  addAsh(scene, smogLevel, { parallax, evening });
 }
 
 // smog: più l'aria è inquinata (difficoltà), più la città sparisce nella foschia.
@@ -255,9 +291,10 @@ function fogTexture(scene, key, color, density, rand) {
 }
 
 function addSmog(scene, originId, { evening, parallax, rand }) {
-  const level = ORIGINS.find((o) => o.id === originId)?.smog ?? 0;
-  if (!level) return;
-  const color = (evening ? SMOG.evening : SMOG.day)[level];
+  // anche dove l'aria è "migliore" resta una foschia leggera: nessuna città è pulita
+  const level = ORIGINS.find((o) => o.id === originId)?.smog || 0.4;
+  const thin = Math.min(1, level);
+  const color = (evening ? SMOG.evening : SMOG.day)[Math.max(1, Math.round(level))];
   const fixed = (obj) => (parallax ? obj.setScrollFactor(0) : obj);
   const key = `fog_${originId}_${evening ? "e" : "d"}`;
   fogTexture(scene, key, color, 0.55 + level * 0.3, rand);
@@ -276,7 +313,7 @@ function addSmog(scene, originId, { evening, parallax, rand }) {
   ];
   const layers = bands.map((band) => {
     const t = fixed(scene.add.tileSprite(0, band.y, VIEW_W, band.h, key).setOrigin(0, 0).setDepth(band.depth));
-    t.setAlpha(band.alpha);
+    t.setAlpha(band.alpha * thin);
     t.tilePositionX = Math.floor(rand() * 512);
     t.tilePositionY = band.flip ? 192 - band.h : 0;
     return { t, speed: band.speed * (rand() < 0.5 ? -1 : 1) };
@@ -294,11 +331,18 @@ function addSmog(scene, originId, { evening, parallax, rand }) {
 
 
 
-// elementi tipici di ogni città, sul livello vicino
-function drawLocalDetails(scene, g, originId, pal, { evening, parallax, rand, span }) {
+// elementi tipici di ogni città, sul livello vicino: uno per volta, così non si sovrappongono
+// agli altri oggetti della strada (ritorna la larghezza occupata)
+let localIndex = 0;
+function drawLocalItem(scene, g, x, originId, pal, { parallax }) {
+  const label = (tx, ty, text) => {
+    const t = scene.add.text(tx, ty, text, { fontFamily: '"VT323", monospace', fontSize: "16px", color: "#f1f0ed" }).setDepth(-6);
+    if (parallax) t.setScrollFactor(0.75, 1);
+  };
+  localIndex += 1;
   if (originId === "delhi") {
-    // bandierine arancio / giallo / magenta tese tra due pali
-    for (let x = 120; x < span; x += 640) {
+    if (localIndex % 2) {
+      // bandierine arancio / giallo / magenta tese tra due pali
       g.fillStyle(pal.near, 1);
       g.fillRect(x, HORIZON - 120, 3, 120);
       g.fillRect(x + 200, HORIZON - 120, 3, 120);
@@ -311,48 +355,46 @@ function drawLocalDetails(scene, g, originId, pal, { evening, parallax, rand, sp
         g.fillRect(fx, HORIZON - 114 + sag, 8, 4);
         g.fillRect(fx + 2, HORIZON - 110 + sag, 4, 4);
       }
+      return 204;
     }
-    // banco del chai
-    for (let x = 420; x < span; x += 900) {
-      g.fillStyle(pal.near, 1);
-      g.fillRect(x, HORIZON - 34, 70, 30);
-      for (let i = 0; i < 7; i += 1) {
-        g.fillStyle(i % 2 ? 0xe08a2e : 0x5c7a6b, 1);
-        g.fillRect(x - 6 + i * 12, HORIZON - 52, 12, 10);
-      }
-      g.fillStyle(0xe8c66a, 1);
-      g.fillRect(x + 10, HORIZON - 28, 8, 8);
-      const t = scene.add.text(x + 30, HORIZON - 30, "CHAI", { fontFamily: '"VT323", monospace', fontSize: "16px", color: "#f1f0ed" }).setDepth(-6);
-      if (parallax) t.setScrollFactor(0.75, 1);
+    // banco del chai, coperto da un telo di plastica contro la polvere
+    const cx = x + 6;
+    g.fillStyle(pal.near, 1);
+    g.fillRect(cx, HORIZON - 34, 70, 30);
+    for (let i = 0; i < 7; i += 1) {
+      g.fillStyle(i % 2 ? 0xe08a2e : 0x5c7a6b, 1);
+      g.fillRect(cx - 6 + i * 12, HORIZON - 52, 12, 10);
     }
-  } else if (originId === "milano") {
-    // bar con gli ombrelloni e i tavolini
-    for (let x = 300; x < span; x += 760) {
-      g.fillStyle(pal.near, 1);
-      g.fillRect(x, HORIZON - 70, 110, 66);
-      g.fillStyle(pal.window, 1);
-      g.fillRect(x + 8, HORIZON - 52, 40, 30);
-      g.fillRect(x + 60, HORIZON - 52, 40, 30);
-      g.fillStyle(0x163c4d, 1);
-      g.fillRect(x + 6, HORIZON - 70, 98, 12);
-      const t = scene.add.text(x + 40, HORIZON - 72, "BAR", { fontFamily: '"VT323", monospace', fontSize: "16px", color: "#f1f0ed" }).setDepth(-6);
-      if (parallax) t.setScrollFactor(0.75, 1);
-      [x + 130, x + 180].forEach((ux) => {
-        pixelDisc(g, ux, HORIZON - 40, 18, 0xb4553f, 1, 2);
-        g.fillStyle(pal.sky[0], 1);
-        g.fillRect(ux - 20, HORIZON - 40, 40, 20);
-        g.fillStyle(pal.near, 1);
-        g.fillRect(ux - 1, HORIZON - 40, 2, 36);
-        g.fillRect(ux - 10, HORIZON - 16, 20, 3);
-      });
-    }
-  } else if (originId === "reykjavik") {
-    // neve sul marciapiede e cumuli ai piedi degli edifici
-    for (let x = 0; x < span; x += 70 + Math.floor(rand() * 60)) {
-      pixelDisc(g, x, HORIZON, 12 + Math.floor(rand() * 10), 0xf1f0ed, 1, 2);
-    }
-    ditherRect(g, 0, HORIZON - 8, span, 8, 0xf1f0ed, 6);
+    ditherRect(g, cx - 6, HORIZON - 42, 84, 38, 0xdadfda, 3, 2);
+    g.fillStyle(0xe8c66a, 1);
+    g.fillRect(cx + 10, HORIZON - 28, 8, 8);
+    label(cx + 30, HORIZON - 30, "CHAI");
+    return 84;
   }
+  if (originId === "milano") {
+    // bar chiuso: saracinesca abbassata, sedie impilate e nastro di divieto
+    g.fillStyle(pal.near, 1);
+    g.fillRect(x, HORIZON - 70, 110, 66);
+    g.fillStyle(0x9aa3ad, 1);
+    g.fillRect(x + 6, HORIZON - 56, 98, 52);
+    g.fillStyle(0x6e7673, 1);
+    for (let sy = HORIZON - 54; sy < HORIZON - 4; sy += 4) g.fillRect(x + 6, sy, 98, 1);
+    g.fillStyle(0x163c4d, 1);
+    g.fillRect(x + 6, HORIZON - 70, 98, 12);
+    label(x + 40, HORIZON - 72, "BAR");
+    g.fillStyle(pal.near, 1);
+    for (let i = 0; i < 4; i += 1) g.fillRect(x + 124, HORIZON - 14 - i * 6, 18, 2);
+    g.fillRect(x + 124, HORIZON - 34, 2, 30);
+    g.fillRect(x + 140, HORIZON - 34, 2, 30);
+    g.fillRect(x + 160, HORIZON - 30, 30, 3);
+    g.fillRect(x + 174, HORIZON - 30, 2, 26);
+    for (let tx = x + 116; tx < x + 200; tx += 8) {
+      g.fillStyle((tx - x) % 16 ? 0xf1f0ed : 0xb4553f, 1);
+      g.fillRect(tx, HORIZON - 44, 8, 3);
+    }
+    return 200;
+  }
+  return 0;
 }
 
 // vita in città
@@ -444,53 +486,15 @@ function addLife(scene, pal, { evening, parallax, rand, originId }) {
       delay: 140,
       loop: true,
       callback: () => {
-        const flake = scene.add.rectangle(rand() * VIEW_W, 46, 2, 2, 0xf1f0ed).setDepth(500);
+        const flake = scene.add.rectangle(rand() * VIEW_W, 46, 2, 2, 0xd6d6cc).setDepth(500);
         if (parallax) flake.setScrollFactor(0);
         scene.tweens.add({ targets: flake, y: 540, x: flake.x - 40 + rand() * 30, duration: 5000 + rand() * 3000, onComplete: () => flake.destroy() });
       }
     });
   }
 
-  // Delhi: aquiloni colorati nel cielo
-  if (originId === "delhi" && !evening) {
-    [[180, 110, 0xc2407a], [520, 80, 0xe08a2e], [820, 140, 0x2e7d4f]].forEach(([kx, ky, color]) => {
-      const kite = scene.add.graphics().setDepth(-9);
-      if (parallax) kite.setScrollFactor(0.05, 1);
-      kite.fillStyle(color, 1);
-      kite.fillRect(-2, -8, 4, 2);
-      kite.fillRect(-4, -6, 8, 2);
-      kite.fillRect(-6, -4, 12, 4);
-      kite.fillRect(-4, 0, 8, 2);
-      kite.fillRect(-2, 2, 4, 2);
-      kite.fillStyle(0x3f5a6c, 1);
-      for (let i = 0; i < 6; i += 1) kite.fillRect(i * 2, 4 + i * 4, 1, 4);
-      kite.setPosition(kx, ky);
-      scene.tweens.add({ targets: kite, y: ky + 10, x: kx + 6, duration: 1600 + rand() * 800, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    });
-  }
-
-  // stormo di uccelli (solo di giorno)
-  if (!evening) {
-    scene.time.addEvent({
-      delay: 7000,
-      loop: true,
-      callback: () => {
-        const flock = scene.add.graphics().setDepth(-9);
-        if (parallax) flock.setScrollFactor(0);
-        flock.fillStyle(0x3f5a6c, 1);
-        for (let i = 0; i < 4; i += 1) {
-          const bx = i * 18 + (i % 2) * 6;
-          const by = (i % 2) * 8;
-          flock.fillRect(bx, by, 4, 2);
-          flock.fillRect(bx + 4, by + 2, 2, 2);
-          flock.fillRect(bx + 6, by, 4, 2);
-        }
-        flock.setPosition(-80, 80 + rand() * 80);
-        scene.tweens.add({ targets: flock, x: VIEW_W + 80, y: flock.y - 30, duration: 9000, onComplete: () => flock.destroy() });
-        scene.tweens.add({ targets: flock, scaleY: 0.5, duration: 200, yoyo: true, repeat: 22 });
-      }
-    });
-  }
+  // al posto degli uccelli: i droni del consorzio che controllano la conformità
+  addDrones(scene, { parallax, evening });
 }
 
 function drawHouseBlock(g, x, w, h, pal, rand, evening) {
@@ -511,10 +515,22 @@ function drawHouseBlock(g, x, w, h, pal, rand, evening) {
     for (let wx = x + 10; wx < x + w - 18; wx += 18) {
       g.fillStyle(evening && rand() < 0.4 ? pal.window : evening ? pal.near : pal.window, 1);
       g.fillRect(wx, wy, 8, 10);
+      // in quasi ogni casa c'è l'hub: piantina sul davanzale con la luce verde
+      if (rand() < 0.45) {
+        g.fillStyle(evening ? 0x9fd4b0 : 0x5c7a6b, 1);
+        g.fillRect(wx + 2, wy + 4, 4, 6);
+        g.fillStyle(evening ? 0xdff2e4 : 0x9fd4b0, 1);
+        g.fillRect(wx + 3, wy + 9, 2, 1);
+      }
     }
   }
   g.fillStyle(pal.near, 1);
   g.fillRect(x + w / 2 - 6, HORIZON - 18, 12, 18);
+  // presa d'aria del filtro domestico sul muro
+  g.fillStyle(0x9aa3ad, 1);
+  g.fillRect(x + w - 22, HORIZON - 34, 10, 10);
+  g.fillStyle(pal.near, 1);
+  for (let i = 0; i < 3; i += 1) g.fillRect(x + w - 21, HORIZON - 32 + i * 3, 8, 1);
 }
 
 function drawShed(g, x, w, pal) {
@@ -578,9 +594,17 @@ function drawBuilding(g, x, w, h, pal, rand, evening) {
   g.fillStyle(snowyRoofs ? 0xf1f0ed : pal.near, 1);
   g.fillRect(x - 2, top, w + 4, 4);
   g.fillStyle(pal.near, 1);
-  if (rand() < 0.5) {
-    g.fillRect(x + 8, top - 14, 18, 14); // serbatoio / condizionatore
-    g.fillRect(x + 10, top - 18, 2, 4);
+  if (rand() < 0.6) {
+    // unità di filtraggio del palazzo sul tetto, con la ventola
+    g.fillRect(x + 8, top - 14, 24, 14);
+    g.fillStyle(0x9aa3ad, 1);
+    g.fillRect(x + 12, top - 11, 8, 8);
+    g.fillStyle(pal.near, 1);
+    g.fillRect(x + 15, top - 11, 2, 8);
+    g.fillRect(x + 12, top - 8, 8, 2);
+    g.fillStyle(0x9fd4b0, 1);
+    g.fillRect(x + 24, top - 10, 4, 2);
+    g.fillStyle(pal.near, 1);
   }
   if (rand() < 0.3) g.fillRect(x + w - 20, top - 30, 2, 30);
   // finestre a griglia
@@ -589,6 +613,13 @@ function drawBuilding(g, x, w, h, pal, rand, evening) {
       const lit = evening ? rand() < 0.18 : true;
       g.fillStyle(lit ? pal.window : pal.near, evening ? 1 : 0.8);
       g.fillRect(wx, wy, 6, 8);
+      // l'hub di casa sul davanzale: una piantina con la luce verde (di sera resta accesa)
+      if (rand() < 0.16) {
+        g.fillStyle(evening ? 0x9fd4b0 : 0x5c7a6b, 1);
+        g.fillRect(wx + 1, wy + 3, 4, 5);
+        g.fillStyle(evening ? 0xdff2e4 : 0x9fd4b0, 1);
+        g.fillRect(wx + 2, wy + 7, 2, 1);
+      }
     }
   }
   // balconi
@@ -731,6 +762,18 @@ function drawLandmark(g, originId, ox, pal) {
 
 function drawTree(g, x, pal, rand, originId = "milano") {
   const h = 40 + Math.floor(rand() * 30);
+  // con l'aria tossica il verde in strada muore: alberi secchi, foglie ingiallite
+  // e qualche alberello sopravvissuto sotto la cupola di protezione
+  treeIndex += 1;
+  if (treeIndex % 5 === 3) {
+    drawDomedTree(g, x, HORIZON, pal);
+    return;
+  }
+  if (rand() < 0.3 + smogLevel * 0.15) {
+    drawDeadTree(g, x, HORIZON, pal.near, h);
+    return;
+  }
+  pal = { ...pal, tree: mixC(pal.tree, cityEvening ? 0x3a3a30 : 0x9a8a5c, 0.3 + smogLevel * 0.2) };
   if (originId === "delhi") {
     // palma: tronco a gradini e foglie a raggiera
     g.fillStyle(pal.near, 1);
@@ -784,7 +827,7 @@ function drawPosterWall(scene, g, x, pal, parallax) {
     g.fillRect(x - 2, btop - 2, bw + 4, 112);
     const img = scene.add.image(x, btop, key).setOrigin(0, 0).setDepth(-6);
     if (parallax) img.setScrollFactor(0.75, 1);
-    return;
+    return bw + 6;
   }
   const top = HORIZON - 136;
   g.fillStyle(pal.near, 1);
@@ -798,4 +841,5 @@ function drawPosterWall(scene, g, x, pal, parallax) {
   posterIndex += 1;
   const poster = scene.add.image(x + 16, top + 18, key).setOrigin(0, 0).setScale(1, 1).setDepth(-6);
   if (parallax) poster.setScrollFactor(0.75, 1);
+  return 96;
 }
