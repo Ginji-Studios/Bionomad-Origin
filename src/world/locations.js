@@ -86,6 +86,51 @@ function decorateOffice(scene, originId, evening, { ac }) {
   Phaser.Utils.Array.GetRandom(Object.values(floorItems))();
 }
 
+// lampione: palo con braccio curvo e plafoniera; di sera un cono di luce a gradini
+// (bande sempre più larghe e tenui) e una pozza di luce a retino sul marciapiede
+export function drawStreetLamp(scene, x, { evening = true, top = 214, ground = 380 } = {}) {
+  const l = scene.add.graphics();
+  const light = 0xe8c66a;
+  if (evening) {
+    const cone = scene.add.graphics();
+    const steps = Math.floor((ground - top - 16) / 8);
+    for (let i = 0; i < steps; i += 1) {
+      const y = top + 18 + i * 8;
+      const half = 10 + i * 4;
+      const alpha = 0.2 - (i / steps) * 0.12;
+      cone.fillStyle(light, alpha);
+      cone.fillRect(x + 14 - half, y, half * 2, 8);
+    }
+    // pozza di luce: ellisse a retino sul pavimento, più fitta al centro
+    ditherRect(cone, x - 50, ground, 128, 14, light, 2, 2, 0.45);
+    ditherRect(cone, x - 24, ground + 2, 76, 10, light, 4, 2, 0.55);
+    // tremolio leggero della lampada
+    scene.tweens.add({ targets: cone, alpha: 0.82, duration: 90, yoyo: true, repeat: -1, repeatDelay: 2600, hold: 60 });
+  }
+  // palo con base e braccio curvo
+  l.fillStyle(COLORS.inkDeep, 1);
+  l.fillRect(x - 3, top, 6, ground - top);
+  l.fillRect(x - 7, ground - 10, 14, 10);
+  l.fillRect(x - 1, top - 6, 4, 6);
+  l.fillRect(x + 2, top - 8, 12, 4);
+  l.fillRect(x + 12, top - 6, 4, 6);
+  // plafoniera
+  l.fillRect(x + 4, top, 20, 6);
+  l.fillStyle(evening ? light : 0xdadfda, 1);
+  l.fillRect(x + 6, top + 6, 16, 4);
+  if (evening) {
+    l.fillStyle(0xfff4d0, 1);
+    l.fillRect(x + 10, top + 6, 8, 2);
+    // falene che girano attorno alla luce
+    for (let i = 0; i < 2; i += 1) {
+      const moth = scene.add.rectangle(x + 14, top + 18, 2, 2, 0xdadfda);
+      scene.tweens.add({ targets: moth, x: { from: x + 2 + i * 10, to: x + 26 - i * 8 }, duration: 700 + i * 260, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      scene.tweens.add({ targets: moth, y: { from: top + 14, to: top + 26 }, duration: 480 + i * 200, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    }
+  }
+  return l;
+}
+
 // location del gioco: ognuna ritorna floor, obstacles, points e spawn
 import Phaser from "../phaser.js";
 import { COLORS, bandGradient, ditherRect, drawPanel, pixelDisc } from "../ui/theme.js";
@@ -118,21 +163,85 @@ export function drawBackdrop(scene, originId, { evening = false, sun = true, zon
 
 export function drawStreetFloor(scene, evening, width = W) {
   const g = scene.add.graphics();
-  // marciapiede a lastre
-  g.fillStyle(evening ? 0x6e7673 : COLORS.stone, 1);
+  let seed = 977 + width;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const base = evening ? 0x6e7673 : COLORS.stone;
+  const joint = evening ? 0x5f6663 : 0x959c99;
+  const dark = evening ? 0x59605d : 0x8d9491;
+  // marciapiede a lastre, con qualche lastra di tono diverso (rattoppi e usura)
+  g.fillStyle(base, 1);
   g.fillRect(0, HORIZON, width, 160);
-  g.fillStyle(evening ? 0x5f6663 : 0x959c99, 1);
+  for (let y = HORIZON; y < 540; y += 40) {
+    const offset = ((y - HORIZON) / 40) % 2 ? 32 : 0;
+    for (let x = offset - 64; x < width; x += 64) {
+      const roll = rand();
+      if (roll < 0.12) {
+        g.fillStyle(dark, 1);
+        g.fillRect(x + 2, y + 2, 62, 38);
+      } else if (roll < 0.2) {
+        ditherRect(g, x + 2, y + 2, 62, 38, dark, 3, 2);
+      }
+      // crepe
+      if (rand() < 0.1) {
+        g.fillStyle(joint, 1);
+        let cx = x + 10 + Math.floor(rand() * 40);
+        for (let cy = y + 4; cy < y + 36; cy += 2) {
+          g.fillRect(cx, cy, 2, 2);
+          cx += rand() < 0.5 ? 2 : -2;
+        }
+      }
+    }
+  }
+  g.fillStyle(joint, 1);
   for (let y = HORIZON + 40; y < 540; y += 40) g.fillRect(0, y, width, 2);
   for (let y = HORIZON; y < 540; y += 40) {
     const offset = ((y - HORIZON) / 40) % 2 ? 32 : 0;
     for (let x = offset; x < width; x += 64) g.fillRect(x, y, 2, 40);
   }
-  // tombini e piccoli dettagli
+  // percorso tattile per i non vedenti, lungo il marciapiede
+  const tactile = evening ? 0x8f8a6a : 0xc9b98a;
+  g.fillStyle(tactile, 1);
+  g.fillRect(0, HORIZON + 22, width, 12);
+  g.fillStyle(evening ? 0x77735a : 0xb3a374, 1);
+  for (let x = 0; x < width; x += 8) g.fillRect(x + 2, HORIZON + 24 + ((x / 8) % 2) * 4, 4, 2);
+  // polvere e particolato accumulati lungo il cordolo
+  ditherRect(g, 0, HORIZON + 10, width, 10, evening ? 0x4f5654 : 0x8a8273, 3, 2);
+  // tombini rotondi e griglie di scolo
   for (let x = 140; x < width; x += 420) {
     g.fillStyle(evening ? 0x4f5654 : 0x7f8784, 1);
     g.fillRect(x, 500, 28, 12);
-    g.fillStyle(evening ? 0x6e7673 : COLORS.stone, 1);
+    g.fillStyle(base, 1);
     for (let i = 0; i < 3; i += 1) g.fillRect(x + 4, 502 + i * 4, 20, 2);
+  }
+  for (let x = 360; x < width; x += 620) {
+    pixelDisc(g, x, 470, 16, evening ? 0x4f5654 : 0x7f8784, 1, 2);
+    pixelDisc(g, x, 470, 12, evening ? 0x5f6663 : 0x959c99, 1, 2);
+    g.fillStyle(evening ? 0x4f5654 : 0x7f8784, 1);
+    for (let i = -8; i <= 8; i += 4) g.fillRect(x - 10, 470 + i, 20, 1);
+  }
+  // foglie secche e rifiuti del nuovo mondo: filtri usati e mascherine buttate
+  for (let i = 0; i < width / 50; i += 1) {
+    const lx = Math.floor(rand() * width);
+    const ly = HORIZON + 40 + Math.floor(rand() * 110);
+    const kind = rand();
+    if (kind < 0.6) {
+      g.fillStyle(rand() < 0.5 ? 0x8a7f66 : 0xa88a5a, 1);
+      g.fillRect(lx, ly, 4, 2);
+      g.fillRect(lx + 2, ly + 2, 2, 2);
+    } else if (kind < 0.8) {
+      // filtro usato: cilindretto grigio con la ghiera scura
+      g.fillStyle(0x9aa3ad, 1);
+      g.fillRect(lx, ly, 8, 4);
+      g.fillStyle(0x3f5a6c, 1);
+      g.fillRect(lx, ly, 2, 4);
+    } else {
+      // mascherina buttata
+      g.fillStyle(evening ? 0xb9bdb8 : 0xe6e6e0, 1);
+      g.fillRect(lx, ly, 8, 4);
+      g.fillStyle(0x7f8784, 1);
+      g.fillRect(lx - 2, ly + 1, 2, 1);
+      g.fillRect(lx + 8, ly + 1, 2, 1);
+    }
   }
   // cordolo e ombra all'orizzonte
   g.fillStyle(COLORS.ink, 1);
@@ -686,14 +795,7 @@ export function buildBusStop(scene, originId, { evening = true } = {}) {
   scene.add.text(R + 42, 248, "92", { fontFamily: '"VT323", monospace', fontSize: "22px", color: "#f1f0ed" }).setOrigin(0.5).setDepth(433);
 
   // lampione acceso
-  const l = scene.add.graphics();
-  l.fillStyle(COLORS.inkDeep, 1);
-  l.fillRect(150, 220, 6, 160);
-  l.fillRect(136, 220, 34, 4);
-  l.fillStyle(0xe8c66a, 1);
-  l.fillRect(142, 224, 22, 8);
-  l.fillStyle(0xe8c66a, 0.18);
-  l.fillRect(110, 232, 86, 148);
+  drawStreetLamp(scene, 153, { evening });
 
   return {
     floor: FLOOR,

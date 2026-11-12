@@ -1,4 +1,4 @@
-import { crowdTexture } from "../ui/pixelSprites.js";
+import { crowdTexture, randomPackKey } from "../ui/pixelSprites.js";
 import Phaser from "../phaser.js";
 import { COLORS, drawPanel, o2Label } from "../ui/theme.js";
 import { animateWalker, playAction, SPRITE_SCALE } from "./Player.js";
@@ -25,7 +25,8 @@ export class Npc extends Phaser.GameObjects.Container {
 
     // corpo: per i bambini è tutto più piccolo (zainetto compreso)
     this.figure = scene.add.container(0, 0).setScale(child ? 0.62 : 1);
-    this.pack = scene.add.image(-30, -24, "pack").setOrigin(0.5, 1).setScale(SPRITE_SCALE).setVisible(withPack);
+    // ogni passante ha la sua pianta nello zaino (la sansevieria è solo del protagonista)
+    this.pack = scene.add.image(-30, -24, randomPackKey()).setOrigin(0.5, 1).setScale(SPRITE_SCALE).setVisible(withPack);
     // i passanti senza nome prendono un aspetto a caso, sempre diverso nella stessa scena
     if (!name && !/npc_(old|vendor)/.test(texture)) texture = crowdTexture(scene, texture.endsWith("_mask"));
     this.sprite = scene.add.image(0, 0, texture).setOrigin(0.5, 1).setScale(SPRITE_SCALE);
@@ -34,7 +35,12 @@ export class Npc extends Phaser.GameObjects.Container {
     this.packImg = this.pack;
     this.dummyPack = { x: -30, y: -24 };
     this.moodIcon = scene.add.image(0, -100, "heart").setScale(3).setVisible(false);
-    this.figure.add([this.pack, this.sprite, this.moodIcon]);
+    // ombra a retino sotto i piedi, come per il protagonista
+    this.shadow = scene.add.graphics();
+    this.shadow.fillStyle(0x1c2839, 0.45);
+    for (let i = 0; i < 12; i += 1) this.shadow.fillRect(-24 + i * 4, (i % 2) * 2 - 2, 4, 2);
+    this.shadow.fillRect(-16, 0, 32, 2);
+    this.figure.add([this.shadow, this.pack, this.sprite, this.moodIcon]);
     this.add(this.figure);
     this.scaleX = direction;
     this.setDepth(y);

@@ -46,10 +46,11 @@ export function animateWalker(walker, delta, speedRatio, time) {
   updateHose(walker, delta);
 }
 
-// tubo che collega lo zaino BIONOMAD alla mascherina: pende sotto il mento come una U
-// e ogni tanto dalla piantina sale un filo d'ossigeno (pochi pixel chiari)
-const HOSE_DARK = 0x163c4d;
-const HOSE_LIGHT = 0x9fb4c2;
+// tubo che collega lo zaino BIONOMAD alla mascherina e spallacci dello zaino.
+// tutto è disegnato sulla stessa griglia dei pixel dello sprite (4x4), così resta nello stile
+const HOSE_DARK = 0x2c4556;
+const HOSE_RIB = 0x5e7f94;
+const STRAP = 0x163c4d;
 export function updateHose(walker, delta = 16) {
   const pack = walker.pack;
   const parent = pack?.parentContainer;
@@ -61,40 +62,32 @@ export function updateHose(walker, delta = 16) {
   }
   const hose = walker.hose;
   hose.clear();
-  const sx = walker.sprite.x;
-  const sy = walker.sprite.y;
-  // attacco sullo zaino (lato visibile) e attacco sulla mascherina (angolo in basso)
-  const ax = pack.x + 2;
-  const ay = pack.y - 20;
-  const bx = sx - 12;
-  const by = sy - 42;
-  const show = pack.visible && masked && !walker.fainted && Math.hypot(bx - ax, by - ay) < 40;
+  const near = Math.abs(pack.x + 30) < 14 && Math.abs(pack.y + 24) < 14;
+  const sitting = /_sit/.test(walker.sprite.texture.key);
+  const show = pack.visible && !walker.fainted && near && !sitting && walker.sprite.angle === 0;
   hose.setVisible(show);
   if (!show) return;
-  const cx = (ax + bx) / 2;
-  const cy = Math.max(ay, by) + 10;
-  const cells = new Set();
-  for (let i = 0; i <= 12; i += 1) {
-    const t = i / 12;
-    const x = (1 - t) * (1 - t) * ax + 2 * (1 - t) * t * cx + t * t * bx;
-    const y = (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * cy + t * t * by;
-    cells.add(`${Math.round(x / 2) * 2},${Math.round(y / 2) * 2}`);
-  }
-  hose.fillStyle(HOSE_DARK, 1);
-  cells.forEach((c) => {
-    const [x, y] = c.split(",").map(Number);
-    hose.fillRect(x - 2, y - 2, 4, 4);
+  // angolo in alto a sinistra dello sprite, arrotondato alla griglia
+  const P = 4;
+  const gx = Math.round(walker.sprite.x - 28);
+  const gy = Math.round(walker.sprite.y - 84);
+  const cell = (c, r, color) => {
+    hose.fillStyle(color, 1);
+    hose.fillRect(gx + c * P, gy + r * P, P, P);
+  };
+  // spallacci sul petto
+  [11, 12, 13].forEach((r) => {
+    cell(3, r, STRAP);
+    cell(10, r, STRAP);
   });
-  hose.fillStyle(HOSE_LIGHT, 1);
-  cells.forEach((c) => {
-    const [x, y] = c.split(",").map(Number);
-    hose.fillRect(x - 1, y - 2, 2, 2);
-  });
-  // raccordi: valvola sullo zaino e innesto sulla maschera
+  if (!masked) return;
+  // tubo a U sotto la guancia: dalla valvola dello zaino alla mascherina
+  const path = [[0, 11], [1, 12], [2, 12], [3, 11]];
+  path.forEach(([c, r], i) => cell(c, r, i % 2 ? HOSE_RIB : HOSE_DARK));
+  // valvola rossa sul bordo dello zaino (segue lo zaino) e innesto sulla maschera
   hose.fillStyle(0xb4553f, 1);
-  hose.fillRect(ax - 3, ay - 3, 6, 6);
-  hose.fillStyle(HOSE_DARK, 1);
-  hose.fillRect(bx - 2, by - 3, 4, 4);
+  hose.fillRect(Math.round(pack.x - 2), Math.round(pack.y - 20), P, P);
+  cell(4, 10, HOSE_DARK);
 
   // l'ossigeno che esce lievemente dalla piantina dello zaino
   walker.o2Leak = (walker.o2Leak ?? Math.random() * 800) - delta;
