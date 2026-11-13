@@ -396,10 +396,9 @@ export class EndScene extends Phaser.Scene {
     if (!win) percent.setText("0%");
 
     // esito: etichetta piena (verde conforme, ruggine non conforme o con scostamenti)
-    const careless = this.run?.negligence ?? 0;
-    // il flusso interrotto (game over) è sempre uno scostamento: l'operatore non è conforme
-    const status = !win ? "OPERATORE NON CONFORME" : careless ? `SCOSTAMENTI: ${careless}` : "OPERATORE CONFORME";
-    const pillColor = !win || careless ? COLORS.red : 0x5c7a6b;
+    // il flusso interrotto (game over) rende l'operatore non conforme
+    const status = win ? "OPERATORE CONFORME" : "OPERATORE NON CONFORME";
+    const pillColor = win ? 0x5c7a6b : COLORS.red;
     const pillText = bodyText(this, 0, 0, status, { size: 20, color: COLORS.paper, fit: 200 });
     const pill = this.add.graphics();
     const pw = Math.round(pillText.width + 34);
@@ -407,7 +406,7 @@ export class EndScene extends Phaser.Scene {
     pill.fillRect(cx0 + 14, y + 230, pw, 24);
     pill.fillStyle(COLORS.paper, 1);
     // spunta o croce a pixel prima del testo
-    if (!win || careless) {
+    if (!win) {
       for (let k = 0; k < 4; k += 1) {
         pill.fillRect(cx0 + 22 + k * 2, y + 237 + k * 2, 2, 2);
         pill.fillRect(cx0 + 28 - k * 2, y + 237 + k * 2, 2, 2);
