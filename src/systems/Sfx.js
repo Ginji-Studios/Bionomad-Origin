@@ -3,6 +3,7 @@
 // M attiva / disattiva l'audio (la scelta resta salvata nel browser)
 
 let ctx = null;
+let audioPaused = false;
 let master = null;
 let fxBus = null;
 let ambBus = null;
@@ -35,7 +36,7 @@ function audio() {
     const data = noiseBuffer.getChannelData(0);
     for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
   }
-  if (ctx.state === "suspended") ctx.resume();
+  if (ctx.state === "suspended" && !audioPaused) ctx.resume();
   return ctx;
 }
 
@@ -56,6 +57,14 @@ export function toggleMute() {
   return muted;
 }
 export const isMuted = () => muted;
+
+// pausa del team: l'audio si congela insieme al gioco e riparte da dove era
+export function setAudioPaused(on) {
+  audioPaused = on;
+  if (!ctx) return;
+  if (on) ctx.suspend();
+  else ctx.resume();
+}
 
 function tone(freq, dur, { type = "square", vol = 0.15, slide = 0, delay = 0, attack = 0.006, bus = null } = {}) {
   const a = audio();

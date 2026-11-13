@@ -158,7 +158,7 @@ export class IntroScene extends Phaser.Scene {
     // riga "emesso da" con il logo vero del consorzio
     const metaY = top + 52;
     const meta = bodyText(this, x + pad, metaY, "PROTOCOLLO DI PROTEZIONE RESPIRATORIA · EMESSO DA", { size: 18, color: COLORS.steel });
-    const logo = this.add.image(x + pad + meta.width + 8, metaY + 5, "logo_biodom_s").setOrigin(0, 0).setTint(COLORS.ink);
+    const logo = this.add.image(x + pad + meta.width + 8, metaY + 5, "logo_biodom_s").setOrigin(0, 0).setTint(COLORS.steel);
     items.push(header, docNo, meta, logo);
     const paragraphs = [
       "A causa dell'elevata contaminazione tossica nell'atmosfera, l'aria esterna non è respirabile e rappresenta un grave pericolo per la salute.",

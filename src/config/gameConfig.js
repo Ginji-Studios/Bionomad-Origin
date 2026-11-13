@@ -9,6 +9,7 @@ import { TravelScene } from "../scenes/TravelScene.js";
 import { EndScene } from "../scenes/EndScene.js";
 import { TutorialScene } from "../scenes/TutorialScene.js";
 import { CreditsScene } from "../scenes/CreditsScene.js";
+import { PauseScene } from "../scenes/PauseScene.js";
 
 export const gameConfig = {
   type: Phaser.AUTO,
@@ -26,5 +27,5 @@ export const gameConfig = {
   input: {
     activePointers: 3
   },
-  scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, IntroScene, TravelScene, EventScene, EndScene, TutorialScene, CreditsScene]
+  scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, IntroScene, TravelScene, EventScene, EndScene, TutorialScene, CreditsScene, PauseScene]
 };
