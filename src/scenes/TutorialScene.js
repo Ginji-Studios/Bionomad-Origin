@@ -45,9 +45,9 @@ export class TutorialScene extends Phaser.Scene {
     this.createSidePanel(width - 16 - 96, "right");
 
     // dopo la scelta dell'origine si parte da qui
-    const start = textChip(this, width - 14, height - 30, "INVIO  inizia la giornata", { size: 20, originX: 1 });
+    const start = textChip(this, width - 14, height - 15, "INVIO  inizia la giornata", { size: 20, originX: 1 });
     this.tweens.add({ targets: [start.g, start.label], alpha: 0.5, duration: 600, yoyo: true, repeat: -1 });
-    textChip(this, 14, height - 30, "ESC  menu", { size: 20 });
+    textChip(this, 14, height - 15, "ESC  menu", { size: 20 });
     const play = () => goTo(this, this.registry.get("run") ? "IntroScene" : "MenuScene");
     this.input.keyboard.once("keydown-ENTER", play);
     this.input.keyboard.once("keydown-SPACE", play);

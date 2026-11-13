@@ -422,21 +422,89 @@ export function addCornerHints(scene, leftText, rightText = "ESC  MENU") {
 }
 
 // etichetta su "chip" di carta
-export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COLORS.paper, color = COLORS.ink, depth = 1000 } = {}) {
-  const label = bodyText(scene, 0, 0, text, { size, color }).setDepth(depth + 1).setScrollFactor(0);
-  const w = Math.round(label.width + 22);
-  const h = Math.round(label.height + 4);
+// i tasti dentro le etichette ("ESC  menu", "A / D scegli · INVIO conferma") diventano
+// piccoli tasti disegnati: inchiostro pieno con la lettera chiara, come su una tastiera
+const KEY_TOKEN = /^(ESC|INVIO|SPAZIO|W\/S|[A-Z]|[0-9]|→|←|↑|↓|\/)$/;
+
+// etichetta con i tasti disegnati, senza cornice: ritorna il contenitore e la larghezza
+export function keyLabel(scene, text, { size = 22, color = COLORS.ink, sepColor = COLORS.steel } = {}) {
+  const label = scene.add.container(0, 0);
+  const caps = scene.add.graphics();
+  label.add(caps);
+  const probe = bodyText(scene, 0, 0, "Ag", { size });
+  const lineH = Math.round(probe.height);
+  probe.destroy();
+  let cx = 0;
+  const plain = (str, tint = color) => {
+    if (!str) return;
+    const t = bodyText(scene, cx, 0, str, { size, color: tint });
+    label.add(t);
+    cx += t.width;
+  };
+  const cap = (key) => {
+    const t = bodyText(scene, 0, 0, key, { size: size - 2, color: COLORS.paper });
+    const w = Math.round(t.width + 10);
+    // tasto: ombra sotto, corpo d'inchiostro, riflesso in alto
+    caps.fillStyle(COLORS.steel, 1);
+    caps.fillRect(cx, 3, w, lineH - 4);
+    caps.fillStyle(COLORS.ink, 1);
+    caps.fillRect(cx, 1, w, lineH - 5);
+    caps.fillStyle(COLORS.steel, 1);
+    caps.fillRect(cx + 2, 2, w - 4, 1);
+    t.setPosition(cx + 5, Math.round((lineH - 5 - t.height) / 2) + 1);
+    label.add(t);
+    cx += w + 4;
+  };
+  text.split(" · ").forEach((segment, si) => {
+    if (si > 0) plain("  ·  ", sepColor);
+    const tokens = segment.trim().split(/\s+/);
+    let k = 0;
+    while (k < tokens.length && KEY_TOKEN.test(tokens[k])) k += 1;
+    if (k > 0 && k < tokens.length) {
+      tokens.slice(0, k).forEach((tok) => (tok === "/" ? plain("/ ", sepColor) : cap(tok)));
+      plain(` ${tokens.slice(k).join(" ")}`);
+    } else {
+      plain(segment.trim());
+    }
+  });
+  return { label, width: cx, height: lineH };
+}
+
+// tag = intestazione su fondo d'inchiostro a sinistra (es. QUARTIERE · RESIDENZIALE),
+// dot = pallino di stato colorato prima del valore
+export function textChip(scene, x, y, text, { originX = 0, size = 22, fill = COLORS.paper, color = COLORS.ink, depth = 1000, tag = null, dot = null } = {}) {
+  const { label, width: cx, height: lineH } = keyLabel(scene, text, { size, color });
+  label.setDepth(depth + 1).setScrollFactor(0);
+  const h = lineH + 4;
+  const tagText = tag ? bodyText(scene, 0, 0, tag, { size: size - 2, color: COLORS.paper }).setDepth(depth + 1).setScrollFactor(0) : null;
+  const tagW = tagText ? Math.round(tagText.width + 16) : 0;
+  const dotW = dot !== null ? 14 : 0;
+  const w = Math.round(cx + 24 + tagW + dotW);
   const left = Math.round(x - originX * w);
   const top = Math.round(y - h / 2);
   const g = scene.add.graphics().setDepth(depth).setScrollFactor(0);
-  // barretta d'inchiostro a sinistra e angolino ruggine: stile etichetta BIODOM
+  // ombra a pixel, etichetta carta con il bordo d'inchiostro e la barretta a sinistra
+  g.fillStyle(COLORS.inkDeep, 0.25);
+  g.fillRect(left + 3, top + 3, w, h);
   drawPanel(g, left, top, w, h, { fill, border: COLORS.ink, borderWidth: 2 });
   g.fillStyle(COLORS.ink, 1);
-  g.fillRect(left + 2, top + 2, 4, h - 4);
+  if (tagText) {
+    // intestazione piena con un filetto acciaio di separazione
+    g.fillRect(left + 2, top + 2, tagW, h - 4);
+    g.fillStyle(COLORS.steel, 1);
+    g.fillRect(left + 2 + tagW, top + 2, 2, h - 4);
+    tagText.setPosition(left + 10, top + Math.round((h - tagText.height) / 2));
+  } else {
+    g.fillRect(left + 2, top + 2, 4, h - 4);
+  }
+  if (dot !== null) {
+    g.fillStyle(dot, 1);
+    g.fillRect(left + tagW + 12, top + Math.round(h / 2) - 3, 6, 6);
+  }
   g.fillStyle(COLORS.red, 1);
   g.fillRect(left + w - 6, top + 2, 4, 4);
-  label.setPosition(left + 12, top + 2);
-  return { g, label };
+  label.setPosition(left + 12 + tagW + dotW, top + 2);
+  return { g, label, w, h, tag: tagText };
 }
 
 // transizioni morbide tra scene (dissolvenza sul blu inchiostro)

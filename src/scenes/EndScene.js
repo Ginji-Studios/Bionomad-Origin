@@ -6,7 +6,7 @@ import { animateWalker, faint, Player, turnTo } from "../entities/Player.js";
 import { getRun, startRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse, buildStreet } from "../world/locations.js";
-import { brandMarks, addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { brandMarks, ditherRect, addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, dropShadow, fadeIn, goTo, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 // esito della run
 export class EndScene extends Phaser.Scene {
@@ -329,6 +329,13 @@ export class EndScene extends Phaser.Scene {
       const ok = result === "ok";
       const rowColor = ok ? COLORS.ink : result === "fail" ? COLORS.red : COLORS.stone;
       const row = this.add.container(-30, 0).setAlpha(0);
+      // linea tratteggiata che unisce le tappe, come una timeline
+      if (i > 0) {
+        const link = this.add.graphics();
+        link.fillStyle(COLORS.panelLight, 1);
+        for (let ly = rowY - 10; ly < rowY - 1; ly += 4) link.fillRect(x + 37, ly, 2, 2);
+        box.add(link);
+      }
       const cell = drawPanel(this.add.graphics(), x + 24, rowY, 28, 28, { fill: COLORS.paper, border: rowColor });
       const label = bodyText(this, x + 64, rowY + 2, `${EVENTS[id].time}  ${EVENTS[id].title}`, { size: 24, color: rowColor, fit: w - 340 });
       row.add([cell, label]);
@@ -348,12 +355,25 @@ export class EndScene extends Phaser.Scene {
       await this.wait(220);
     }
 
-    // barra O2 finale con percentuale che conta
+    // colonna destra: scheda con ossigeno, esito e cittadino
+    const cx0 = x + w - 282;
+    const card = this.add.graphics();
+    card.fillStyle(0xe6e9e6, 1);
+    card.fillRect(cx0, y + 164, 258, 206);
+    card.fillStyle(COLORS.panelLight, 1);
+    card.fillRect(cx0, y + 164, 258, 2);
+    card.fillRect(cx0, y + 368, 258, 2);
+    card.fillRect(cx0, y + 164, 2, 206);
+    card.fillRect(cx0 + 256, y + 164, 2, 206);
+    box.add(card);
+
+    // barra O2 finale a segmenti, come quella del gioco, con percentuale che conta
     const o2 = { value: 0 };
     const bar = this.add.graphics();
-    const percent = pixelText(this, x + w - 30, y + 194, "0%", { size: 8, color: COLORS.ink, origin: [1, 0] });
-    box.add([pixelText(this, x + w - 260, y + 194, "OSSIGENO FINALE", { size: 8, color: COLORS.steel }), percent, bar]);
+    const percent = pixelText(this, cx0 + 244, y + 182, "0%", { size: 8, color: COLORS.ink, origin: [1, 0] });
+    box.add([pixelText(this, cx0 + 14, y + 182, "OSSIGENO FINALE", { size: 8, color: COLORS.steel }), percent, bar]);
     const finalValue = win ? 1 : 0;
+    const SEGS = 20;
     await new Promise((resolve) =>
       this.tweens.add({
         targets: o2,
@@ -362,9 +382,12 @@ export class EndScene extends Phaser.Scene {
         ease: "Cubic.easeOut",
         onUpdate: () => {
           bar.clear();
-          drawPanel(bar, x + w - 260, y + 210, 230, 22, { fill: COLORS.paper, border: COLORS.ink });
-          bar.fillStyle(win ? COLORS.steel : COLORS.red, 1);
-          bar.fillRect(x + w - 256, y + 214, Math.round(222 * o2.value), 14);
+          drawPanel(bar, cx0 + 14, y + 198, 230, 22, { fill: COLORS.paper, border: COLORS.ink });
+          const lit = Math.max(win ? 0 : 1, Math.round(SEGS * o2.value));
+          for (let k = 0; k < SEGS; k += 1) {
+            bar.fillStyle(k < lit ? (win ? COLORS.steel : COLORS.red) : COLORS.panelLight, 1);
+            bar.fillRect(cx0 + 18 + k * 11, y + 202, 9, 14);
+          }
           percent.setText(`${Math.round(o2.value * 100 * (finalValue || 1))}%`);
         },
         onComplete: resolve
@@ -372,21 +395,41 @@ export class EndScene extends Phaser.Scene {
     );
     if (!win) percent.setText("0%");
 
-    // negligenze commesse durante la run
+    // esito: etichetta piena (verde conforme, ruggine non conforme o con scostamenti)
     const careless = this.run?.negligence ?? 0;
     // il flusso interrotto (game over) è sempre uno scostamento: l'operatore non è conforme
-    const status = !win ? "OPERATORE NON CONFORME" : careless ? `SCOSTAMENTI DI CONFORMITÀ: ${careless}` : "OPERATORE CONFORME";
-    const neglect = bodyText(this, x + w - 260, y + 242, status, {
-      size: 22,
-      color: !win || careless ? COLORS.red : 0x5c7a6b,
-      fit: 230
-    });
-    neglect.setAlpha(0);
+    const status = !win ? "OPERATORE NON CONFORME" : careless ? `SCOSTAMENTI: ${careless}` : "OPERATORE CONFORME";
+    const pillColor = !win || careless ? COLORS.red : 0x5c7a6b;
+    const pillText = bodyText(this, 0, 0, status, { size: 20, color: COLORS.paper, fit: 200 });
+    const pill = this.add.graphics();
+    const pw = Math.round(pillText.width + 34);
+    pill.fillStyle(pillColor, 1);
+    pill.fillRect(cx0 + 14, y + 230, pw, 24);
+    pill.fillStyle(COLORS.paper, 1);
+    // spunta o croce a pixel prima del testo
+    if (!win || careless) {
+      for (let k = 0; k < 4; k += 1) {
+        pill.fillRect(cx0 + 22 + k * 2, y + 237 + k * 2, 2, 2);
+        pill.fillRect(cx0 + 28 - k * 2, y + 237 + k * 2, 2, 2);
+      }
+    } else {
+      [[0, 4], [2, 6], [4, 4], [6, 2], [8, 0]].forEach(([dx, dy]) => pill.fillRect(cx0 + 21 + dx, y + 237 + dy, 2, 2));
+    }
+    pillText.setPosition(cx0 + 38, y + 230 + Math.round((24 - pillText.height) / 2));
+    const neglect = this.add.container(0, 0).setAlpha(0);
+    neglect.add([pill, pillText]);
     box.add(neglect);
     this.tweens.add({ targets: neglect, alpha: 1, duration: 260 });
 
+    // pedana a retino sotto il cittadino
+    const ped = this.add.graphics();
+    ped.fillStyle(COLORS.panelLight, 1);
+    ped.fillRect(cx0 + 80, y + 362, 100, 3);
+    ditherRect(ped, cx0 + 80, y + 365, 100, 3, COLORS.panelLight, 6, 2);
+    box.add(ped);
+
     // il cittadino saluta (o resta a terra)
-    const hero = this.add.image(x + w - 145, y + 370, characterTexture(this.origin.id, !win)).setOrigin(0.5, 1).setScale(4).setAlpha(0);
+    const hero = this.add.image(cx0 + 130, y + 362, characterTexture(this.origin.id, !win)).setOrigin(0.5, 1).setScale(4).setAlpha(0);
     box.add(hero);
     this.tweens.add({ targets: hero, alpha: 1, duration: 300 });
     if (win) {
@@ -399,7 +442,7 @@ export class EndScene extends Phaser.Scene {
     await this.wait(400);
 
     const a = textChip(this, x, height - 36, "INVIO  nuova run", { size: 22, depth: 2001 });
-    const b = textChip(this, x + 190, height - 36, "ESC  menu", { size: 22, depth: 2001 });
+    const b = textChip(this, x + a.w + 16, height - 36, "ESC  menu", { size: 22, depth: 2001 });
     [a.g, a.label, b.g, b.label].forEach((o) => {
       o.setAlpha(0);
       this.tweens.add({ targets: o, alpha: 1, duration: 300 });

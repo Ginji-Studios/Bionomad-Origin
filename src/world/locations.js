@@ -1292,30 +1292,64 @@ export function buildRunHome(scene, originId, { evening = true } = {}) {
 }
 
 // cartello stradale a freccia (stile segnaletica)
+// pittogrammi dei cartelli (pixel 2x2)
+const SIGN_ICONS = {
+  casa: ["....#....", "...###...", "..#####..", ".#######.", "#########", ".##...##.", ".##.#.##.", ".##.#.##.", ".#######."],
+  ufficio: [".#######.", ".#.#.#.#.", ".#######.", ".#.#.#.#.", ".#######.", ".#.#.#.#.", ".#######.", ".###.###.", ".###.###."],
+  truck: [".........", "######...", "######.#.", "######..#", "#########", "#########", "#########", ".##...##.", ".........", ],
+  bus: [".#######.", "#########", "#.#.#.#.#", "#.#.#.#.#", "#########", "#########", "#########", ".##...##.", "........."]
+};
+function signIcon(label) {
+  const l = label.toUpperCase();
+  if (l.includes("CASA")) return SIGN_ICONS.casa;
+  if (l.includes("UFFICIO")) return SIGN_ICONS.ufficio;
+  if (l.includes("TRUCK")) return SIGN_ICONS.truck;
+  if (l.includes("BUS")) return SIGN_ICONS.bus;
+  return null;
+}
+
+// cartello stradale della città: targa blu con pittogramma e nome, fascia acciaio con la distanza,
+// punta a freccia, rivetti e fascette sul palo
 export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390, top = 236, ground = 392 } = {}) {
+  const icon = signIcon(label);
   const text = scene.add.text(0, 0, label, { fontFamily: '"VT323", monospace', fontSize: "30px", color: "#f1f0ed", letterSpacing: 2 }).setDepth(depth + 1);
-  const subText = sub ? scene.add.text(0, 0, sub, { fontFamily: '"VT323", monospace', fontSize: "18px", color: "#9fb4c2" }).setDepth(depth + 1) : null;
-  const w = Math.max(text.width, subText?.width ?? 0) + 36;
-  const h = sub ? 58 : 44;
+  const subText = sub ? scene.add.text(0, 0, sub.toUpperCase(), { fontFamily: '"VT323", monospace', fontSize: "18px", color: "#f1f0ed", letterSpacing: 1 }).setDepth(depth + 1) : null;
+  const iconW = icon ? 18 + 10 : 0;
+  const w = Math.max(text.width + iconW, subText?.width ?? 0) + 32;
+  const mainH = 40;
+  const subH = sub ? 22 : 0;
+  const h = mainH + subH;
   const tip = dir ? 22 : 0;
   const left = Math.round(x - w / 2 - (dir === "left" ? tip / 2 : 0) + (dir === "right" ? -tip / 2 : 0));
   const g = scene.add.graphics().setDepth(depth);
+  const bodyX = dir === "left" ? left + tip : left;
 
-  // palo e base
+  // palo con base, e fascette che tengono la targa
   g.fillStyle(0x1c2839, 1);
   g.fillRect(x - 3, top + h, 6, ground - top - h);
   g.fillRect(x - 12, ground - 4, 24, 4);
   ditherRect(g, x - 16, ground, 32, 4, 0x1c2839, 6);
+  g.fillStyle(0x5e7f94, 1);
+  g.fillRect(x - 5, top + h + 6, 10, 3);
+  g.fillRect(x - 5, top + h + 14, 10, 3);
 
-  // targa con punta a freccia
-  g.fillStyle(0x163c4d, 1);
-  const bodyX = dir === "left" ? left + tip : left;
-  g.fillRect(bodyX, top, w, h);
+  // ombra della targa
+  g.fillStyle(0x1c2839, 0.35);
+  g.fillRect(bodyX + 4, top + 4, w, h);
+
+  const plate = (color, y0, hh) => {
+    g.fillStyle(color, 1);
+    g.fillRect(bodyX, y0, w, hh);
+  };
+  plate(0x163c4d, top, mainH);
+  if (sub) plate(0x5e7f94, top + mainH, subH);
+  // punta a freccia (stessa altezza della targa intera)
   if (dir) {
     for (let i = 0; i < h / 2; i += 2) {
       const len = Math.round(tip * (1 - i / (h / 2)));
       const ty1 = top + h / 2 - i - 2;
       const ty2 = top + h / 2 + i;
+      g.fillStyle(0x163c4d, 1);
       if (dir === "right") {
         g.fillRect(bodyX + w, ty1, len, 2);
         g.fillRect(bodyX + w, ty2, len, 2);
@@ -1325,12 +1359,22 @@ export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390,
       }
     }
   }
-  // filetto interno chiaro
+  // filetto chiaro interno e rivetti agli angoli
+  // il filetto chiaro incornicia solo il nome; la fascia della distanza resta piena
   g.lineStyle(2, 0xf1f0ed, 1);
-  g.strokeRect(bodyX + 4, top + 4, w - 8, h - 8);
+  g.strokeRect(bodyX + 4, top + 4, w - 8, mainH - 8);
+  g.fillStyle(0x9fb4c2, 1);
+  [[bodyX + 8, top + 8], [bodyX + w - 10, top + 8], [bodyX + 8, top + mainH - 10], [bodyX + w - 10, top + mainH - 10]].forEach(([rx, ry]) => g.fillRect(rx, ry, 2, 2));
 
-  text.setPosition(Math.round(bodyX + w / 2 - text.width / 2), top + (sub ? 6 : Math.round(h / 2 - text.height / 2)));
-  subText?.setPosition(Math.round(bodyX + w / 2 - subText.width / 2), top + 34);
+  // pittogramma + nome
+  const rowW = iconW + text.width;
+  const startX = Math.round(bodyX + w / 2 - rowW / 2);
+  if (icon) {
+    g.fillStyle(0xf1f0ed, 1);
+    icon.forEach((row, ry) => [...row].forEach((c, rx) => c === "#" && g.fillRect(startX + rx * 2, top + 11 + ry * 2, 2, 2)));
+  }
+  text.setPosition(startX + iconW, top + Math.round(mainH / 2 - text.height / 2));
+  subText?.setPosition(Math.round(bodyX + w / 2 - subText.width / 2), top + mainH + Math.round(subH / 2 - subText.height / 2));
   return g;
 }
 

@@ -5,7 +5,7 @@ import { getOrigin } from "../config/origins.js";
 import { getRun } from "../systems/RunManager.js";
 import { characterTexture } from "../ui/pixelSprites.js";
 import { buildHouse } from "../world/locations.js";
-import { addHud, addObjectiveBox, bodyText, burst, COLORS, drawPanel, fadeIn, goTo, textChip, titleCard } from "../ui/theme.js";
+import { addHud, addObjectiveBox, bodyText, brandMarks, burst, COLORS, drawPanel, keyLabel, fadeIn, goTo, textChip, titleCard } from "../ui/theme.js";
 
 // cutscene di inizio run
 export class IntroScene extends Phaser.Scene {
@@ -147,30 +147,69 @@ export class IntroScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const layer = this.add.container(0, 0).setDepth(2000).setAlpha(0);
     const shade = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.88);
-    const w = 660;
+    const w = 680;
     const x = (width - w) / 2;
-    const top = 92;
-    const lines = [
+    const top = 70;
+    const pad = 24;
+    const items = [];
+    // intestazione: triangolo d'avviso, titolo, numero del documento
+    const header = bodyText(this, x + 46, top + 9, "COMUNICATO UFFICIALE", { size: 22, color: COLORS.paper });
+    const docNo = bodyText(this, x + w - 16, top + 11, "PPR · 01", { size: 18, color: COLORS.steelLight, origin: [1, 0] });
+    // riga "emesso da" con il logo vero del consorzio
+    const metaY = top + 52;
+    const meta = bodyText(this, x + pad, metaY, "PROTOCOLLO DI PROTEZIONE RESPIRATORIA · EMESSO DA", { size: 18, color: COLORS.steel });
+    const logo = this.add.image(x + pad + meta.width + 8, metaY + 5, "logo_biodom_s").setOrigin(0, 0).setTint(COLORS.ink);
+    items.push(header, docNo, meta, logo);
+    const paragraphs = [
       "A causa dell'elevata contaminazione tossica nell'atmosfera, l'aria esterna non è respirabile e rappresenta un grave pericolo per la salute.",
-      "L'ONU ha attivato il Protocollo di Protezione Respiratoria, distribuendo su scala nazionale il presidio BIONOMAD via consorzio biodom+.",
-      "La stabilità della biomassa è affidata al titolare del presidio: ogni interruzione del flusso per mancata manutenzione è registrata come scostamento di conformità dell'operatore."
+      "L'ONU ha attivato il Protocollo di Protezione Respiratoria, distribuendo su scala nazionale il presidio BIONOMAD via consorzio biodom+."
     ];
-    const header = bodyText(this, x + 18, top + 10, "COMUNICATO · PROTOCOLLO DI PROTEZIONE RESPIRATORIA", { size: 22, color: COLORS.paper, fit: w - 36 });
-    let y = top + 58;
-    const body = lines.map((line, i) => {
-      const t = bodyText(this, x + 22, y, line, { size: 22, color: i === 2 ? COLORS.red : COLORS.ink, wrap: w - 44 });
-      y += t.height + 12;
-      return t;
+    let y = metaY + 34;
+    paragraphs.forEach((line) => {
+      const t = bodyText(this, x + pad, y, line, { size: 22, color: COLORS.ink, wrap: w - pad * 2 });
+      items.push(t);
+      y += t.height + 10;
     });
-    const hint = bodyText(this, x + w - 22, y + 2, "SPAZIO  continua", { size: 20, color: COLORS.steel, origin: [1, 0] });
-    y += hint.height + 10;
-    const h = y - top + 6;
-    const g = drawPanel(this.add.graphics(), x, top, w, h, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
+    // l'obbligo dell'operatore: riquadro evidenziato con la barra ruggine
+    const notice = bodyText(this, x + pad + 18, y + 10, "La stabilità della biomassa è affidata al titolare del presidio: ogni interruzione del flusso per mancata manutenzione è registrata come scostamento di conformità dell'operatore.", {
+      size: 22,
+      color: COLORS.red,
+      wrap: w - pad * 2 - 30
+    });
+    const noticeY = y;
+    const noticeH = notice.height + 20;
+    y += noticeH + 16;
+    items.push(notice);
+    // piè di pagina: tasto per continuare
+    const hint = keyLabel(this, "SPAZIO  continua", { size: 20 });
+    const h = y - top + hint.height + 18;
+    hint.label.setPosition(x + w - pad - hint.width, top + h - hint.height - 12);
+    items.push(hint.label);
+
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.3);
+    g.fillRect(x + 6, top + 6, w, h);
+    drawPanel(g, x, top, w, h, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(x, top, w, 42);
+    // triangolo d'avviso a pixel
     g.fillStyle(COLORS.red, 1);
-    g.fillRect(x + w - 26, top + 15, 10, 10);
-    layer.add([shade, g, header, ...body, hint]);
+    for (let r = 0; r < 9; r += 1) g.fillRect(x + 26 - r, top + 12 + r * 2, r * 2 + 2, 2);
+    g.fillStyle(COLORS.paper, 1);
+    g.fillRect(x + 26, top + 17, 2, 6);
+    g.fillRect(x + 26, top + 25, 2, 2);
+    // filetto sotto la riga "emesso da"
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(x + pad, metaY + 24, w - pad * 2, 2);
+    // riquadro dell'obbligo
+    g.fillStyle(0xf3e3dc, 1);
+    g.fillRect(x + pad, noticeY, w - pad * 2, noticeH);
+    g.fillStyle(COLORS.red, 1);
+    g.fillRect(x + pad, noticeY, 4, noticeH);
+    // filetto sopra il piè di pagina
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(x + pad, top + h - hint.height - 22, w - pad * 2, 2);
+    layer.add([shade, brandMarks(this, x, top, w, h, { color: COLORS.paper, alpha: 0.6 }), g, ...items]);
     this.tweens.add({ targets: layer, alpha: 1, duration: 400 });
     // tempo per leggere, poi sparisce
     this.protocolOpen = true;

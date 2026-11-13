@@ -85,7 +85,7 @@ export class TravelScene extends Phaser.Scene {
 
     this.hud = addHud(this, { oxygen: this.run.oxygen, location: this.origin.city, flag: this.origin.flag });
     addObjectiveBox(this, `RAGGIUNGI: ${to}`);
-    textChip(this, 14, height - 30, `QUARTIERE ${this.zone.toUpperCase()}`, { size: 18 });
+    textChip(this, 14, height - 30, this.zone.toUpperCase(), { size: 18, tag: "QUARTIERE" });
     textChip(this, width - 14, height - 30, "D / →  cammina", { size: 20, originX: 1 });
     this.createRouteBar(from, to);
     setAmbient(evening ? "night" : "city");

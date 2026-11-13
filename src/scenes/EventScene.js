@@ -12,7 +12,7 @@ import { buildBus, buildBusStop, buildFoodTruck, buildHome, buildOffice, buildRu
 import { EMERGENCY_ACTIONS } from "../config/events.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { PlantPanel } from "../ui/PlantPanel.js";
-import { brandMarks, burst, addHud, addObjectiveBox, bodyText, o2Label, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
+import { brandMarks, burst, addHud, addObjectiveBox, bodyText, o2Label, COLORS, drawPanel, dropShadow, fadeIn, goTo, hex, keyLabel, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
 
 const BUILDERS = { office: buildOffice, foodtruck: buildFoodTruck, busstop: buildBusStop, bus: buildBus, home: buildHome, street: buildRunHome };
 const MASKED = ["foodtruck", "busstop", "bus", "street"];
@@ -71,8 +71,8 @@ export class EventScene extends Phaser.Scene {
 
     this.hud = addHud(this, { oxygen: this.run.oxygen, location: this.origin.city, flag: this.origin.flag });
     this.objective = addObjectiveBox(this, this.event.title);
-    textChip(this, 14, 72, `EVENTO ${this.run.index + 1}/${this.run.events.length} · ${this.event.title}`, { size: 20 });
-    textChip(this, width - 14, 72, this.event.time, { size: 20, originX: 1 });
+    textChip(this, 14, 72, this.event.title, { size: 20, tag: `EVENTO ${this.run.index + 1}/${this.run.events.length}` });
+    textChip(this, width - 14, 72, this.event.time, { size: 20, originX: 1, tag: "ORE" });
 
     this.marker = targetMarker(this);
     this.holdBar = this.add.graphics().setDepth(960);
@@ -98,7 +98,7 @@ export class EventScene extends Phaser.Scene {
       })
     );
     ["ZERO", "NUMPAD_ZERO", "BACKSPACE"].forEach((key) => keys.on(`keydown-${key}`, () => plantStep("vials") && PlantSensors.removeVial()));
-    textChip(this, 14, height - 30, PlantSensors.state.connected ? "PIANTA: COLLEGATA" : "PIANTA: SIMULATA", { size: 18 });
+    textChip(this, 14, height - 30, PlantSensors.state.connected ? "COLLEGATA" : "SIMULATA", { size: 18, tag: "PIANTA", dot: PlantSensors.state.connected ? 0x7fae86 : COLORS.steel });
 
     this.showIntroCard();
   }
@@ -187,37 +187,77 @@ export class EventScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const card = this.add.container(0, 0).setDepth(2000);
     const dim = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.55);
-    const w = 600;
-    const pad = 20;
+    const w = 620;
+    const pad = 22;
+    const x = Math.round(width / 2 - w / 2);
+    const headH = 34;
     // prima si creano i testi, poi la scheda prende l'altezza che serve: niente sovrapposizioni
     const title = pixelText(this, 0, 0, this.event.title, { size: 16, fit: w - pad * 2 });
     const desc = bodyText(this, 0, 0, this.event.description, { size: 22, color: COLORS.ink, wrap: w - pad * 2, lineSpacing: -2 });
-    const list = bodyText(this, 0, 0, this.event.steps.map((st, i) => `${i + 1}. ${st.text}`).join("\n"), { size: 20, color: COLORS.steel, lineSpacing: -2, wrap: w - pad * 2 });
-    const go = pixelText(this, 0, 0, "SPAZIO PER INIZIARE", { size: 8, color: COLORS.red, origin: [0.5, 0] });
-    const headH = 30;
-    const h = Math.min(height - 70, headH + 14 + 26 + 10 + desc.height + 12 + list.height + 18 + go.height + 16);
-    const x = Math.round(width / 2 - w / 2);
+    const taskLabel = bodyText(this, 0, 0, "TASK DA COMPLETARE", { size: 18, color: COLORS.steel });
+    // ogni task è una riga con la sua etichetta: numero, + cura in più, ! rimedio a una negligenza
+    const rows = this.event.steps.map((st, i) => {
+      const raw = st.text;
+      const kind = raw.startsWith("+ ") ? "care" : raw.startsWith("! ") ? "fix" : "main";
+      const clean = kind === "main" ? raw : raw.slice(2);
+      const text = bodyText(this, 0, 0, clean, { size: 22, color: COLORS.ink, wrap: w - pad * 2 - 110 });
+      const tagText = kind === "care" ? "CURA +" : kind === "fix" ? "RIMEDIO" : null;
+      const tag = tagText ? bodyText(this, 0, 0, tagText, { size: 16, color: COLORS.paper }) : null;
+      return { i, kind, text, tag };
+    });
+    const go = keyLabel(this, "SPAZIO  inizia la task", { size: 20 });
+    const rowsH = rows.reduce((sum, r) => sum + Math.max(26, r.text.height) + 8, 0);
+    const h = Math.min(height - 70, headH + 18 + 26 + 10 + desc.height + 18 + 24 + rowsH + 12 + go.height + 22);
     const y = Math.round(Math.max(56, height / 2 - h / 2));
     const g = this.add.graphics();
-    dropShadow(g, x, y, w, h, 8);
-    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
+    g.fillStyle(0x000000, 0.3);
+    g.fillRect(x + 6, y + 6, w, h);
+    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
     g.fillStyle(COLORS.ink, 1);
     g.fillRect(x, y, w, headH);
-    const head = pixelText(this, x + 14, y + 11, `EVENTO ${this.run.index + 1}/${this.run.events.length}`, { size: 8, color: COLORS.paper });
-    const time = pixelText(this, x + w - 14, y + 11, this.event.time, { size: 8, color: COLORS.steelLight, origin: [1, 0] });
-    let cy = y + headH + 14;
+    // intestazione: pallini dell'avanzamento della giornata, evento e ora
+    const head = bodyText(this, x + 16, y + 6, `EVENTO ${this.run.index + 1} DI ${this.run.events.length}`, { size: 20, color: COLORS.paper });
+    for (let k = 0; k < this.run.events.length; k += 1) {
+      g.fillStyle(k < this.run.index ? COLORS.steelLight : k === this.run.index ? COLORS.red : COLORS.steel, 1);
+      g.fillRect(x + 28 + head.width + k * 14, y + 13, 8, 8);
+    }
+    const time = bodyText(this, x + w - 16, y + 6, this.event.time, { size: 20, color: COLORS.steelLight, origin: [1, 0] });
+    let cy = y + headH + 18;
     title.setPosition(x + pad, cy);
     cy += 26 + 10;
     desc.setPosition(x + pad, cy);
-    cy += desc.height + 12;
-    // filetto tra descrizione e lista delle task
+    cy += desc.height + 18;
     g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x + pad, cy - 7, w - pad * 2, 2);
-    list.setPosition(x + pad, cy);
-    cy += list.height + 18;
-    go.setPosition(width / 2, Math.min(cy, y + h - go.height - 12));
-    this.tweens.add({ targets: go, alpha: 0.3, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    card.add([dim, brandMarks(this, x, y, w, h, { color: COLORS.paper, alpha: 0.8 }), g, head, time, title, desc, list, go]);
+    g.fillRect(x + pad, cy - 9, w - pad * 2, 2);
+    taskLabel.setPosition(x + pad, cy);
+    cy += 24;
+    const rowItems = [];
+    rows.forEach((r) => {
+      const rh = Math.max(26, r.text.height);
+      // quadratino con il numero (o il simbolo) della task
+      const colorBox = r.kind === "care" ? 0x5c7a6b : r.kind === "fix" ? COLORS.red : COLORS.ink;
+      g.fillStyle(colorBox, 1);
+      g.fillRect(x + pad, cy + 1, 24, 24);
+      const num = bodyText(this, x + pad + 12, cy + 1, r.kind === "care" ? "+" : r.kind === "fix" ? "!" : `${r.i + 1}`, { size: 20, color: COLORS.paper, origin: [0.5, 0] });
+      rowItems.push(num);
+      r.text.setPosition(x + pad + 36, cy);
+      rowItems.push(r.text);
+      if (r.tag) {
+        const tw = Math.round(r.tag.width + 12);
+        const tx = x + w - pad - tw;
+        g.fillStyle(colorBox, 1);
+        g.fillRect(tx, cy + 4, tw, 18);
+        r.tag.setPosition(tx + 6, cy + 4 + Math.round((18 - r.tag.height) / 2));
+        rowItems.push(r.tag);
+      }
+      cy += rh + 8;
+    });
+    // piè di pagina: tasto per iniziare, lampeggia piano
+    g.fillStyle(COLORS.panelLight, 1);
+    g.fillRect(x + pad, y + h - go.height - 22, w - pad * 2, 2);
+    go.label.setPosition(x + w - pad - go.width, y + h - go.height - 12);
+    this.tweens.add({ targets: go.label, alpha: 0.45, duration: 600, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    card.add([dim, brandMarks(this, x, y, w, h, { color: COLORS.paper, alpha: 0.8 }), g, head, time, title, desc, taskLabel, ...rowItems, go.label]);
     card.setAlpha(0).y = 16;
     this.tweens.add({ targets: card, alpha: 1, y: 0, duration: 300, ease: "Cubic.easeOut" });
     this.introCard = card;

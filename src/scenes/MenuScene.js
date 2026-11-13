@@ -291,7 +291,26 @@ export class MenuScene extends Phaser.Scene {
     tag.add([tagBg, o2Label(this, 3, -1, { px: 22, color: COLORS.ink, suffix: "+" }), brandMarks(this, -34, -16, 68, 32, { color: COLORS.steel, gap: 7, lines: false })]);
     this.tweens.add({ targets: tag, y: 156, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
 
-    pixelText(this, 18, height - 31, "W/S  SCEGLI    INVIO  CONFERMA    M  AUDIO", { size: 8, color: COLORS.steelLight });
+    // comandi: tasti disegnati (acciaio, lettera chiara) seguiti dall'azione
+    {
+      const keys = this.add.graphics();
+      let kx = 18;
+      [["W/S", "SCEGLI"], ["INVIO", "CONFERMA"], ["M", "AUDIO"]].forEach(([key, action]) => {
+        const k = bodyText(this, 0, 0, key, { size: 18, color: COLORS.paper });
+        const kw = Math.round(k.width + 10);
+        const ky = height - 27 - 10;
+        keys.fillStyle(COLORS.inkDeep, 1);
+        keys.fillRect(kx, ky + 2, kw, 20);
+        keys.fillStyle(COLORS.steel, 1);
+        keys.fillRect(kx, ky, kw, 19);
+        keys.fillStyle(COLORS.steelLight, 1);
+        keys.fillRect(kx + 2, ky + 1, kw - 4, 1);
+        k.setPosition(kx + 5, ky + Math.round((19 - k.height) / 2));
+        const a = bodyText(this, kx + kw + 8, 0, action, { size: 20, color: COLORS.steelLight });
+        a.setY(height - 27 - Math.round(a.height / 2));
+        kx += kw + 8 + a.width + 22;
+      });
+    }
     // logotipo vero di biodom+ in pixel, con la dicitura
     // logo e dicitura centrati sulla stessa riga della barra
     const rowY = height - 27;
