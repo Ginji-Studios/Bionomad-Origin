@@ -2,7 +2,7 @@
 
 const SKIN = { s: "#f0dccb", S: "#d9bfa8", E: "#1c2839", g: "#3f5a6c", l: "#cfe0ea" };
 
-function girl({ top = "long", glasses = false, earrings = false, vest = false, skirt = false, streaks = false, tuft = false, balayage = false, stripes = false, overalls = false }) {
+function girl({ top = "long", glasses = false, earrings = false, vest = false, skirt = false, streaks = false, tuft = false, balayage = false, stripes = false, overalls = false, beard = false }) {
   const rows = [
     "....hhhhhh....",
     "..hhhhhhhhhh..",
@@ -36,6 +36,24 @@ function girl({ top = "long", glasses = false, earrings = false, vest = false, s
     rows[10] = "....ssssss....";
     rows[11] = "...rrrrrrrr...";
     rows[12] = "..rrrrrrrrrr..";
+  }
+  if (top === "manbun") {
+    // tuppo raccolto in cima alla testa, con l'elastico, e capelli corti ai lati
+    rows[0] = ".....hhhh.....";
+    rows[1] = "......tt......";
+    rows[2] = "..hhhhhhhhhh..";
+    rows[8] = "..ssssssssss..";
+    rows[9] = "...ssSSSSss...";
+    rows[10] = "....ssssss....";
+    rows[11] = "...rrrrrrrr...";
+    rows[12] = "..rrrrrrrrrr..";
+  }
+  if (beard) {
+    // barba corta che parte dalle basette e chiude sul mento, bocca visibile
+    rows[7] = rows[7].replace(/^\.h/, ".d").replace(/h\.$/, "d.");
+    rows[8] = "..dssssssssd..";
+    rows[9] = "..dddSSSSddd..";
+    rows[10] = "...dddddddd...";
   }
   if (top === "cap") {
     rows[0] = "....cccccc....";
@@ -108,13 +126,13 @@ function girl({ top = "long", glasses = false, earrings = false, vest = false, s
 
 export const TEAM = [
   { key: "team_1", rows: girl({ earrings: true }), palette: { h: "#e8d29a", r: "#7a2e3a", R: "#5a1f2a", b: "#1c2028", k: "#0f1216", y: "#e8c66a" } },
-  { key: "team_2", rows: girl({ top: "bun" }), palette: { h: "#6e4a32", r: "#f1f0ed", R: "#cdd2ce", b: "#1c2028", k: "#dadfda" } },
+  { key: "team_2", rows: girl({ top: "manbun", beard: true }), palette: { h: "#6e4a32", t: "#2a1f18", d: "#5a3a26", r: "#f1f0ed", R: "#cdd2ce", b: "#1c2028", k: "#dadfda" } },
   { key: "team_3", rows: girl({ top: "cap", vest: true, tuft: true }), palette: { h: "#6e4a32", c: "#1c2028", x: "#d0453a", r: "#8a2e2e", R: "#6a2222", w: "#f1f0ed", b: "#1c2028", k: "#f1f0ed" } },
   { key: "team_4", rows: girl({ skirt: true }), palette: { h: "#7a3a2e", r: "#1c2028", R: "#0f1216", p: "#b4553f", P: "#6e2a26", b: "#1c2028", k: "#0f1216" } },
   {
     key: "team_5",
     rows: girl({ balayage: true, stripes: true }),
-    palette: { h: "#e8d29a", H: "#c9a865", m: "#e58cb6", f: "#d94f9a", F: "#a8306c", r: "#163c4d", R: "#0f2a37", w: "#f1f0ed", b: "#3a3633", k: "#b4553f" }
+    palette: { h: "#d2b676", H: "#b0904f", m: "#e58cb6", f: "#d94f9a", F: "#a8306c", r: "#163c4d", R: "#0f2a37", w: "#f1f0ed", b: "#3a3633", k: "#b4553f" }
   },
   { key: "team_6", rows: girl({ overalls: true }), palette: { h: "#a8805a", r: "#e8c66a", R: "#c9a23d", b: "#5e7f94", B: "#3f5a6c", y: "#dadfda", k: "#f1f0ed" } }
 ];
