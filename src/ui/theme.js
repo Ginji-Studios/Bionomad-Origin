@@ -30,7 +30,6 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  pixel: '"Press Start 2P", monospace', // titoli, HUD (usare 8 / 16 / 24 / 32 / 48 px)
   body: '"VT323", monospace' // testi lunghi e descrizioni
 };
 

@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "name": "Arduino UNO (AVR)",
+      "includePath": [
+        "${workspaceFolder}/arduino/o2rigin_plant",
+        "${workspaceFolder}/arduino/o2rigin_plant/src/**",
+        "${workspaceFolder}/arduino/intellisense/gcc",
+        "${workspaceFolder}/arduino/intellisense/core/arduino",
+        "${workspaceFolder}/arduino/intellisense/core/variants-standard",
+        "${workspaceFolder}/arduino/intellisense/core/Wire",
+        "${workspaceFolder}/arduino/intellisense/core/SPI",
+        "${workspaceFolder}/arduino/intellisense/avr-libc"
+      ],
+      "defines": [
+        "ARDUINO=10819",
+        "ARDUINO_AVR_UNO",
+        "ARDUINO_ARCH_AVR",
+        "__AVR__",
+        "__AVR_ATmega328P__",
+        "F_CPU=16000000L"
+      ],
+      "compilerPath": "",
+      "cStandard": "gnu11",
+      "cppStandard": "gnu++11",
+      "intelliSenseMode": "gcc-x86"
+    }
+  ],
+  "version": 4
+}

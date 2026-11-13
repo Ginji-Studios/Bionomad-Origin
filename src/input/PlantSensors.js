@@ -1,6 +1,7 @@
 // sensori della pianta (Elegoo UNO R3) letti via Web Serial.
 // riga dall'arduino: L:612,T:23.4,P1:1,P2:0,W:0,TL:0,TR:1
-//   luce, °C, fiala nel pozzetto 1 e 2 (0 vuoto, 1 verde, 2 blu, 3 rossa), leva acqua, foglia sx/dx
+//   luce, °C (DHT11), fiala nel pozzetto 1 e 2 letta dal PN532 (0 vuoto, 1 verde, 2 blu, 3 rossa),
+//   leva acqua, foglia sx/dx
 // comandi verso l'arduino: E1 / E0 led emergenza, G lampeggio verde
 
 const BAUD = 115200;
@@ -25,6 +26,11 @@ let port = null;
 let writer = null;
 
 function parseLine(line) {
+  // le righe con '#' sono messaggi dell'arduino (es. UID di una fiala NFC non registrata)
+  if (line.trim().startsWith("#")) {
+    console.info("[pianta]", line.trim());
+    return;
+  }
   for (const part of line.trim().split(",")) {
     const [key, raw] = part.split(":");
     const value = Number(raw);
