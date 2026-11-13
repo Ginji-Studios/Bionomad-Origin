@@ -46,9 +46,10 @@ export class CreditsScene extends Phaser.Scene {
     // linguette delle due sezioni: quella attiva è piena, si possono anche cliccare
     this.tabs = ["BIONOMAD SYSTEM", "CREDITI"].map((name, i) => {
       const label = bodyText(this, 0, 0, name, { size: 20, color: COLORS.ink });
-      const w = label.width + 24;
+      const w = Math.round(label.width) + 28;
       const x = width / 2 + (i === 0 ? -w - 4 : 4);
-      label.setPosition(x + 12, height - 36);
+      // testo centrato nel riquadro, in orizzontale e in verticale (+1: il font ha più aria sopra)
+      label.setPosition(Math.round(x + (w - label.width) / 2), Math.round(height - 38 + (28 - label.height) / 2) + 1);
       const bg = this.add.graphics().setDepth(10);
       label.setDepth(11);
       const zone = this.add.zone(x + w / 2, height - 24, w, 28).setInteractive({ useHandCursor: true });

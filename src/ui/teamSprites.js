@@ -134,7 +134,7 @@ export const TEAM = [
     rows: girl({ balayage: true, stripes: true }),
     palette: { h: "#d2b676", H: "#b0904f", m: "#e58cb6", f: "#d94f9a", F: "#a8306c", r: "#163c4d", R: "#0f2a37", w: "#f1f0ed", b: "#3a3633", k: "#b4553f" }
   },
-  { key: "team_6", rows: girl({ overalls: true }), palette: { h: "#a8805a", r: "#e8c66a", R: "#c9a23d", b: "#5e7f94", B: "#3f5a6c", y: "#dadfda", k: "#f1f0ed" } }
+  { key: "team_6", rows: girl({ overalls: true }), palette: { h: "#4a3022", r: "#e8c66a", R: "#c9a23d", b: "#5e7f94", B: "#3f5a6c", y: "#dadfda", k: "#f1f0ed" } }
 ];
 
 // stesse rifiniture dei cittadini del gioco: riflesso (1) e ombra (2) dei capelli,
