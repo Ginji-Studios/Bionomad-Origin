@@ -213,7 +213,8 @@ export class TravelScene extends Phaser.Scene {
 
     // in strada l'ossigeno scende, ma a metà velocità rispetto agli eventi
     const peakFactor = this.peakUntil && this.time.now < this.peakUntil ? 1.6 : 1;
-    this.hud.setOxygen(this.hud.oxygen - (delta * peakFactor) / (this.origin.drainSeconds * 2000));
+    // tra un luogo e l'altro l'ossigeno cala poco, con differenze lievi tra le difficoltà
+    this.hud.setOxygen(this.hud.oxygen - (delta * peakFactor) / ((this.origin.travelDrainSeconds ?? 300) * 1000));
     if (this.hud.oxygen <= 0) {
       this.arrived = true;
       this.hud.setOxygen(0);
