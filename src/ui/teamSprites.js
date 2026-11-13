@@ -2,7 +2,7 @@
 
 const SKIN = { s: "#f0dccb", S: "#d9bfa8", E: "#1c2839", g: "#3f5a6c", l: "#cfe0ea" };
 
-function girl({ top = "long", glasses = false, earrings = false, vest = false, skirt = false, streaks = false, tuft = false, balayage = false }) {
+function girl({ top = "long", glasses = false, earrings = false, vest = false, skirt = false, streaks = false, tuft = false, balayage = false, stripes = false, overalls = false }) {
   const rows = [
     "....hhhhhh....",
     "..hhhhhhhhhh..",
@@ -55,6 +55,18 @@ function girl({ top = "long", glasses = false, earrings = false, vest = false, s
     rows[11] = ".hhrrwwwwrrhh.";
     rows[12] = ".hrrrwwwwrrrh.";
   }
+  if (stripes) {
+    // maglia alla marinara: righe chiare orizzontali
+    [12, 14].forEach((y) => (rows[y] = rows[y].replace(/r/g, "w")));
+  }
+  if (overalls) {
+    // salopette di jeans con le bretelle e la fibbia, sopra una maglia
+    rows[11] = rows[11].slice(0, 4) + "B" + rows[11].slice(5, 9) + "B" + rows[11].slice(10);
+    rows[12] = rows[12].slice(0, 4) + "bbbbbb" + rows[12].slice(10);
+    rows[13] = rows[13].slice(0, 4) + "bbyybb" + rows[13].slice(10);
+    rows[14] = rows[14].slice(0, 4) + "bbbbbb" + rows[14].slice(10);
+    rows[15] = "..BBBBBBBBBB..";
+  }
   if (skirt) {
     rows[15] = "..pPpPpPpPpP..";
     rows[16] = ".pPpPpPpPpPpP.";
@@ -101,10 +113,10 @@ export const TEAM = [
   { key: "team_4", rows: girl({ skirt: true }), palette: { h: "#7a3a2e", r: "#1c2028", R: "#0f1216", p: "#b4553f", P: "#6e2a26", b: "#1c2028", k: "#0f1216" } },
   {
     key: "team_5",
-    rows: girl({ balayage: true }),
-    palette: { h: "#e8d29a", H: "#c9a865", m: "#e58cb6", f: "#d94f9a", F: "#a8306c", r: "#5e7f94", R: "#3f5a6c", b: "#1c2028", k: "#0f1216" }
+    rows: girl({ balayage: true, stripes: true }),
+    palette: { h: "#e8d29a", H: "#c9a865", m: "#e58cb6", f: "#d94f9a", F: "#a8306c", r: "#163c4d", R: "#0f2a37", w: "#f1f0ed", b: "#3a3633", k: "#b4553f" }
   },
-  { key: "team_6", rows: girl({}), palette: { h: "#a8805a", r: "#7e9c8c", R: "#5c7a6b", b: "#3b5ba8", B: "#2a4180", k: "#1c2028" } }
+  { key: "team_6", rows: girl({ overalls: true }), palette: { h: "#a8805a", r: "#e8c66a", R: "#c9a23d", b: "#5e7f94", B: "#3f5a6c", y: "#dadfda", k: "#f1f0ed" } }
 ];
 
 // stesse rifiniture dei cittadini del gioco: riflesso (1) e ombra (2) dei capelli,

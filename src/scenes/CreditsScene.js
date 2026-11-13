@@ -1,7 +1,8 @@
 import Phaser from "../phaser.js";
 import { TEAM } from "../ui/teamSprites.js";
 import { TITLE_WORD } from "../ui/pixelSprites.js";
-import { ditherRect, addTopBar, bodyText, COLORS, hex, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
+import { updateHose } from "../entities/Player.js";
+import { bandGradient, brandMarks, ditherRect, addTopBar, bodyText, COLORS, hex, drawPanel, dropShadow, goTo, paperGrid, pixelDisc, pixelText, textChip } from "../ui/theme.js";
 
 // crediti in due pagine
 const BIODOM_TEXT =
@@ -115,8 +116,26 @@ export class CreditsScene extends Phaser.Scene {
       items.push(pixelText(this, x + 10, y + 9, `${product.code} ${product.name}`, { size: 8, color: COLORS.paper }));
 
       // riquadro illustrazione
+      // riquadro "fotografia" come nella selezione del personaggio: cielo azzurro a bande,
+      // profilo di palazzi a retino, strada scura e grana chiara sopra
       const art = this.add.graphics();
-      drawPanel(art, x + 14, y + 38, w - 28, 128, { fill: COLORS.bg, border: COLORS.panelLight });
+      const ax = x + 14;
+      const ay = y + 38;
+      const aw = w - 28;
+      const ah = 128;
+      bandGradient(art, ax, ay, aw, ah, [0x9fb4c2, 0x86a0b2, 0x6f8ea2, 0x5e7f94]);
+      for (let k = 0, bx = ax; bx < ax + aw; k += 1) {
+        const bw = 14 + ((i * 31 + k * 17) % 20);
+        const bh = 30 + ((i * 13 + k * 29) % 50);
+        ditherRect(art, bx, ay + ah - 20 - bh, Math.min(bw, ax + aw - bx), bh, 0x3f5a6c, 10, 2);
+        bx += bw + 2;
+      }
+      art.fillStyle(0x2c3e52, 1);
+      art.fillRect(ax, ay + ah - 20, aw, 20);
+      ditherRect(art, ax, ay + ah - 26, aw, 6, 0x2c3e52, 8, 2);
+      ditherRect(art, ax, ay, aw, ah, COLORS.paper, 2, 2, 0.5);
+      art.lineStyle(2, COLORS.ink, 1);
+      art.strokeRect(ax, ay, aw, ah);
       items.push(art, ...this.drawProductArt(product.art, x + w / 2, y + 160));
 
       items.push(bodyText(this, x + 14, y + 174, product.text, { size: 20, color: COLORS.ink, wrap: w - 28, lineSpacing: -3 }));
@@ -129,19 +148,15 @@ export class CreditsScene extends Phaser.Scene {
   drawProductArt(type, cx, baseY) {
     const out = [];
     if (type === "backpack") {
+      // lo stesso protagonista del gioco, con spallacci, tubo e ossigeno che esce dalla pianta
       const hero = this.add.container(cx + 10, baseY);
       const pack = this.add.image(-30, -24, "pack").setOrigin(0.5, 1).setScale(4);
       const body = this.add.image(0, 0, "hero_milano_mask").setOrigin(0.5, 1).setScale(4);
       hero.add([pack, body]);
-      // tubo dallo zaino alla mascherina
-      const tube = this.add.graphics();
-      tube.fillStyle(COLORS.paper, 1);
-      tube.fillRect(cx - 20, baseY - 68, 4, 14);
-      tube.fillRect(cx - 20, baseY - 70, 22, 4);
-      tube.fillStyle(COLORS.ink, 1);
-      tube.fillRect(cx - 22, baseY - 72, 2, 20);
+      const walker = { scene: this, pack, sprite: body, baseTexture: "hero_milano_mask" };
+      this.time.addEvent({ delay: 33, loop: true, callback: () => hero.active && updateHose(walker, 33) });
       this.tweens.add({ targets: [body], y: -3, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-      out.push(hero, tube);
+      out.push(hero);
     }
     if (type === "active") {
       const pack = this.add.image(cx, baseY - 56, "active_pack").setScale(7);
@@ -159,7 +174,7 @@ export class CreditsScene extends Phaser.Scene {
     }
     if (type === "hub") {
       const hub = this.add.image(cx, baseY, "home_hub").setOrigin(0.5, 1).setScale(7);
-      const light = this.add.rectangle(cx + 4 * 7 - 4, baseY - 7 * 3.5, 14, 7, COLORS.red);
+      const light = this.add.rectangle(cx + 4 * 7 - 4, baseY - 7 * 3.5, 14, 7, 0x9fd4b0);
       this.tweens.add({ targets: light, alpha: 0.2, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       out.push(hub, light);
     }
@@ -189,10 +204,19 @@ export class CreditsScene extends Phaser.Scene {
       items.push(this.add.image(lx, 104, `title_${name}`).setOrigin(0, 0).setScale(scale));
       lx += (widths[i] + (name === "two" ? 1 : 2)) * scale;
     });
-    items.push(bodyText(this, width / 2, 194, "una macchina comunicativa del progetto BIODOM+", { size: 22, color: COLORS.steel, origin: 0.5 }));
+    // "una macchina comunicativa del progetto" + logo vero di biodom+ in pixel, sulla stessa linea di base
+    const claim = bodyText(this, 0, 188, "una macchina comunicativa del progetto", { size: 18, color: COLORS.steel });
+    const logoW = this.textures.get("logo_biodom_s").getSourceImage().width;
+    const claimX = Math.round(width / 2 - (claim.width + 8 + logoW) / 2);
+    claim.setX(claimX);
+    // logo piccolo: le aste di b e d alte come le maiuscole del testo, stessa linea di base
+    const logo = this.add.image(claimX + claim.width + 8, 188 + 5, "logo_biodom_s").setOrigin(0, 0).setTint(COLORS.steel);
+    items.push(claim, logo);
+    // crocette del marchio agli angoli della scheda
+    items.push(brandMarks(this, x, 64, 680, 424, { color: COLORS.steel, lines: false, gap: 6 }));
 
     // il team
-    items.push(pixelText(this, width / 2, 226, "IL TEAM", { size: 8, color: COLORS.steel, origin: 0.5 }));
+    items.push(pixelText(this, width / 2, 218, "IL TEAM", { size: 8, color: COLORS.steel, origin: 0.5 }));
     // pedana a retino e il team: respirano, sbattono le palpebre e ogni tanto salutano
     g.fillStyle(COLORS.panelLight, 1);
     g.fillRect(x + 60, 322, 560, 4);
@@ -201,7 +225,9 @@ export class CreditsScene extends Phaser.Scene {
       const px = width / 2 - 250 + i * 100;
       const shadow = this.add.graphics();
       ditherRect(shadow, px - 24, 318, 48, 6, COLORS.ink, 6, 2, 0.35);
-      const sprite = this.add.image(px, 322, key).setOrigin(0.5, 1).setScale(4);
+      const member = this.add.container(px, 322);
+      const sprite = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(4);
+      member.add(sprite);
       // respiro: si allunga di un pixel e torna
       this.tweens.add({ targets: sprite, scaleY: 4.2, duration: 900 + i * 60, delay: i * 140, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       const loop = () => {
@@ -210,7 +236,7 @@ export class CreditsScene extends Phaser.Scene {
         if (roll < 0.35) {
           // saluto con un saltello
           sprite.setTexture(`${key}_wave`);
-          this.tweens.add({ targets: sprite, y: 314, duration: 140, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
+          this.tweens.add({ targets: member, y: 314, duration: 140, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
           this.time.delayedCall(900, () => sprite.active && sprite.setTexture(key));
         } else {
           sprite.setTexture(`${key}_blink`);
@@ -219,7 +245,7 @@ export class CreditsScene extends Phaser.Scene {
         this.time.delayedCall(Phaser.Math.Between(1600, 3800), loop);
       };
       this.time.delayedCall(600 + i * 350, loop);
-      items.push(shadow, sprite);
+      items.push(shadow, member);
     });
 
     const rows = [
