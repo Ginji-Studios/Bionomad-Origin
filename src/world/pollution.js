@@ -383,3 +383,68 @@ export function addSidewalkCrowd(scene, pal, { parallax = false, evening = false
     }
   });
 }
+
+// silo verticale di biodom+: cilindro di vetro con le piante coltivate a piani, anelli
+// d'acciaio, cupola in cima e una luce verde che pulsa. È il nuovo "polmone" del quartiere
+export function drawPlantSilo(scene, g, x, ground, base, { parallax = false, factor = 0.15, depth = -8, h = 200, w = 30 } = {}) {
+  const glass = mixColor(base, 0xdfe7ea, 0.35);
+  const leaf = mixColor(0x6fa77c, base, 0.12);
+  const leafD = mixColor(0x3f7a50, base, 0.12);
+  const steel = mixColor(base, 0x000000, 0.12);
+  const top = ground - h;
+  // basamento
+  g.fillStyle(steel, 1);
+  g.fillRect(x - 6, ground - 14, w + 12, 14);
+  // corpo di vetro
+  g.fillStyle(glass, 1);
+  g.fillRect(x, top, w, h - 14);
+  // piani di coltivazione: fasce di foglie alternate
+  for (let y = top + 10; y < ground - 18; y += 12) {
+    g.fillStyle(steel, 1);
+    g.fillRect(x, y + 8, w, 2);
+    for (let px = x + 2; px < x + w - 2; px += 4) {
+      g.fillStyle((px + y) % 8 ? leaf : leafD, 1);
+      g.fillRect(px, y + 2 + ((px / 4) % 2) * 2, 3, 6 - ((px / 4) % 2) * 2);
+    }
+  }
+  // riflesso del vetro e anelli d'acciaio
+  g.fillStyle(mixColor(glass, 0xffffff, 0.4), 1);
+  g.fillRect(x + 3, top + 4, 2, h - 24);
+  g.fillStyle(steel, 1);
+  for (let y = top + 30; y < ground - 20; y += 46) g.fillRect(x - 2, y, w + 4, 3);
+  g.fillRect(x - 1, top, 2, h - 14);
+  g.fillRect(x + w - 1, top, 2, h - 14);
+  // cupola a gradini
+  for (let i = 0; i < 5; i += 1) {
+    g.fillStyle(i < 4 ? glass : steel, 1);
+    g.fillRect(x + i * 3, top - 3 - i * 3, w - i * 6, 3);
+  }
+  g.fillStyle(steel, 1);
+  g.fillRect(x + w / 2 - 1, top - 24, 2, 8);
+  // scala di servizio
+  g.fillStyle(steel, 1);
+  g.fillRect(x + w + 3, top + 20, 1, h - 34);
+  for (let y = top + 22; y < ground - 16; y += 6) g.fillRect(x + w + 3, y, 4, 1);
+  const light = scene.add.rectangle(x + w / 2, top - 26, 4, 4, 0x9fd4b0).setDepth(depth);
+  if (parallax) light.setScrollFactor(factor, 1);
+  scene.tweens.add({ targets: light, alpha: 0.25, duration: 1500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+}
+
+// serra a cupola sul tetto di un palazzo (geodetica a pixel)
+export function drawRoofDome(g, cx, roofY, r, base) {
+  const glass = mixColor(base, 0xdfe7ea, 0.4);
+  const frame = mixColor(base, 0x000000, 0.15);
+  const leaf = mixColor(0x4f8a5f, base, 0.12);
+  for (let dy = 0; dy < r; dy += 2) {
+    const half = Math.round(Math.sqrt(r * r - (r - dy) * (r - dy)));
+    g.fillStyle(glass, 1);
+    g.fillRect(cx - half, roofY - r + dy, half * 2, 2);
+  }
+  // piante dentro e montanti della cupola
+  g.fillStyle(leaf, 1);
+  g.fillRect(cx - r + 4, roofY - 6, r * 2 - 8, 6);
+  g.fillStyle(frame, 1);
+  g.fillRect(cx - r, roofY - 2, r * 2, 2);
+  for (let k = -1; k <= 1; k += 1) g.fillRect(cx + k * Math.round(r / 2), roofY - r + 4 + Math.abs(k) * 4, 1, r - 4 - Math.abs(k) * 4);
+  g.fillRect(cx - Math.round(r * 0.8), roofY - Math.round(r * 0.55), Math.round(r * 1.6), 1);
+}

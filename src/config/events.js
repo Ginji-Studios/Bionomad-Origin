@@ -198,19 +198,23 @@ Object.assign(EVENTS, {
     evening: true,
     plant: true,
     emergency: true,
-    drainMultiplier: 2,
+    drainMultiplier: 2.3,
     endsAt: "home",
-    description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Torna a casa il prima possibile: la pianta chiederà cure improvvise e l'ossigeno cala più in fretta.",
-    steps: [{ type: "emergency", target: "home", actionEveryMs: 5500, text: "TORNA A CASA!" }]
+    description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Oggi è l'unica task: torna a casa stabilizzando la pianta con 6 cure improvvise, mentre l'ossigeno cala più in fretta.",
+    steps: [{ type: "emergency", target: "home", actionEveryMs: 4200, cures: 6, text: "STABILIZZA LA PIANTA E TORNA A CASA" }]
   }
 });
 
-// azioni di cura casuali durante l'emergenza
+// l'emergenza è rara: quando esce è l'unico evento della giornata
+export const EMERGENCY_CHANCE = 0.08;
+
+// azioni di cura casuali durante l'emergenza: tempi stretti e tenute più lunghe
 export const EMERGENCY_ACTIONS = [
-  { type: "plant", sensor: "light", above: 0.8, holdMs: 1200, text: "ILLUMINALA!", hint: "Accendi la torcia e puntala sulla pianta.", key: "I", timeoutMs: 6000 },
-  { type: "plant", sensor: "temperature", riseBy: 2, holdMs: 800, text: "SCALDALA!", hint: "Usa la torcia termica.", key: "H", timeoutMs: 6000 },
-  { type: "plant", sensor: "temperature", dropBy: 2, holdMs: 800, baseTemperature: 30, text: "RAFFREDDALA!", hint: "La febbre del parassita: abbassa la temperatura.", key: "F", timeoutMs: 6000 },
-  { type: "plant", sensor: "irrigation", on: true, holdMs: 1200, text: "IRRIGALA!", hint: "Attiva l'irrigazione, poi richiudi la leva.", key: "R", timeoutMs: 6000 }
+  { type: "plant", sensor: "light", above: 0.85, holdMs: 1800, text: "ILLUMINALA!", hint: "Accendi la torcia e puntala sulla pianta.", key: "I", timeoutMs: 5500 },
+  { type: "plant", sensor: "temperature", riseBy: 3, holdMs: 1200, text: "SCALDALA!", hint: "Usa la torcia termica: +3 °C.", key: "H", timeoutMs: 5500 },
+  { type: "plant", sensor: "temperature", dropBy: 3, holdMs: 1200, baseTemperature: 31, text: "RAFFREDDALA!", hint: "La febbre del parassita: abbassa la temperatura di 3 °C.", key: "F", timeoutMs: 5500 },
+  { type: "plant", sensor: "irrigation", on: true, holdMs: 1600, text: "IRRIGALA!", hint: "Attiva l'irrigazione, poi richiudi la leva.", key: "R", timeoutMs: 5500 },
+  { type: "plant", sensor: "vials", holdMs: 1200, text: "ANTIPARASSITARIO!", hint: "Inserisci nel pozzetto le 2 fiale del colore indicato.", key: "1/2/3", timeoutMs: 8000 }
 ];
 
 // task extra in base alla difficoltà:

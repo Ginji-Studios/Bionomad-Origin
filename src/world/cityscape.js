@@ -1,7 +1,7 @@
 // città disegnata a livelli, con parallasse quando la
 import { BAYER, COLORS, bandGradient, ditherRect, pixelDisc } from "../ui/theme.js";
 import { ORIGINS } from "../config/origins.js";
-import { addAsh, addDrones, addSidewalkCrowd, drawHubStore, drawAirMonitor, drawDeadTree, drawDomedTree, drawFilterTower, skyTint, streetMessages } from "./pollution.js";
+import { addAsh, addDrones, addSidewalkCrowd, drawHubStore, drawPlantSilo, drawRoofDome, drawAirMonitor, drawDeadTree, drawDomedTree, drawFilterTower, skyTint, streetMessages } from "./pollution.js";
 
 const HORIZON = 380;
 const VIEW_W = 960;
@@ -156,6 +156,12 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
   }
   // torri di filtraggio biodom+: il nuovo profilo di ogni città
   for (let tx = 90; tx < span(0.15); tx += 560) drawFilterTower(scene, far, tx + Math.floor(rand() * 120), HORIZON, pal.mid, { parallax, h: 230 + Math.floor(rand() * 60) });
+  // silos di coltivazione verticale biodom+ tra una torre e l'altra, a coppie o da soli
+  for (let sx = 330; sx < span(0.15); sx += 560) {
+    const hS = 170 + Math.floor(rand() * 60);
+    drawPlantSilo(scene, far, sx + Math.floor(rand() * 60), HORIZON, pal.mid, { parallax, h: hS });
+    if (rand() < 0.5) drawPlantSilo(scene, far, sx + 70 + Math.floor(rand() * 30), HORIZON, pal.mid, { parallax, h: hS - 40, w: 24 });
+  }
   ditherRect(far, 0, HORIZON - 70, span(0.15), 70, pal.sky[3], 4);
 
   // edifici e monumenti
@@ -166,6 +172,12 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
     for (let x = -20; x < midSpan; ) {
       // ogni tanto lascia spazio a un monumento
       if (Math.floor(x / landmarkEvery) !== Math.floor((x - 1) / landmarkEvery) && x > 0) x += 340;
+      if (x > 60 && rand() < 0.16) {
+        // silo di coltivazione biodom+ tra i palazzi del centro
+        drawPlantSilo(scene, mid, x + 6, HORIZON, pal.mid, { parallax, factor: 0.4, depth: -7, h: 160 + Math.floor(rand() * 50), w: 32 });
+        x += 32 + 24 + Math.floor(rand() * 20);
+        continue;
+      }
       const w = 60 + Math.floor(rand() * 80);
       const h = 90 + Math.floor(rand() * 120);
       drawBuilding(mid, x, w, h, pal, rand, evening);
@@ -186,13 +198,17 @@ export function drawCityscape(scene, originId, { evening = false, width = VIEW_W
     // colline morbide e qualche palazzo lontano tra gli alberi
     for (let x = 0; x < midSpan; x += 160) pixelDisc(mid, x, HORIZON, 70 + Math.floor(rand() * 40), pal.tree, 1, 2);
     ditherRect(mid, 0, HORIZON - 60, midSpan, 60, pal.near, 2);
+    // serre a cupola del consorzio tra le colline
+    for (let dx = 300; dx < midSpan; dx += 700 + Math.floor(rand() * 200)) drawRoofDome(mid, dx, HORIZON - 20, 34, pal.mid);
     for (let x = 40; x < midSpan; x += 90 + Math.floor(rand() * 60)) drawTree(mid, x, pal, rand, originId);
   } else {
     // zona industriale
     for (let x = -20; x < midSpan; ) {
       const w = 120 + Math.floor(rand() * 80);
       drawShed(mid, x, w, pal);
-      if (rand() < 0.6) drawChimney(scene, mid, x + 30, pal, rand, parallax);
+      // le vecchie ciminiere vengono sostituite dai silos di coltivazione
+      if (rand() < 0.35) drawPlantSilo(scene, mid, x + 26, HORIZON - 4, pal.mid, { parallax, factor: 0.4, depth: -7, h: 140 + Math.floor(rand() * 40), w: 30 });
+      else if (rand() < 0.6) drawChimney(scene, mid, x + 30, pal, rand, parallax);
       x += w + 20;
     }
     for (let tx = 260; tx < midSpan; tx += 520) drawAirTower(scene, mid, tx, pal, parallax);
@@ -516,12 +532,7 @@ function drawHouseBlock(g, x, w, h, pal, rand, evening) {
       g.fillStyle(evening && rand() < 0.4 ? pal.window : evening ? pal.near : pal.window, 1);
       g.fillRect(wx, wy, 8, 10);
       // in quasi ogni casa c'è l'hub: piantina sul davanzale con la luce verde
-      if (rand() < 0.45) {
-        g.fillStyle(evening ? 0x9fd4b0 : 0x5c7a6b, 1);
-        g.fillRect(wx + 2, wy + 4, 4, 6);
-        g.fillStyle(evening ? 0xdff2e4 : 0x9fd4b0, 1);
-        g.fillRect(wx + 3, wy + 9, 2, 1);
-      }
+      if (rand() < 0.45) drawWindowHub(g, wx, wy, 8, 10, evening);
     }
   }
   g.fillStyle(pal.near, 1);
@@ -594,7 +605,11 @@ function drawBuilding(g, x, w, h, pal, rand, evening) {
   g.fillStyle(snowyRoofs ? 0xf1f0ed : pal.near, 1);
   g.fillRect(x - 2, top, w + 4, 4);
   g.fillStyle(pal.near, 1);
-  if (rand() < 0.6) {
+  if (w >= 70 && rand() < 0.22) {
+    // serra a cupola sul tetto: il palazzo coltiva la sua aria
+    drawRoofDome(g, x + Math.round(w / 2) - 4, top, Math.min(22, Math.round(w / 3)), pal.mid);
+    g.fillStyle(pal.near, 1);
+  } else if (rand() < 0.6) {
     // unità di filtraggio del palazzo sul tetto, con la ventola
     g.fillRect(x + 8, top - 14, 24, 14);
     g.fillStyle(0x9aa3ad, 1);
@@ -614,18 +629,24 @@ function drawBuilding(g, x, w, h, pal, rand, evening) {
       g.fillStyle(lit ? pal.window : pal.near, evening ? 1 : 0.8);
       g.fillRect(wx, wy, 6, 8);
       // l'hub di casa sul davanzale: una piantina con la luce verde (di sera resta accesa)
-      if (rand() < 0.16) {
-        g.fillStyle(evening ? 0x9fd4b0 : 0x5c7a6b, 1);
-        g.fillRect(wx + 1, wy + 3, 4, 5);
-        g.fillStyle(evening ? 0xdff2e4 : 0x9fd4b0, 1);
-        g.fillRect(wx + 2, wy + 7, 2, 1);
-      }
+      if (rand() < 0.2) drawWindowHub(g, wx, wy, 6, 8, evening);
     }
   }
   // balconi
   if (rand() < 0.4) {
-    g.fillStyle(pal.near, 1);
-    for (let by = top + 26; by < HORIZON - 20; by += 32) g.fillRect(x + 4, by, w - 16, 2);
+    // balconi: in metà dei palazzi sono diventati orti pensili, con una fila di piante
+    const garden = rand() < 0.55;
+    for (let by = top + 26; by < HORIZON - 20; by += 32) {
+      if (garden) {
+        for (let px = x + 5; px < x + w - 14; px += 5) {
+          g.fillStyle(px % 10 ? 0x4f8a5f : 0x6fa77c, 1);
+          g.fillRect(px, by - 3, 3, 3);
+          g.fillRect(px + 1, by - 5, 1, 2);
+        }
+      }
+      g.fillStyle(pal.near, 1);
+      g.fillRect(x + 4, by, w - 16, 2);
+    }
   }
   // dettagli tipici
   if (cityStyle === "milano") {
@@ -842,4 +863,72 @@ function drawPosterWall(scene, g, x, pal, parallax) {
   const poster = scene.add.image(x + 16, top + 18, key).setOrigin(0, 0).setScale(1, 1).setDepth(-6);
   if (parallax) poster.setScrollFactor(0.75, 1);
   return 96;
+}
+
+// hub in finestra, leggibile anche da lontano: ogni casa ha la sua pianta (ciuffo, cactus,
+// pianta fiorita, foglie a spada, cespuglio tondo, rampicante), il suo vaso e la luce verde
+// dell'hub sul davanzale. La finestra dietro si accende di verde chiaro
+const HUB_POTS = [0x5e7f94, 0xb4553f, 0xf1f0ed, 0x8a6a4f];
+const HUB_FLOWERS = [0xd9a84e, 0xc96f8a, 0xf1f0ed, 0xb4553f];
+function drawWindowHub(g, wx, wy, ww, wh, evening) {
+  const seed = Math.abs((wx * 73856093) ^ (wy * 19349663));
+  const kind = seed % 6;
+  g.fillStyle(evening ? 0xcfe8d6 : 0xdbe8de, 1);
+  g.fillRect(wx, wy, ww, wh);
+  const cx = wx + Math.floor(ww / 2);
+  const by = wy + wh - 2; // dove inizia il vaso
+  const tall = wh >= 10 ? 1 : 0;
+  const leaf = evening ? 0x6fa77c : 0x3f7a50;
+  const leafL = evening ? 0x9fd4b0 : 0x6fa77c;
+  const px = (x, y, w = 1, h = 1, c = leaf) => {
+    g.fillStyle(c, 1);
+    g.fillRect(x, y, w, h);
+  };
+  if (kind === 0) {
+    // ciuffo a ventaglio (felce)
+    px(cx - 1, by - 4, 2, 4);
+    px(cx - 3, by - 3, 1, 2);
+    px(cx + 2, by - 3, 1, 2);
+    px(cx - 2, by - 2, 1, 1, leafL);
+    px(cx + 1, by - 5 - tall, 1, 2, leafL);
+  } else if (kind === 1) {
+    // cactus con i bracci
+    px(cx - 1, by - 5 - tall, 2, 5 + tall, 0x5c8a5a);
+    px(cx - 3, by - 4, 1, 2, 0x5c8a5a);
+    px(cx - 2, by - 3, 1, 1, 0x5c8a5a);
+    px(cx + 2, by - 5, 1, 2, 0x5c8a5a);
+    px(cx, by - 4, 1, 1, leafL);
+  } else if (kind === 2) {
+    // pianta fiorita: foglie basse e due fiori colorati
+    const fl = HUB_FLOWERS[seed % HUB_FLOWERS.length];
+    px(cx - 2, by - 2, 4, 2);
+    px(cx - 1, by - 4, 1, 2);
+    px(cx + 1, by - 5, 1, 3);
+    px(cx - 2, by - 5, 2, 1, fl);
+    px(cx + 1, by - 6 - tall, 2, 1, fl);
+  } else if (kind === 3) {
+    // foglie a spada, dritte e alte
+    px(cx - 2, by - 4, 1, 4);
+    px(cx, by - 6 - tall, 1, 6 + tall, leafL);
+    px(cx + 1, by - 5, 1, 5);
+    px(cx - 1, by - 3, 1, 3, leafL);
+  } else if (kind === 4) {
+    // cespuglio tondo
+    px(cx - 2, by - 4, 4, 4);
+    px(cx - 3, by - 3, 6, 2);
+    px(cx - 1, by - 5 - tall, 2, 1 + tall, leafL);
+    px(cx - 2, by - 3, 1, 1, leafL);
+    px(cx + 1, by - 2, 1, 1, leafL);
+  } else {
+    // rampicante che scende dal vaso sul davanzale
+    px(cx - 1, by - 3, 3, 3);
+    px(cx - 3, by - 1, 1, 3, leafL);
+    px(cx + 2, by - 1, 1, 2, leafL);
+    px(cx, by - 4, 1, 1, leafL);
+  }
+  // vaso, di un colore diverso a seconda della casa
+  px(cx - 2, by, 4, 2, HUB_POTS[(seed >> 3) % HUB_POTS.length]);
+  // davanzale con la luce dell'hub
+  px(wx - 1, wy + wh, ww + 2, 1, 0x1c2839);
+  px(wx + ww - 2, wy + wh, 2, 1, 0x9fd4b0);
 }

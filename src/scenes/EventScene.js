@@ -195,13 +195,13 @@ export class EventScene extends Phaser.Scene {
     const title = pixelText(this, 0, 0, this.event.title, { size: 16, fit: w - pad * 2 });
     const desc = bodyText(this, 0, 0, this.event.description, { size: 22, color: COLORS.ink, wrap: w - pad * 2, lineSpacing: -2 });
     const taskLabel = bodyText(this, 0, 0, "TASK DA COMPLETARE", { size: 18, color: COLORS.steel });
-    // ogni task è una riga con la sua etichetta: numero, + cura in più, ! rimedio a una negligenza
+    // ogni task è una riga con la sua etichetta: numero, + cura in più, ! negligenza da sistemare
     const rows = this.event.steps.map((st, i) => {
       const raw = st.text;
       const kind = raw.startsWith("+ ") ? "care" : raw.startsWith("! ") ? "fix" : "main";
       const clean = kind === "main" ? raw : raw.slice(2);
       const text = bodyText(this, 0, 0, clean, { size: 22, color: COLORS.ink, wrap: w - pad * 2 - 110 });
-      const tagText = kind === "care" ? "CURA +" : kind === "fix" ? "RIMEDIO" : null;
+      const tagText = kind === "care" ? "CURA +" : kind === "fix" ? "NEGLIGENZA" : null;
       const tag = tagText ? bodyText(this, 0, 0, tagText, { size: 16, color: COLORS.paper }) : null;
       return { i, kind, text, tag };
     });
@@ -276,7 +276,17 @@ export class EventScene extends Phaser.Scene {
     if (step.type === "prune") this.openPrune();
     if (step.type === "plant") this.openPlant(step);
     if (step.type === "busLeaves") this.playBusLeaves();
-    if (step.type === "emergency") this.emergencyTimer = 0;
+    if (step.type === "emergency") {
+      this.emergencyTimer = 0;
+      this.emergencyCures = 0;
+      this.updateEmergencyObjective();
+    }
+  }
+
+  updateEmergencyObjective() {
+    const need = this.step?.cures ?? 0;
+    const done = Math.min(this.emergencyCures ?? 0, need);
+    this.objective.setText(done < need ? `CURE ${done}/${need} · STABILIZZA LA PIANTA` : "PIANTA STABILE · TORNA A CASA!");
   }
 
   // azioni sulla pianta vera
@@ -309,9 +319,12 @@ export class EventScene extends Phaser.Scene {
       this.mode = "play";
       this.emergencyTimer = 0;
       if (success) {
-        this.addOxygen(0.06);
+        this.emergencyCures = (this.emergencyCures ?? 0) + 1;
+        this.updateEmergencyObjective();
+        this.addOxygen(0.05);
         this.player.act("cheer", 420, 10);
-        showToast(this, "Cura riuscita! Continua verso casa.", { duration: 1400 });
+        const left = (this.step?.cures ?? 0) - this.emergencyCures;
+        showToast(this, left > 0 ? `Cura riuscita! Ne mancano ${left}.` : "Pianta stabile! Corri a casa.", { duration: 1400 });
       } else {
         this.hud.setOxygen(this.hud.oxygen - 0.15);
         this.cameras.main.shake(200, 0.006);
@@ -702,9 +715,18 @@ export class EventScene extends Phaser.Scene {
     const step = this.step;
     if (this.mode === "play" && step?.type === "emergency") {
       this.emergencyTimer += delta;
-      if (this.emergencyTimer > step.actionEveryMs) {
+      const stable = (this.emergencyCures ?? 0) >= (step.cures ?? 0);
+      const atHome = this.player.x >= this.world.points.home.x - 30;
+      if (!stable && this.emergencyTimer > step.actionEveryMs) {
         this.openPlant(Phaser.Utils.Array.GetRandom(EMERGENCY_ACTIONS), true);
-      } else if (this.player.x >= this.world.points.home.x - 30) {
+      } else if (atHome && !stable) {
+        // a casa non si entra con la pianta ancora infestata: la cura successiva arriva subito
+        if (!this.homeBlockedToast || this.time.now - this.homeBlockedToast > 2500) {
+          this.homeBlockedToast = this.time.now;
+          showToast(this, "La pianta non è stabile: completa le cure!", { color: COLORS.red, duration: 1600 });
+        }
+        this.emergencyTimer = Math.max(this.emergencyTimer, step.actionEveryMs - 900);
+      } else if (atHome) {
         PlantSensors.send("E0");
         this.tweens.killTweensOf(this.alarm);
         this.alarm?.setFillStyle(COLORS.red, 0);

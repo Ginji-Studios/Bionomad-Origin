@@ -1,4 +1,4 @@
-import { EVENTS, EVENTS_PER_RUN, EXTRA_TASKS } from "../config/events.js";
+import { EVENTS, EVENTS_PER_RUN, EXTRA_TASKS, EMERGENCY_CHANCE } from "../config/events.js";
 import { ORIGINS } from "../config/origins.js";
 
 // la run vive nel registry di Phaser, così la vedono tutte le scene
@@ -37,11 +37,15 @@ function withExtras(steps, extras) {
 
 export function startRun(registry, originId) {
   // gli eventi vengono poi giocati in ordine di orario (mattina → sera)
-  const events = shuffle(Object.keys(EVENTS))
-    .slice(0, EVENTS_PER_RUN)
-    .sort((a, b) => EVENTS[a].time.localeCompare(EVENTS[b].time));
+  // raramente la giornata è solo l'emergenza (nessuna task extra: è già lunga e difficile)
+  const emergency = Math.random() < EMERGENCY_CHANCE;
+  const events = emergency
+    ? ["emergenza"]
+    : shuffle(Object.keys(EVENTS).filter((id) => !EVENTS[id].emergency))
+        .slice(0, EVENTS_PER_RUN)
+        .sort((a, b) => EVENTS[a].time.localeCompare(EVENTS[b].time));
   const origin = ORIGINS.find((o) => o.id === originId);
-  const extras = events.map((id) => pickExtras(id, origin));
+  const extras = events.map((id) => (EVENTS[id].emergency ? [] : pickExtras(id, origin)));
   registry.set("origin", originId);
   registry.set("run", { origin: originId, events, extras, zoneOffset: Math.floor(Math.random() * 4), index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
   return registry.get("run");
@@ -57,7 +61,7 @@ export function currentEvent(registry) {
   const id = run.events[run.index];
   if (!id) return null;
   const event = EVENTS[id];
-  return { id, ...event, steps: withExtras(event.steps, run.extras?.[run.index]) };
+  return { id, ...event, steps: event.emergency ? event.steps : withExtras(event.steps, run.extras?.[run.index]) };
 }
 
 // ritorna true se la run è finita (tutti gli eventi completati)
