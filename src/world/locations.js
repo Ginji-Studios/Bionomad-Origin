@@ -1308,23 +1308,24 @@ function signIcon(label) {
   return null;
 }
 
-// cartello stradale della città: targa blu con pittogramma e nome, fascia acciaio con la distanza,
-// punta a freccia, rivetti e fascette sul palo
+// cartello stradale della città: targa blu con pittogramma e nome, sotto la distanza su una
+// fascetta acciaio interna; punta a freccia con lo chevron chiaro, rivetti e fascette sul palo
 export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390, top = 236, ground = 392 } = {}) {
+  const NAVY = 0x163c4d;
+  const PAPER = 0xf1f0ed;
   const icon = signIcon(label);
   const text = scene.add.text(0, 0, label, { fontFamily: '"VT323", monospace', fontSize: "30px", color: "#f1f0ed", letterSpacing: 2 }).setDepth(depth + 1);
-  const subText = sub ? scene.add.text(0, 0, sub.toUpperCase(), { fontFamily: '"VT323", monospace', fontSize: "18px", color: "#f1f0ed", letterSpacing: 1 }).setDepth(depth + 1) : null;
+  const subText = sub ? scene.add.text(0, 0, sub.toUpperCase(), { fontFamily: '"VT323", monospace', fontSize: "18px", color: "#f1f0ed", letterSpacing: 2 }).setDepth(depth + 1) : null;
   const iconW = icon ? 18 + 10 : 0;
-  const w = Math.max(text.width + iconW, subText?.width ?? 0) + 32;
-  const mainH = 40;
-  const subH = sub ? 22 : 0;
-  const h = mainH + subH;
-  const tip = dir ? 22 : 0;
-  const left = Math.round(x - w / 2 - (dir === "left" ? tip / 2 : 0) + (dir === "right" ? -tip / 2 : 0));
-  const g = scene.add.graphics().setDepth(depth);
+  const w = Math.max(text.width + iconW, (subText?.width ?? 0) + 24) + 36;
+  const mainH = 42;
+  const h = sub ? 66 : mainH;
+  const tip = dir ? Math.round(h / 2) : 0;
+  const left = Math.round(x - (w + tip) / 2);
   const bodyX = dir === "left" ? left + tip : left;
+  const g = scene.add.graphics().setDepth(depth);
 
-  // palo con base, e fascette che tengono la targa
+  // palo con base e fascette che tengono la targa
   g.fillStyle(0x1c2839, 1);
   g.fillRect(x - 3, top + h, 6, ground - top - h);
   g.fillRect(x - 12, ground - 4, 24, 4);
@@ -1333,48 +1334,59 @@ export function drawSign(scene, x, label, { dir = null, sub = null, depth = 390,
   g.fillRect(x - 5, top + h + 6, 10, 3);
   g.fillRect(x - 5, top + h + 14, 10, 3);
 
-  // ombra della targa
-  g.fillStyle(0x1c2839, 0.35);
-  g.fillRect(bodyX + 4, top + 4, w, h);
-
-  const plate = (color, y0, hh) => {
-    g.fillStyle(color, 1);
-    g.fillRect(bodyX, y0, w, hh);
+  // sagoma (rettangolo + punta) disegnata riga per riga: serve per l'ombra e per la targa
+  const shape = (dx, dy, color, alpha = 1) => {
+    g.fillStyle(color, alpha);
+    g.fillRect(bodyX + dx, top + dy, w, h);
+    if (!dir) return;
+    for (let r = 0; r < h; r += 2) {
+      const len = Math.round(tip * (1 - Math.abs(r + 1 - h / 2) / (h / 2)));
+      if (len <= 0) continue;
+      if (dir === "right") g.fillRect(bodyX + w + dx, top + r + dy, len, 2);
+      else g.fillRect(bodyX - len + dx, top + r + dy, len, 2);
+    }
   };
-  plate(0x163c4d, top, mainH);
-  if (sub) plate(0x5e7f94, top + mainH, subH);
-  // punta a freccia (stessa altezza della targa intera)
+  shape(4, 4, 0x1c2839, 0.35);
+  shape(0, 0, NAVY);
+
+  // filetto chiaro interno, solo sul rettangolo
+  g.lineStyle(2, PAPER, 1);
+  g.strokeRect(bodyX + 5, top + 5, w - 10, h - 10);
+  // rivetti
+  g.fillStyle(0x9fb4c2, 1);
+  [[bodyX + 9, top + 9], [bodyX + w - 11, top + 9], [bodyX + 9, top + h - 11], [bodyX + w - 11, top + h - 11]].forEach(([rx, ry]) => g.fillRect(rx, ry, 2, 2));
+  // chevron chiaro nella punta, che indica la direzione
   if (dir) {
-    for (let i = 0; i < h / 2; i += 2) {
-      const len = Math.round(tip * (1 - i / (h / 2)));
-      const ty1 = top + h / 2 - i - 2;
-      const ty2 = top + h / 2 + i;
-      g.fillStyle(0x163c4d, 1);
-      if (dir === "right") {
-        g.fillRect(bodyX + w, ty1, len, 2);
-        g.fillRect(bodyX + w, ty2, len, 2);
-      } else {
-        g.fillRect(bodyX - len, ty1, len, 2);
-        g.fillRect(bodyX - len, ty2, len, 2);
-      }
+    const cx = dir === "right" ? bodyX + w + Math.round(tip * 0.28) : bodyX - Math.round(tip * 0.28);
+    const cy = top + Math.round(h / 2);
+    g.fillStyle(PAPER, 1);
+    for (let k = 0; k < 5; k += 1) {
+      const off = dir === "right" ? k * 2 : -k * 2;
+      g.fillRect(cx + off - 1, cy - 10 + k * 2, 3, 2);
+      g.fillRect(cx + off - 1, cy + 8 - k * 2, 3, 2);
     }
   }
-  // filetto chiaro interno e rivetti agli angoli
-  // il filetto chiaro incornicia solo il nome; la fascia della distanza resta piena
-  g.lineStyle(2, 0xf1f0ed, 1);
-  g.strokeRect(bodyX + 4, top + 4, w - 8, mainH - 8);
-  g.fillStyle(0x9fb4c2, 1);
-  [[bodyX + 8, top + 8], [bodyX + w - 10, top + 8], [bodyX + 8, top + mainH - 10], [bodyX + w - 10, top + mainH - 10]].forEach(([rx, ry]) => g.fillRect(rx, ry, 2, 2));
 
-  // pittogramma + nome
+  // pittogramma + nome, centrati nella fascia alta
   const rowW = iconW + text.width;
   const startX = Math.round(bodyX + w / 2 - rowW / 2);
+  const nameMid = top + (sub ? 24 : Math.round(mainH / 2));
   if (icon) {
-    g.fillStyle(0xf1f0ed, 1);
-    icon.forEach((row, ry) => [...row].forEach((c, rx) => c === "#" && g.fillRect(startX + rx * 2, top + 11 + ry * 2, 2, 2)));
+    g.fillStyle(PAPER, 1);
+    icon.forEach((row, ry) => [...row].forEach((c, rx) => c === "#" && g.fillRect(startX + rx * 2, nameMid - 9 + ry * 2, 2, 2)));
   }
-  text.setPosition(startX + iconW, top + Math.round(mainH / 2 - text.height / 2));
-  subText?.setPosition(Math.round(bodyX + w / 2 - subText.width / 2), top + mainH + Math.round(subH / 2 - subText.height / 2));
+  text.setPosition(startX + iconW, Math.round(nameMid - text.height / 2) + 1);
+  // fascetta della distanza dentro la cornice
+  if (subText) {
+    const sw = Math.round(subText.width + 24);
+    const sx = Math.round(bodyX + w / 2 - sw / 2);
+    const sy = top + h - 26;
+    g.fillStyle(0x5e7f94, 1);
+    g.fillRect(sx, sy, sw, 16);
+    g.fillStyle(0x9fb4c2, 1);
+    g.fillRect(sx, sy, sw, 1);
+    subText.setPosition(Math.round(sx + sw / 2 - subText.width / 2), Math.round(sy + 8 - subText.height / 2));
+  }
   return g;
 }
 
