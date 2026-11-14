@@ -131,6 +131,11 @@ export function startRun(registry, originId) {
   return registry.get("run");
 }
 
+// ogni tappa attraversa un quartiere diverso della città
+export function cityZone(run) {
+  return ((run?.zoneOffset ?? 0) + (run?.index ?? 0)) % 4;
+}
+
 // le task si alternano: giorno, notte, giorno... (la prima è di giorno)
 export function dayTime(run) {
   return (run?.index ?? 0) % 2 === 1 ? "night" : "day";

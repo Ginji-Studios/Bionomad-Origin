@@ -462,8 +462,6 @@ function home(T, city) {
     sofa(T, 60, 170);
     table(T, 300, 110, 50);
   }
-  if (city === "reykjavik") posterArt(T, "poster_1", 400, 40, 44, 62);
-  else posterArt(T, city === "delhi" ? "poster_3" : "poster_2", 394, 120, 52, 73);
   plantPot(T, 440);
   hub(T, 590, GY, 1);
   door(T, LW - 130);
@@ -556,9 +554,8 @@ function bus(T) {
     X.fillStyle = G(0.92);
     X.fillRect(x, CEIL - 10, 110, 4);
   }
-  posterArt(T, "poster_4", 120, CEIL - 120, 120, 66);
-  posterArt(T, "poster_1", 470, CEIL - 132, 56, 78);
-  posterArt(T, "poster_5", 700, CEIL - 120, 120, 66);
+  // un solo spazio pubblicitario, al centro della carrozza
+  posterArt(T, "poster_4", 372, CEIL - 120, 120, 66);
   // corrimano all'altezza delle mani alzate e pali verticali
   X.fillStyle = G(0.8);
   X.fillRect(0, CEIL + 8, LW, 4);

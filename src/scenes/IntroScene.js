@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { currentEvent, dayTime, getRun } from "../systems/RunManager.js";
+import { currentEvent, dayTime, getRun, cityZone } from "../systems/RunManager.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
@@ -24,7 +24,7 @@ export class IntroScene extends Phaser.Scene {
     setAmbient(null);
     this.indoor = true;
     const origin = getOrigin(this.registry);
-    const sky = skylineLayers(this, origin.id, buildSkyline, { time: dayTime(getRun(this.registry)) });
+    const sky = skylineLayers(this, origin.id, buildSkyline, { time: dayTime(getRun(this.registry)), zone: cityZone(getRun(this.registry)) });
     this.cameras.main.setScroll(Math.round((sky.worldW - VIEW.w) * 0.1), 0);
     const place = buildPlace("home", origin.id);
     canvasImage(this, `place_home_${origin.id}`, place.canvas).setScrollFactor(0);

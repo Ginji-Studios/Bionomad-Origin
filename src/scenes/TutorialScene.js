@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
-import { plantArt } from "../ui/plantPanel.js";
+import { plantArt } from "../ui/PlantPanel.js";
 import { dieFrames, operatorKey } from "../art/people.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 

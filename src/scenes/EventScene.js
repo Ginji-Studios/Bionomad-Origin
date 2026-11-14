@@ -2,13 +2,13 @@ import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
 import { EMERGENCY_ACTIONS } from "../config/events.js";
-import { completeEvent, currentEvent, dayTime, failRun, getRun } from "../systems/RunManager.js";
+import { completeEvent, currentEvent, dayTime, failRun, getRun, cityZone } from "../systems/RunManager.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace, OUTDOOR } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
-import { PlantPanel } from "../ui/plantPanel.js";
+import { PlantPanel } from "../ui/PlantPanel.js";
 import { box, brackets, cityHud, button, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, skylineLayers, taskPanel, toast, txt, VIEW } from "../ui/hud.js";
 
 const NEAR = 80;
@@ -53,7 +53,7 @@ export class EventScene extends Phaser.Scene {
     this.events.once("shutdown", () => PlantSensors.send("E0"));
 
     // città sullo sfondo
-    const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_ });
+    const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_, zone: cityZone(this.run) });
     this.wide = loc === "street";
     const opKey = operatorKey(this, this.registry.get("operator") ?? "a", this.origin.id);
     if (this.wide) {
@@ -89,7 +89,7 @@ export class EventScene extends Phaser.Scene {
 
     // interfaccia
     brackets(this);
-    cityHud(this, this.origin.id, { labels: outdoor || this.wide });
+    cityHud(this, this.origin.id, { labels: outdoor || this.wide, zone: cityZone(this.run) });
     this.o2 = o2Hud(this);
     this.tasks = taskPanel(this);
     this.pad = controls(this);
@@ -176,11 +176,15 @@ export class EventScene extends Phaser.Scene {
       this.emTimer = 0;
       if (success) {
         this.cures += 1;
-        this.addOxygen(0.05);
-        this.player.cheer();
-        Sfx.o2Gain();
+        // in emergenza curare la pianta rende molto ossigeno: +14% a cura (uguale in ogni città),
+        // e un premio di +20% quando la pianta è di nuovo stabile
         const left = this.step.cures - this.cures;
-        toast(this, left > 0 ? `CURA RIUSCITA · NE MANCANO ${left}` : "PIANTA STABILE · VAI A CASA", { duration: 1400 });
+        const bonus = left > 0 ? 0.14 : 0.34;
+        this.addOxygen(bonus, true);
+        this.player.cheer();
+        this.player.bubble?.(10);
+        Sfx.o2Gain();
+        toast(this, left > 0 ? `CURA RIUSCITA · +${Math.round(bonus * 100)}% O₂ · NE MANCANO ${left}` : `PIANTA STABILE · +${Math.round(bonus * 100)}% O₂ · VAI A CASA`, { duration: 1600 });
       } else {
         this.addOxygen(-0.15, true);
         Sfx.negligence();

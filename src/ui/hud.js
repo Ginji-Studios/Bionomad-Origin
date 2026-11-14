@@ -2,7 +2,7 @@
 // semitrasparenti con bordo sottile, staffe agli angoli, pulsanti grandi per il tablet.
 import Phaser from "../phaser.js";
 import { Sfx } from "../systems/Sfx.js";
-import { quant } from "../world/skyline.js";
+import { paint, quant, ZONES } from "../world/skyline.js";
 import { iconKey } from "./icons.js";
 
 export const C = { c0: 0x1c2839, c1: 0x2d3d52, c2: 0x304e6a, c3: 0x5e6d88, c4: 0xf1f0ed };
@@ -143,39 +143,143 @@ export function button(scene, x, y, w, h, label, onPress, { primary = false, siz
 }
 
 // RESPIRO in alto a sinistra: etichetta + barra a 10 segmenti
+// texture del modulo respiro: riempimento a retino, fondo vuoto puntinato, icona sansevieria
+function o2Textures(scene, bw, bh) {
+  if (!scene.textures.exists("o2_fill")) {
+    // riempimento: dal blu acciaio al bianco, con onde leggere (aria che scorre), retinato
+    const c = paint(bw, bh, 1, (T) => {
+      const { X, G } = T;
+      const g = X.createLinearGradient(0, 0, bw, 0);
+      g.addColorStop(0, G(0.45));
+      g.addColorStop(0.6, G(0.78));
+      g.addColorStop(1, G(0.98));
+      X.fillStyle = g;
+      X.fillRect(0, 0, bw, bh);
+      X.fillStyle = G(1, 0.35);
+      X.fillRect(0, 2, bw, 3);
+      X.fillStyle = G(0, 0.18);
+      for (let x = 0; x < bw; x += 14) {
+        X.beginPath();
+        X.ellipse(x + 7, bh / 2 + Math.sin(x / 9) * 3, 4, 2, 0, 0, 7);
+        X.fill();
+      }
+    }, { cell: 2, seedValue: 4 });
+    scene.textures.addCanvas("o2_fill", c);
+    const e = paint(bw, bh, 1, (T) => {
+      const { X, G } = T;
+      X.fillStyle = G(0.12);
+      X.fillRect(0, 0, bw, bh);
+    }, { cell: 2, seedValue: 6 });
+    scene.textures.addCanvas("o2_empty", e);
+    // icona: sansevieria in vaso bianco, come la pianta del BIONOMAD
+    const ic = paint(40, 52, 1, (T) => {
+      const { X, G } = T;
+      [[-0.32, 0.7], [-0.1, 0.95], [0.12, 0.85], [0.34, 0.65]].forEach(([ang, tone], i) => {
+        X.save();
+        X.translate(20, 36);
+        X.rotate(ang);
+        X.fillStyle = G(tone);
+        X.beginPath();
+        X.moveTo(-4, 0);
+        X.quadraticCurveTo(-4, -22, 0, -32 + (i % 2) * 4);
+        X.quadraticCurveTo(4, -22, 4, 0);
+        X.fill();
+        X.fillStyle = G(tone - 0.35);
+        for (let y = -6; y > -26; y -= 6) X.fillRect(-3, y, 6, 1.5);
+        X.restore();
+      });
+      X.fillStyle = G(0.95);
+      X.fillRect(10, 34, 20, 16);
+      X.fillStyle = G(0.6);
+      X.fillRect(10, 34, 20, 3);
+    }, { cell: 1, seedValue: 8 });
+    scene.textures.addCanvas("o2_icon", ic);
+  }
+}
+
 export function o2Hud(scene, { x = VIEW.w / 2 - 166, y = 30 } = {}) {
-  const c = scene.add.container(x, y).setDepth(1500).setScrollFactor(0);
-  const label = txt(scene, 135, 0, "RESPIRO", { size: 20, origin: [0.5, 0] });
+  // modulo del respiro nello stile del fascicolo BIODOM: la pianta come icona,
+  // una canna retinata che si riempie d'aria, la scala graduata 0-50-100 sotto,
+  // un cursore che segue il valore; lampo quando sale, pulsazione quando è basso
+  const W = 420;
+  const H = 74;
+  const BX = 58;
+  const BY = 30;
+  const BW = 280;
+  const BH = 20;
+  o2Textures(scene, BW, BH);
+  // centrato in alto; la percentuale sta a destra della canna, lontana dal cursore
+  const c = scene.add.container(Math.round(VIEW.w / 2 - W / 2), y - 12).setDepth(1500).setScrollFactor(0);
   const g = scene.add.graphics();
-  const pct = txt(scene, 0, 0, "", { size: 20 });
-  c.add([label, g, pct]);
-  const segW = 22;
-  const gap = 5;
-  const bx = 0;
-  const by = 34;
-  let last = -1;
-  let blink = 0;
+  const empty = scene.add.image(BX, BY, "o2_empty").setOrigin(0);
+  const fill = scene.add.image(BX, BY, "o2_fill").setOrigin(0);
+  const fx = scene.add.graphics();
+  const icon = scene.add.image(28, H / 2 + 4, "o2_icon").setOrigin(0.5, 0.5);
+  const label = txt(scene, BX, 8, "RESPIRO", { size: 14, color: HEX.c3 });
+  const pct = txt(scene, W - 12, BY + BH / 2, "", { size: 20, origin: [1, 0.5] });
+  c.add([g, empty, fill, fx, icon, label, pct]);
+  // cornice fissa: pannello, nodi, canna, scala graduata
+  g.fillStyle(C.c0, 0.9);
+  g.fillRect(0, 0, W, H);
+  g.lineStyle(1, C.c3, 1);
+  g.strokeRect(0.5, 0.5, W - 1, H - 1);
+  g.fillStyle(C.c4, 1);
+  [[0, 0], [W, 0], [0, H], [W, H]].forEach(([nx, ny]) => g.fillRect(nx - 3, ny - 3, 6, 6));
+  g.lineStyle(2, C.c3, 1);
+  g.strokeRect(BX - 3, BY - 3, BW + 6, BH + 6);
+  for (let i = 0; i <= 20; i++) {
+    const tx = BX + (BW * i) / 20;
+    const big = i % 10 === 0;
+    g.fillStyle(big ? C.c4 : C.c3, 1);
+    g.fillRect(Math.round(tx), BY + BH + 5, 1, big ? 7 : 3);
+  }
+  c.add([
+    txt(scene, BX, BY + BH + 12, "0", { size: 11, color: HEX.c3 }),
+    txt(scene, BX + BW / 2, BY + BH + 12, "50", { size: 11, color: HEX.c3, origin: [0.5, 0] }),
+    txt(scene, BX + BW, BY + BH + 12, "100", { size: 11, color: HEX.c3, origin: [1, 0] })
+  ]);
+  let disp = null;
+  let prev = null;
+  let gainAt = -9999;
+  let lastPct = "";
   return {
     c,
     set(v, time = 0) {
-      const n = Math.max(0, Math.min(10, Math.ceil(v * 10 - 0.001)));
-      const low = v < 0.3;
-      const on = !low || Math.floor(time / 300) % 2 === 0;
-      if (n === last && blink === on) return;
-      last = n;
-      blink = on;
-      g.clear();
-      for (let i = 0; i < 10; i += 1) {
-        const sx = bx + i * (segW + gap);
-        if (i < n && on) {
-          g.fillStyle(C.c4, 1);
-          g.fillRect(sx, by, segW, 22);
-        } else {
-          g.lineStyle(2, C.c3, 1);
-          g.strokeRect(sx + 1, by + 1, segW - 2, 20);
-        }
+      v = Math.max(0, Math.min(1, v));
+      if (disp == null) disp = prev = v;
+      if (v - prev > 0.002) gainAt = time;
+      prev = v;
+      disp += (v - disp) * 0.18;
+      if (Math.abs(v - disp) < 0.001) disp = v;
+      const low = disp < 0.3;
+      const fw = Math.round(BW * disp);
+      fill.setCrop(0, 0, fw, BH).setAlpha(low ? 0.55 + 0.45 * Math.abs(Math.sin(time / 220)) : 1);
+      // la pianta "respira": si gonfia appena, più in fretta quando manca l'aria
+      icon.setScale(1 + 0.05 * Math.sin(time / (low ? 160 : 520)));
+      fx.clear();
+      // cursore sul valore attuale
+      fx.fillStyle(C.c4, 1);
+      fx.fillTriangle(BX + fw - 5, BY - 10, BX + fw + 5, BY - 10, BX + fw, BY - 4);
+      // bollicine d'aria che scorrono dentro la canna
+      fx.fillStyle(C.c0, 0.5);
+      for (let i = 0; i < 6; i++) {
+        const bx = ((time / 18 + i * 53) % BW);
+        if (bx < fw - 4) fx.fillRect(BX + bx, BY + 6 + ((i * 5) % 9), 3, 3);
       }
-      pct.setText(`${Math.round(v * 100)}%`).setPosition(bx + 10 * (segW + gap) + 8, by);
+      // lampo quando l'ossigeno sale: una fascia chiara che attraversa il riempimento
+      const gt = time - gainAt;
+      if (gt < 500) {
+        fx.fillStyle(C.c4, 0.6 * (1 - gt / 500));
+        fx.fillRect(BX + (gt / 500) * fw - 8, BY - 2, 8, BH + 4);
+        fx.lineStyle(2, C.c4, 1 - gt / 500);
+        fx.strokeRect(BX - 3, BY - 3, BW + 6, BH + 6);
+      }
+      const t = `${Math.round(disp * 100)}%`;
+      if (t !== lastPct) {
+        pct.setText(t);
+        lastPct = t;
+      }
+      label.setColor(low ? HEX.c4 : HEX.c3).setText(low ? "RESPIRO · BASSO" : "RESPIRO");
     }
   };
 }
@@ -237,16 +341,23 @@ export function taskPanel(scene, { x = 40, y = 112, w = 330 } = {}) {
       bg.clear();
       if (last.title === title && current > last.current && last.current >= 0) fx = { title, idx: last.current, t0: scene.time.now };
       last = { title, current };
-      const head = txt(scene, 18, 14, title, { size: 18, color: HEX.c3, wrap: w - 36 });
-      c.add(head);
-      rows.push(head);
-      let yy = head.y + head.height + 14;
+      // intestazione su due righe: la sigla piccola ("EVENTO 1/2") e il nome del luogo in chiaro
+      const cut = title.indexOf(" · ");
+      const tag = cut > 0 ? title.slice(0, cut) : "TASK";
+      const name = cut > 0 ? title.slice(cut + 3) : title;
+      const tagT = txt(scene, 18, 12, tag, { size: 14, color: HEX.c3 });
+      const nameT = txt(scene, 18, 32, name, { size: 18, wrap: w - 36 });
+      c.add([tagT, nameT]);
+      rows.push(tagT, nameT);
+      const headH = nameT.y + nameT.height + 12;
+      let yy = headH + 16;
       steps.forEach((s, i) => {
         const done = i < current;
         const now = i === current;
-        const mark = done ? "✓" : now ? "▶" : "·";
-        const t = txt(scene, 50, yy, s, { size: now ? 24 : 20, color: now ? HEX.c0 : done ? HEX.c3 : HEX.c4, wrap: w - 66 });
-        const m = txt(scene, 22, yy, mark, { size: now ? 24 : 20, color: now ? HEX.c0 : done ? HEX.c3 : HEX.c4 });
+        // numero di passo a due cifre: si capisce subito quante cose mancano
+        const mark = done ? "✓" : now ? "▶" : String(i + 1).padStart(2, "0");
+        const t = txt(scene, 56, yy, s, { size: now ? 24 : 20, color: now ? HEX.c0 : done ? HEX.c3 : HEX.c4, wrap: w - 72 });
+        const m = txt(scene, 22, yy + (now ? 0 : 2), mark, { size: now ? 24 : 16, color: now ? HEX.c0 : HEX.c3 });
         if (now) {
           const hl = scene.add.graphics();
           hl.fillStyle(C.c4, 1);
@@ -264,10 +375,16 @@ export function taskPanel(scene, { x = 40, y = 112, w = 330 } = {}) {
         yy += t.height + (now ? 24 : 14);
       });
       const hgt = yy + 4;
-      bg.fillStyle(C.c0, 0.82);
+      bg.fillStyle(C.c0, 0.9);
       bg.fillRect(0, 0, w, hgt);
-      bg.lineStyle(2, C.c3, 1);
-      bg.strokeRect(1, 1, w - 2, hgt - 2);
+      // fascia dell'intestazione un tono più chiara, separata da una riga con i nodi
+      bg.fillStyle(C.c1, 1);
+      bg.fillRect(0, 0, w, headH);
+      bg.lineStyle(1, C.c3, 1);
+      bg.lineBetween(0, headH, w, headH);
+      bg.strokeRect(0.5, 0.5, w - 1, hgt - 1);
+      bg.fillStyle(C.c4, 1);
+      [[0, 0], [w, 0], [0, hgt], [w, hgt]].forEach(([nx, ny]) => bg.fillRect(nx - 3, ny - 3, 6, 6));
       this.height = hgt;
     }
   };
@@ -442,9 +559,9 @@ export function canvasImage(scene, key, canvas, x = 0, y = 0) {
 
 // skyline di una città come livelli in parallasse (con cache tra le scene)
 const skyCache = new Map();
-export function skylineLayers(scene, cityId, build, { time = "night" } = {}) {
-  const ck = `${cityId}_${time}`;
-  if (!skyCache.has(ck)) skyCache.set(ck, build(cityId, { viewW: VIEW.w, viewH: VIEW.h, time }));
+export function skylineLayers(scene, cityId, build, { time = "night", zone = 0 } = {}) {
+  const ck = `${cityId}_${time}_${zone}`;
+  if (!skyCache.has(ck)) skyCache.set(ck, build(cityId, { viewW: VIEW.w, viewH: VIEW.h, time, zone }));
   const s = skyCache.get(ck);
   const imgs = s.layers.map(({ f, canvas }, i) => {
     const key = `sky_${ck}_${i}`;
@@ -469,13 +586,21 @@ const LANDMARKS = {
   reykjavik: [["[01] Hallgrímskirkja", 1, 520, 80], ["[02] Perlan", 0.55, 700, 325], ["[03] Harpa", 0.55, 1300, 358], ["[04] Esja", 0.12, 600, 270]]
 };
 
-export function cityHud(scene, cityId, { labels = true, k = VIEW.h / 540 } = {}) {
+export function cityHud(scene, cityId, { labels = true, k = VIEW.h / 540, zone = null } = {}) {
   const info = CITY_INFO[cityId] ?? CITY_INFO.milano;
-  txt(scene, 40, 30, info.name, { size: 20, depth: 1500 }).setScrollFactor(0);
+  const zones = ZONES[cityId] ?? ZONES.milano;
+  const z = zone == null ? null : zones[zone % zones.length];
+  // nome della città e del quartiere che si sta attraversando
+  txt(scene, 40, 30, z ? `${info.name} · ${z.name}` : info.name, { size: 20, depth: 1500 }).setScrollFactor(0);
   txt(scene, 40, 56, info.co, { size: 18, color: HEX.c3, depth: 1500 }).setScrollFactor(0);
   if (!labels) return;
   const list = [];
-  (LANDMARKS[cityId] ?? []).forEach(([label, f, x, y]) => {
+  // monumenti del quartiere in primo piano + quelli dello skyline sullo sfondo
+  const near = (z ?? zones[0]).labels.map(([label, x, y], i) => [`[0${i + 1}] ${label}`, 1, x, y]);
+  const norm = (t) => t.replace(/^\[\d+\] /, "").toLowerCase();
+  const nearNames = near.map(([l]) => norm(l));
+  const far = (LANDMARKS[cityId] ?? []).filter(([l, f]) => f < 1 && !nearNames.some((n) => n.includes(norm(l)) || norm(l).includes(n))).map(([label, f, x, y], i) => [`[${String(near.length + i + 1).padStart(2, "0")}] ${label.replace(/^\[\d+\] /, "")}`, f, x, y]);
+  [...near, ...far].forEach(([label, f, x, y]) => {
     const t = txt(scene, 5, -3, label, { size: 15, origin: [0, 1] });
     const g = scene.add.graphics();
     g.fillStyle(C.c0, 0.8);

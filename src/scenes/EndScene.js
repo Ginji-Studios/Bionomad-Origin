@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { dayTime, getRun } from "../systems/RunManager.js";
+import { dayTime, getRun, cityZone } from "../systems/RunManager.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace } from "../art/places.js";
 import { operatorKey } from "../art/people.js";
@@ -20,7 +20,7 @@ export class EndScene extends Phaser.Scene {
     const run = getRun(this.registry);
     const win = data?.result !== "lose" && !run?.failed;
     const origin = getOrigin(this.registry);
-    const sky = skylineLayers(this, origin.id, buildSkyline, { time: dayTime(run) });
+    const sky = skylineLayers(this, origin.id, buildSkyline, { time: dayTime(run), zone: cityZone(run) });
     this.cameras.main.setScroll(Math.round((sky.worldW - VIEW.w) * 0.1), 0);
     if (win) canvasImage(this, `place_home_${origin.id}`, buildPlace("home", origin.id).canvas).setScrollFactor(0);
     const op = this.registry.get("operator") ?? "a";

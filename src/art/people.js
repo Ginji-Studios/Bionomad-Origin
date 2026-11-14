@@ -178,10 +178,13 @@ function side(T, ph, o) {
   };
   // braccio con manica e mano
   const arm = (s, k) => {
-    const th = walking ? -Math.sin(a + s) * 0.42 : s ? 0.1 : -0.04;
+    // oscillazione naturale: il braccio va in controfase alla gamba dello stesso lato,
+    // il gomito si piega di più quando il braccio va avanti, quasi dritto quando va indietro
+    const sw = walking ? -Math.sin(a + s) : 0;
+    const th = walking ? sw * 0.5 : s ? 0.08 : -0.03;
     let ex = sh[0] + Math.sin(th) * 27;
     let ey = sh[1] + Math.cos(th) * 27;
-    const t2 = th - 0.4;
+    const t2 = th + (walking ? 0.18 + Math.max(0, sw) * 0.55 : 0.12);
     let hx = ex + Math.sin(t2) * 25;
     let hy = ey + Math.cos(t2) * 25;
     // posa "zaino in mano": il braccio dietro lo sorregge da sotto, quello davanti cura la pianta

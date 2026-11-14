@@ -790,6 +790,399 @@ function nearR(w) {
   [300, 820, 1500, 2200].forEach((x) => lamp(x, 0.95));
 }
 
+
+// ---------------- ZONE DELLE CITTÀ ----------------
+// ogni tappa attraversa un quartiere diverso: cambia il primo piano (livello vicino),
+// con monumenti e luoghi veri; dietro resta lo skyline della città.
+
+// disegna una funzione-monumento ingrandita attorno alla sua base
+const scaled = (fn, c, sc) => {
+  X.save();
+  X.translate(c, GY);
+  X.scale(sc, sc);
+  X.translate(-c, -GY);
+  fn(c);
+  X.restore();
+};
+const lampsAt = (xs, v = 1) =>
+  xs.forEach((x, i) => {
+    lamp(x, v);
+    if (xs[i + 1]) {
+      X.strokeStyle = G(0.06);
+      X.lineWidth = 2;
+      X.beginPath();
+      X.moveTo(x + 2, GY - 203);
+      X.quadraticCurveTo((x + xs[i + 1]) / 2 + 2, GY - 172, xs[i + 1] + 2, GY - 203);
+      X.stroke();
+    }
+  });
+// palazzi bassi di fila, con tetto piatto e cornicione
+const block = (x0, x1, h0, hr, l, o = {}) => {
+  for (let x = x0; x < x1; ) {
+    const bw = (70 + rnd() * 50) | 0;
+    const bh = (h0 + rnd() * hr) | 0;
+    facade(rect(x, GY - bh, bw, bh), l, l * 0.66, { gx: 9, gy: 13, lit: 0.1, glass: 0.55, ...o });
+    fillP(rect(x - 3, GY - bh - 6, bw + 6, 6), G(l * 0.5));
+    x += bw + 3;
+  }
+};
+
+// MILANO · PORTA NUOVA: Piazza Gae Aulenti, Torre UniCredit, Bosco Verticale, Torre Solaria
+function nearPortaNuova(w) {
+  ground(w, 0);
+  block(-10, 360, 120, 60, 0.3);
+  // Torre UniCredit con la guglia
+  const c = 620;
+  facade([[c - 70, GY], [c - 70, GY - 300], [c - 50, GY - 330], [c - 20, GY - 352], [c + 20, GY - 352], [c + 50, GY - 330], [c + 70, GY - 300], [c + 70, GY]], 0.6, 0.36, { gx: 6, gy: 8, lit: 0.08, glass: 0.75 });
+  fillP([[c - 5, GY - 352], [c + 5, GY - 352], [c + 1, GY - 430], [c - 1, GY - 430]], G(0.75));
+  // pensilina circolare della piazza
+  X.fillStyle = G(0.65);
+  X.beginPath();
+  X.ellipse(880, GY - 70, 160, 14, 0, 0, 7);
+  X.fill();
+  X.fillStyle = G(0.12);
+  for (let x = 740; x <= 1020; x += 40) X.fillRect(x, GY - 62, 4, 62);
+  // fontana a raso
+  X.fillStyle = G(0.85, 0.7);
+  for (let i = 0; i < 6; i++) X.fillRect(820 + i * 22, GY - 16 - (i % 2) * 8, 3, 16 + (i % 2) * 8);
+  // Bosco Verticale: due torri coperte di alberi
+  [[1220, 80, 300], [1340, 66, 230]].forEach(([x, bw, bh]) => {
+    facade(rect(x, GY - bh, bw, bh), 0.5, 0.3, { gx: 8, gy: 10, lit: 0.06 });
+    for (let y = GY - bh + 8; y < GY; y += 12)
+      for (let a = x - 6; a < x + bw + 6; a += 5) {
+        X.fillStyle = G(0.12 + rnd() * 0.2);
+        X.beginPath();
+        X.arc(a, y + rnd() * 3, 4 + rnd() * 3, 0, 7);
+        X.fill();
+      }
+  });
+  // Biblioteca degli Alberi: filari di alberi bassi
+  [1560, 1640, 1720, 1800].forEach((x, i) => tree(x, 90 + (i % 2) * 30, 0.2));
+  // Torre Solaria
+  facade(rect(2050, GY - 280, 70, 280), 0.56, 0.34, { gx: 6, gy: 7, lit: 0.1, glass: 0.7 });
+  for (let y = GY - 270; y < GY; y += 14) fillP(rect(2044, y, 82, 3), G(0.7, 0.6));
+  block(2200, w, 110, 70, 0.3);
+  lampsAt([300, 1100, 1500, 1950, 2500]);
+}
+
+// MILANO · NAVIGLI: case di ringhiera sul Naviglio Grande, ponte in ferro, Colonne di San Lorenzo
+function nearNavigli(w) {
+  ground(w, 0);
+  // case di ringhiera con i ballatoi
+  for (let x = -10; x < 1450; ) {
+    const bw = (90 + rnd() * 40) | 0;
+    const bh = (150 + rnd() * 50) | 0;
+    const l = 0.42 + rnd() * 0.18;
+    stone(rect(x, GY - 40 - bh, bw, bh), l, l * 0.7, { rib: 9 });
+    fillP(rect(x - 4, GY - 46 - bh, bw + 8, 7), G(l * 0.45));
+    for (let y = GY - 40 - bh + 18; y < GY - 50; y += 34) {
+      X.fillStyle = G(0.12);
+      for (let a = x + 8; a < x + bw - 10; a += 18) X.fillRect(a, y, 10, 16);
+      X.fillStyle = G(0.75);
+      X.fillRect(x, y + 20, bw, 2);
+      for (let a = x; a < x + bw; a += 4) X.fillRect(a, y + 20, 1, 8);
+    }
+    x += bw + 2;
+  }
+  // il Naviglio: acqua scura con i riflessi, tra le case e la strada
+  X.fillStyle = G(0.12);
+  X.fillRect(-10, GY - 40, 1470, 40);
+  for (let i = 0; i < 70; i++) {
+    X.fillStyle = G(0.6 + rnd() * 0.3, 0.6);
+    X.fillRect(rnd() * 1450, GY - 36 + rnd() * 32, 10 + rnd() * 24, 1);
+  }
+  // ponte in ferro sul canale
+  X.strokeStyle = G(0.15);
+  X.lineWidth = 4;
+  X.beginPath();
+  X.moveTo(560, GY - 30);
+  X.quadraticCurveTo(640, GY - 80, 720, GY - 30);
+  X.stroke();
+  X.lineWidth = 2;
+  for (let x = 570; x < 715; x += 12) {
+    X.beginPath();
+    X.moveTo(x, GY - 30 - 50 * Math.sin(((x - 560) / 160) * Math.PI) * 0.8);
+    X.lineTo(x, GY - 72);
+    X.stroke();
+  }
+  X.fillRect(556, GY - 74, 168, 3);
+  // Colonne di San Lorenzo e la basilica dietro
+  const c = 1900;
+  stone(rect(c - 120, GY - 200, 240, 200), 0.5, 0.34, { rib: 12 });
+  dome(c, GY - 200, 70, 0.75);
+  [-50, 50].forEach((x) => stone(rect(c + x - 14, GY - 260, 28, 70), 0.55, 0.36, { rib: 6 }));
+  for (let i = 0; i < 16; i++) {
+    const x = c - 340 + i * 14;
+    stone(rect(x, GY - 150, 9, 150), 0.82, 0.56, { rib: 3 });
+  }
+  fillP(rect(c - 346, GY - 162, 230, 14), G(0.75));
+  block(2150, w, 120, 60, 0.32);
+  lampsAt([200, 900, 1300, 2300, 2700]);
+}
+
+// MILANO · CITYLIFE: le Tre Torri (Allianz, Generali, PwC) e il parco
+function nearCityLife(w) {
+  ground(w, 0);
+  block(-10, 300, 100, 60, 0.3);
+  // Torre Allianz "il Dritto"
+  let c = 560;
+  facade(rect(c - 45, GY - 380, 90, 380), 0.56, 0.32, { gx: 8, gy: 7, glass: 0.6, lit: 0.08 });
+  [-1, 1].forEach((d) => {
+    X.strokeStyle = G(0.75);
+    X.lineWidth = 3;
+    X.beginPath();
+    X.moveTo(c + d * 45, GY - 40);
+    X.lineTo(c + d * 75, GY);
+    X.stroke();
+  });
+  // Torre Generali "lo Storto" di Zaha Hadid
+  c = 900;
+  const gp = [[c - 50, GY]];
+  for (let i = 0; i <= 14; i++) gp.push([c - 50 + Math.sin(i / 5) * 10, GY - (i / 14) * 320]);
+  for (let i = 14; i >= 0; i--) gp.push([c + 50 + Math.sin(i / 5) * 10 + (i / 14) * 8, GY - (i / 14) * 320]);
+  facade(gp, 0.58, 0.32, { gx: 6, gy: 8, glass: 0.75, lit: 0.08 });
+  // Torre PwC "il Curvo" di Libeskind
+  c = 1230;
+  facade([[c - 60, GY], [c - 60, GY - 200], [c - 40, GY - 250], [c, GY - 270], [c + 60, GY - 230], [c + 60, GY]], 0.54, 0.34, { gx: 7, gy: 8, glass: 0.7, lit: 0.08 });
+  // Parco CityLife
+  for (let x = 1450; x < 2100; x += 70 + ((x * 7) % 30)) tree(x, 100 + ((x * 3) % 40), 0.18);
+  X.fillStyle = G(0.3);
+  X.fillRect(1440, GY - 6, 680, 6);
+  block(2150, w, 110, 60, 0.3);
+  lampsAt([380, 1050, 1400, 2200, 2600]);
+}
+
+// NEW DELHI · OLD DELHI: Forte Rosso, Jama Masjid, i vicoli di Chandni Chowk
+function nearOldDelhi(w) {
+  ground(w, 0);
+  // Forte Rosso: mura merlate in arenaria e la Porta di Lahore con i chhatri
+  const c = 620;
+  stone(rect(c - 420, GY - 150, 840, 150), 0.5, 0.36, { brick: 1, rib: 30 });
+  for (let x = c - 420; x < c + 420; x += 16) fillP([[x, GY - 150], [x + 10, GY - 150], [x + 10, GY - 160], [x + 5, GY - 166], [x, GY - 160]], G(0.46));
+  stone(rect(c - 90, GY - 230, 180, 230), 0.56, 0.38, { rib: 15 });
+  fillP([[c - 34, GY], [c - 34, GY - 110], [c, GY - 150], [c + 34, GY - 110], [c + 34, GY]], G(0.08));
+  [-70, -24, 24, 70].forEach((x) => {
+    stone(rect(c + x - 14, GY - 262, 28, 32), 0.62, 0.42, { rib: 5 });
+    dome(c + x, GY - 262, 16, 0.9);
+  });
+  // vicoli con le case strette e i fili sospesi
+  for (let x = 1080; x < 1620; ) {
+    const bw = (40 + rnd() * 30) | 0;
+    const bh = (110 + rnd() * 90) | 0;
+    facade(rect(x, GY - bh, bw, bh), 0.42, 0.28, { gx: 9, gy: 14, lit: 0.12, glass: 0.5 });
+    X.fillStyle = G(0.65);
+    X.fillRect(x - 2, GY - bh + 30, bw + 4, 4);
+    x += bw + 2;
+  }
+  X.strokeStyle = G(0.05);
+  X.lineWidth = 1;
+  for (let i = 0; i < 9; i++) {
+    X.beginPath();
+    X.moveTo(1080 + rnd() * 500, GY - 120 - rnd() * 70);
+    X.quadraticCurveTo(1300, GY - 80 - rnd() * 40, 1080 + rnd() * 540, GY - 120 - rnd() * 70);
+    X.stroke();
+  }
+  // Jama Masjid: tre cupole a strisce e due minareti
+  const m = 2050;
+  stone(rect(m - 250, GY - 140, 500, 140), 0.55, 0.36, { rib: 20 });
+  [-130, 0, 130].forEach((x) => {
+    const r = x ? 50 : 72;
+    dome(m + x, GY - 140, r, 0.95);
+    X.strokeStyle = G(0.4, 0.6);
+    X.lineWidth = 2;
+    for (let a = -r + 10; a < r; a += 16) {
+      X.beginPath();
+      X.moveTo(m + x + a, GY - 140);
+      X.lineTo(m + x + a * 0.4, GY - 140 - r * 0.85);
+      X.stroke();
+    }
+  });
+  [-240, 240].forEach((x) => {
+    stone(rect(m + x - 10, GY - 330, 20, 330), 0.6, 0.4, { brick: 1, rib: 5 });
+    dome(m + x, GY - 330, 14, 0.9);
+  });
+  lampsAt([300, 1000, 1700, 2500], 0.9);
+}
+
+// NEW DELHI · CONNAUGHT PLACE: i portici bianchi a colonne e il grande tricolore del Central Park
+function nearConnaught(w) {
+  ground(w, 0);
+  const arcade = (x0, x1) => {
+    stone(rect(x0, GY - 150, x1 - x0, 150), 0.84, 0.6, { rib: 40 });
+    for (let x = x0 + 10; x < x1 - 10; x += 26) {
+      X.fillStyle = G(0.2);
+      X.fillRect(x + 6, GY - 60, 14, 60);
+      X.fillStyle = G(0.9);
+      X.fillRect(x, GY - 70, 6, 70);
+    }
+    fillP(rect(x0 - 6, GY - 76, x1 - x0 + 12, 8), G(0.7));
+    for (let x = x0 + 14; x < x1 - 20; x += 26) {
+      X.fillStyle = G(0.25);
+      X.fillRect(x, GY - 130, 12, 18);
+    }
+    fillP(rect(x0 - 4, GY - 158, x1 - x0 + 8, 10), G(0.66));
+  };
+  arcade(-10, 900);
+  // Central Park con l'asta della bandiera
+  for (let x = 1000; x < 1500; x += 80) tree(x, 90, 0.2);
+  X.fillStyle = G(0.75);
+  X.fillRect(1250, GY - 360, 4, 360);
+  [0.95, 0.6, 0.3].forEach((v, i) => {
+    X.fillStyle = G(v);
+    X.fillRect(1254, GY - 360 + i * 22, 110, 22);
+  });
+  X.strokeStyle = G(0.15);
+  X.lineWidth = 2;
+  X.beginPath();
+  X.arc(1309, GY - 327, 8, 0, 7);
+  X.stroke();
+  arcade(1600, w + 10);
+  lampsAt([200, 700, 1100, 1450, 1900, 2400], 0.9);
+}
+
+// NEW DELHI · MEHRAULI: Qutub Minar da vicino e la porta Alai Darwaza
+function nearMehrauli(w) {
+  ground(w, 0);
+  for (let x = -10; x < 700; x += 90) tree(x + 30, 110, 0.18);
+  scaled(qutub, 900, 1.45);
+  // Alai Darwaza: porta quadrata con l'arco a ferro di cavallo e la cupola bassa
+  const c = 1350;
+  stone(rect(c - 90, GY - 150, 180, 150), 0.6, 0.42, { rib: 10 });
+  fillP([[c - 34, GY], [c - 34, GY - 80], [c - 40, GY - 100], [c, GY - 128], [c + 40, GY - 100], [c + 34, GY - 80], [c + 34, GY]], G(0.1));
+  dome(c, GY - 150, 70, 0.7);
+  // rovine ad archi
+  for (let i = 0; i < 6; i++) {
+    const x = 1650 + i * 90;
+    stone(rect(x, GY - 140 + (i % 2) * 30, 70, 140 - (i % 2) * 30), 0.52, 0.36, { rib: 8 });
+    fillP([[x + 15, GY], [x + 15, GY - 60], [x + 35, GY - 90], [x + 55, GY - 60], [x + 55, GY]], G(0.1));
+  }
+  for (let x = 2250; x < w; x += 100) tree(x, 120, 0.18);
+  lampsAt([500, 1150, 2200], 0.85);
+}
+
+// REYKJAVÍK · HÖFNIN: Harpa sul mare, la scultura Sólfar, il porto vecchio
+function nearHarbour(w) {
+  ground(w, 1);
+  // mare dietro il lungomare
+  X.fillStyle = G(0.14);
+  X.fillRect(-10, GY - 30, w + 20, 30);
+  for (let i = 0; i < 80; i++) {
+    X.fillStyle = G(0.6 + rnd() * 0.3, 0.5);
+    X.fillRect(rnd() * w, GY - 28 + rnd() * 26, 12 + rnd() * 30, 1);
+  }
+  scaled(harpa, 620, 1.7);
+  // Sólfar: lo scheletro d'acciaio della nave vichinga
+  const s = 1400;
+  X.strokeStyle = G(0.85);
+  X.lineWidth = 4;
+  X.beginPath();
+  X.moveTo(s - 110, GY - 70);
+  X.quadraticCurveTo(s, GY - 40, s + 110, GY - 70);
+  X.stroke();
+  X.lineWidth = 3;
+  for (let i = -4; i <= 4; i++) {
+    X.beginPath();
+    X.moveTo(s + i * 24, GY - 46 - Math.abs(i) * 3);
+    X.lineTo(s + i * 26, GY - 100 - Math.abs(i) * 6);
+    X.stroke();
+  }
+  X.beginPath();
+  X.moveTo(s + 110, GY - 70);
+  X.lineTo(s + 150, GY - 130);
+  X.moveTo(s - 110, GY - 70);
+  X.lineTo(s - 140, GY - 120);
+  X.stroke();
+  // porto vecchio: barche e gru
+  [1800, 2000].forEach((x, i) => {
+    fillP([[x - 70, GY - 30], [x + 80, GY - 30], [x + 60, GY - 4], [x - 56, GY - 4]], G(0.5 + i * 0.2));
+    stone(rect(x - 20, GY - 70, 50, 40), 0.75, 0.5, { rib: 6 });
+    X.fillStyle = G(0.2);
+    X.fillRect(x + 4, GY - 130, 3, 60);
+  });
+  X.fillStyle = G(0.12);
+  X.fillRect(2300, GY - 260, 6, 260);
+  X.fillRect(2230, GY - 260, 170, 4);
+  lampsAt([250, 1100, 1650, 2500], 0.95);
+}
+
+// REYKJAVÍK · LAUGAVEGUR: case colorate in lamiera ondulata e la strada arcobaleno
+function nearLaugavegur(w) {
+  ground(w, 1);
+  for (let x = -10; x < w; ) {
+    const bw = (80 + rnd() * 50) | 0;
+    const bh = (90 + rnd() * 70) | 0;
+    const l = 0.3 + rnd() * 0.6;
+    // lamiera ondulata: righe verticali fitte
+    stone(rect(x, GY - bh, bw, bh), l, l * 0.75, { rib: 3 });
+    fillP([[x - 6, GY - bh], [x + bw / 2, GY - bh - bw * 0.42], [x + bw + 6, GY - bh]], G(Math.max(0.1, l - 0.25)));
+    X.fillStyle = G(0.12);
+    for (let a = x + 12; a < x + bw - 16; a += 30) {
+      X.fillRect(a, GY - bh + 20, 16, 22);
+      X.fillStyle = G(0.9, DAY ? 0.3 : 0.8);
+      X.fillRect(a + 2, GY - bh + 22, 12, 18);
+      X.fillStyle = G(0.12);
+    }
+    // vetrina del negozio
+    X.fillStyle = G(0.85, DAY ? 0.5 : 0.9);
+    X.fillRect(x + 10, GY - 50, bw - 20, 34);
+    x += bw + 4;
+  }
+  // la strada arcobaleno di Skólavörðustígur: bande sul selciato
+  for (let i = 0; i < 6; i++) {
+    X.fillStyle = G(0.35 + i * 0.12, 0.7);
+    X.fillRect(1200, GY + 4 + i * 9, 600, 8);
+  }
+  lampsAt([200, 800, 1400, 2100, 2700], 0.95);
+}
+
+// REYKJAVÍK · ÖSKJUHLÍÐ: la collina boscosa con Perlan in cima
+function nearPerlan(w) {
+  ground(w, 1);
+  X.fillStyle = lgx(0, w, 0.26, 0.18);
+  X.beginPath();
+  X.moveTo(300, GY);
+  X.quadraticCurveTo(900, GY - 170, 1500, GY);
+  X.fill();
+  for (let x = 340; x < 1460; x += 34) {
+    const h = 60 + ((x * 7) % 40);
+    const y = GY - 170 * (1 - Math.pow((x - 900) / 600, 2)) + 6;
+    X.fillStyle = G(0.12 + ((x * 3) % 10) * 0.012);
+    X.beginPath();
+    X.moveTo(x, y - h);
+    X.lineTo(x - 14, y);
+    X.lineTo(x + 14, y);
+    X.fill();
+  }
+  X.save();
+  X.translate(0, -150);
+  scaled(perlan, 900, 1.5);
+  X.restore();
+  houses(1600, w, GY, 2.2, 0.28);
+  lampsAt([200, 1550, 2100, 2600], 0.95);
+}
+
+// zone per città: nome del quartiere, primo piano, etichette dei luoghi nel primo piano
+export const ZONES = {
+  milano: [
+    { name: "DUOMO", near: (w) => near(w), labels: [["Duomo di Milano", 520, 112], ["Galleria V. Emanuele II", 1250, 224], ["Castello Sforzesco", 2260, 60]] },
+    { name: "PORTA NUOVA", near: nearPortaNuova, labels: [["Torre UniCredit", 620, 40], ["Piazza Gae Aulenti", 880, 380], ["Bosco Verticale", 1280, 150], ["Torre Solaria", 2085, 170]] },
+    { name: "NAVIGLI", near: nearNavigli, labels: [["Naviglio Grande", 300, 270], ["Colonne di San Lorenzo", 1600, 300], ["Basilica di San Lorenzo", 1900, 190]] },
+    { name: "CITYLIFE", near: nearCityLife, labels: [["Torre Allianz", 560, 80], ["Torre Generali", 900, 140], ["Torre PwC", 1230, 190], ["Parco CityLife", 1750, 350]] }
+  ],
+  delhi: [
+    { name: "RAJPATH", near: (w) => nearD(w), labels: [["India Gate", 520, 252], ["Rashtrapati Bhavan", 1750, 265]] },
+    { name: "OLD DELHI", near: nearOldDelhi, labels: [["Forte Rosso", 620, 200], ["Chandni Chowk", 1300, 250], ["Jama Masjid", 2050, 120]] },
+    { name: "CONNAUGHT PLACE", near: nearConnaught, labels: [["Connaught Place", 450, 300], ["Central Park", 1250, 100]] },
+    { name: "MEHRAULI", near: nearMehrauli, labels: [["Qutub Minar", 900, 70], ["Alai Darwaza", 1350, 250]] }
+  ],
+  reykjavik: [
+    { name: "MIÐBORG", near: (w) => nearR(w), labels: [["Hallgrímskirkja", 520, 80]] },
+    { name: "HÖFNIN", near: nearHarbour, labels: [["Harpa", 620, 250], ["Sólfar", 1400, 330], ["Gamla Höfnin", 1900, 360]] },
+    { name: "LAUGAVEGUR", near: nearLaugavegur, labels: [["Laugavegur", 500, 300], ["Skólavörðustígur", 1500, 400]] },
+    { name: "ÖSKJUHLÍÐ", near: nearPerlan, labels: [["Perlan", 900, 120], ["Öskjuhlíð", 1300, 330]] }
+  ]
+};
+
 // cielo di giorno: chiaro ma sempre nei 5 colori del brand (il retino fa il resto),
 // sole netto con un alone piccolo e qualche nuvola piatta, niente foschia
 function daySky(w) {
@@ -833,7 +1226,7 @@ const CITIES = {
 // Ogni livello ha il suo fattore di parallasse f e un canvas già convertito in palette.
 // Il disegno usa le coordinate del concept (alto 540) scalate di k = viewH / 540,
 // e il retino viene applicato alla risoluzione finale, così resta nitido.
-export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night" } = {}) {
+export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night", zone = 0 } = {}) {
   DAY = time === "day";
   DAY_LIFT = DAY ? 0.06 : 0;
   const k = viewH / VH_L;
@@ -842,7 +1235,9 @@ export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night"
   const defs = CITIES[cityId] ?? CITIES.milano;
   const layers = defs.map(([f, draw], li) => {
     // livello 0 = cielo: di giorno quello chiaro, di notte quello della città (Delhi di notte usa la luna)
-    const fn = li === 0 ? (DAY ? daySky : cityId === "delhi" ? sky : draw) : draw;
+    const zones = ZONES[cityId] ?? ZONES.milano;
+    const last = li === defs.length - 1;
+    const fn = li === 0 ? (DAY ? daySky : cityId === "delhi" ? sky : draw) : last ? zones[zone % zones.length].near : draw;
     const wl = f ? VW + (W_L - VW) * f : VW;
     const c = document.createElement("canvas");
     c.width = Math.round(wl * k);

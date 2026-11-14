@@ -210,7 +210,7 @@ Object.assign(EVENTS, {
     emergency: true,
     drainMultiplier: 2.3,
     endsAt: "home",
-    description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Oggi è l'unica task: torna a casa stabilizzando la pianta con 6 cure improvvise, mentre l'ossigeno cala più in fretta.",
+    description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Oggi è l'unica task: torna a casa stabilizzando la pianta con 6 cure improvvise. L'ossigeno cala più in fretta, ma ogni cura riuscita ne ridà molto.",
     steps: [{ type: "emergency", target: "home", actionEveryMs: 4200, cures: 6, text: "STABILIZZA LA PIANTA E TORNA A CASA" }]
   }
 });

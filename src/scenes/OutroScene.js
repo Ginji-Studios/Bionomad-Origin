@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { getRun } from "../systems/RunManager.js";
+import { getRun, cityZone } from "../systems/RunManager.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
@@ -38,7 +38,7 @@ export class OutroScene extends Phaser.Scene {
       else this.ui.ignore(go);
     });
 
-    const sky = skylineLayers(this, origin.id, buildSkyline, { time: "night" });
+    const sky = skylineLayers(this, origin.id, buildSkyline, { time: "night", zone: cityZone(getRun(this.registry)) });
     cam.setScroll(Math.round((sky.worldW - VIEW.w) * 0.1), 0);
     // lo zoom si stringe verso l'hub e il pavimento, così i piedi restano in quadro
     cam.setOrigin(0.68, 0.86);

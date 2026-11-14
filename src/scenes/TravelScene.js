@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { dayTime, failRun, getRun, nextDestination } from "../systems/RunManager.js";
+import { dayTime, failRun, getRun, nextDestination, cityZone } from "../systems/RunManager.js";
 import { buildSkyline, paint } from "../world/skyline.js";
 import { posterArt } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
@@ -34,7 +34,7 @@ export class TravelScene extends Phaser.Scene {
     this.time_ = dayTime(this.run);
     setAmbient(this.time_ === "night" ? "night" : "city");
 
-    const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_ });
+    const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_, zone: cityZone(this.run) });
     this.worldW = sky.worldW;
     this.cameras.main.setBounds(0, 0, this.worldW, VIEW.h);
 
@@ -62,7 +62,7 @@ export class TravelScene extends Phaser.Scene {
     this.mark = marker(this, this.goalX, PLACE_NAME[this.dest.location] ?? "ARRIVO", { y: FEET - 230, h: 230, icon: this.dest.location ?? "flag" });
 
     brackets(this);
-    cityHud(this, this.origin.id);
+    cityHud(this, this.origin.id, { zone: cityZone(this.run) });
     this.o2 = o2Hud(this);
     this.tasks = taskPanel(this);
     this.tasks.set(this.finished ? "FINE GIORNATA" : `VERSO L'EVENTO ${this.run.index + 1}/${this.run.events.length}`, [`VAI A: ${PLACE_NAME[this.dest.location] ?? "ARRIVO"}`], 0);
@@ -97,9 +97,13 @@ export class TravelScene extends Phaser.Scene {
       { key: "poster_3", w: 64, h: 90, tall: true }
     ];
     const S = 1.25;
-    let i = (this.run.index * 2) % kinds.length;
-    for (let x = 820; x < this.worldW - 520; x += 760 + ((x * 7) % 5) * 60) {
-      const k = kinds[i++ % kinds.length];
+    // pochi e messi apposta: un cartellone a un terzo del percorso e un pannello
+    // verticale a due terzi, lontani dalla partenza e dall'arrivo
+    const spots = [
+      [Math.round(this.worldW * 0.34), kinds[[1, 3][this.run.index % 2]]],
+      [Math.round(this.worldW * 0.68), kinds[[0, 2, 4][this.run.index % 3]]]
+    ];
+    for (const [x, k] of spots) {
       const tex = `street_${k.key}`;
       const legs = k.tall ? 70 : 96;
       const W = Math.round((k.w + 16) * S);
