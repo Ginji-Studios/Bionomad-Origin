@@ -1,19 +1,15 @@
 import Phaser from "../phaser.js";
-import { makeTexture, registerPixelTextures } from "../ui/pixelSprites.js";
-import { registerTeamTextures } from "../ui/teamSprites.js";
-import { loadPosters } from "../ui/posters.js";
 import { loadLogos } from "../ui/logo.js";
-import { VT323_WOFF2 } from "../ui/fontData.js";
+import { registerPeople } from "../art/people.js";
+import { FONT, HEX, txt } from "../ui/hud.js";
 
-// il font è incorporato nel codice (fontData.js): nessun percorso da indovinare,
-// quindi nessun errore 404 qualunque server si usi
+// il font Roboto Mono arriva da Google Fonts (index.html); se il tablet è offline
+// si usa il monospace di sistema dopo al massimo 3 secondi
 async function loadFont() {
   try {
-    const face = new FontFace("VT323", `url("${VT323_WOFF2}")`);
-    await face.load();
-    document.fonts.add(face);
+    await Promise.race([document.fonts.load('400 24px "Roboto Mono"'), new Promise((r) => setTimeout(r, 3000))]);
   } catch (error) {
-    console.warn("Font VT323 non caricato, uso il monospace di sistema", error);
+    console.warn("Font non caricato, uso il monospace di sistema", error);
   }
 }
 
@@ -23,11 +19,12 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   async create() {
-    // I testi Phaser vengono disegnati su canvas
+    const label = txt(this, 640, 400, "CARICAMENTO…", { size: 24, origin: 0.5, color: HEX.c3 });
     await loadFont();
-    registerPixelTextures(this);
-    registerTeamTextures(this, makeTexture);
-    await loadPosters(this);
+    label.setFontFamily(FONT);
+    // lascia disegnare la scritta prima dei calcoli pesanti
+    await new Promise((r) => setTimeout(r, 30));
+    registerPeople(this);
     await loadLogos(this);
     this.scene.start("MenuScene");
   }

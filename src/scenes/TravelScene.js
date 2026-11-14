@@ -1,234 +1,134 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
-import { faint, Player } from "../entities/Player.js";
-import { Npc } from "../entities/Npc.js";
-import { MockPlantInput } from "../input/MockPlantInput.js";
 import { getOrigin } from "../config/origins.js";
-import { failRun, getRun, nextDestination } from "../systems/RunManager.js";
-import { characterTexture } from "../ui/pixelSprites.js";
-import { drawSign, drawStreetFloor } from "../world/locations.js";
-import { drawCityscape, ZONES } from "../world/cityscape.js";
-import { addHud, addObjectiveBox, bodyText, COLORS, ditherRect, drawPanel, dropShadow, fadeIn, goTo, pixelArrow, pixelDisc, pixelText, showToast, targetMarker, textChip } from "../ui/theme.js";
+import { dayTime, failRun, getRun, nextDestination } from "../systems/RunManager.js";
+import { buildSkyline } from "../world/skyline.js";
+import { Walker } from "../entities/Walker.js";
+import { npcKey, operatorKey } from "../art/people.js";
+import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
 
-const WORLD_W = 1920;
-const NAMES = { home: "CASA", office: "UFFICIO", foodtruck: "FOOD TRUCK", busstop: "FERMATA BUS", bus: "FERMATA BUS", street: "CITTÀ" };
+const FEET = 764;
+const PLACE_NAME = { home: "CASA", office: "UFFICIO", bus: "FERMATA DEL BUS", busstop: "FERMATA DEL BUS", foodtruck: "FOOD TRUCK", street: "STRADA" };
 
-// tragitto a piedi tra una tappa e l'altra
+// tragitto a piedi tra un evento e l'altro: si cammina verso destra fino al riquadro
 export class TravelScene extends Phaser.Scene {
   constructor() {
     super("TravelScene");
   }
 
   create() {
-    const { width, height } = this.scale;
     this.run = getRun(this.registry);
     if (!this.run) {
       this.scene.start("MenuScene");
       return;
     }
+    this._leaving = false;
     this.origin = getOrigin(this.registry);
-    this.destination = nextDestination(this.registry);
-    this.arrived = false;
+    this.dest = nextDestination(this.registry);
+    this.finished = this.run.index >= this.run.events.length;
+    this.oxygen = this.run.oxygen ?? 1;
+    this.done = false;
+    this.indoor = false;
+    fadeIn(this);
+    this.time_ = dayTime(this.run);
+    setAmbient(this.time_ === "night" ? "night" : "city");
 
-    // già a casa e la prossima tappa è casa
-    if (this.destination.location === "home" && this.run.lastLocation === "home") {
-      const finished = this.run.index >= this.run.events.length;
-      this.scene.start(finished ? "EndScene" : "EventScene", finished ? { result: "win" } : undefined);
-      return;
+    const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_ });
+    this.worldW = sky.worldW;
+    this.cameras.main.setBounds(0, 0, this.worldW, VIEW.h);
+
+    // qualche passante con il suo zaino, a passo lento
+    this.passers = [0, 1, 2, 3, 4, 5].map((i) => {
+      const w = new Walker(this, npcKey(this, this.origin.id, i + (this.run.index % 2) * 6), 500 + i * 620 + Math.random() * 200, FEET - (i % 2) * 6, { speed: 70 + Math.random() * 40, depth: 300 + i });
+      w.dir = Math.random() < 0.5 ? -1 : 1;
+      w.scale = (i % 4 === 3) ? 0.68 : 1;
+      w.careIn = 3000 + Math.random() * 6000;
+      w.caring = 0;
+      w.minX = 40;
+      w.maxX = this.worldW - 40;
+      return w;
+    });
+
+    const opKey = operatorKey(this, this.registry.get("operator") ?? "a", this.origin.id);
+    this.player = new Walker(this, opKey, 420, FEET, { sound: true, depth: 500 });
+    this.player.maxX = this.worldW - 60;
+    this.cameras.main.startFollow(this.player.img, true, 0.08, 0.08, -180, 0);
+
+    this.goalX = this.worldW - 170;
+    this.mark = marker(this, this.goalX, PLACE_NAME[this.dest.location] ?? "ARRIVO", { y: FEET - 230, h: 230, icon: this.dest.location ?? "flag" });
+
+    brackets(this);
+    cityHud(this, this.origin.id);
+    this.o2 = o2Hud(this);
+    this.tasks = taskPanel(this);
+    this.tasks.set(this.finished ? "FINE GIORNATA" : `VERSO L'EVENTO ${this.run.index + 1}/${this.run.events.length}`, [`VAI A: ${PLACE_NAME[this.dest.location] ?? "ARRIVO"}`], 0);
+    this.pad = controls(this, { action: false });
+    this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
+  }
+
+  // il passante si ferma, si gira verso lo zaino, lo annaffia e la pianta rilascia ossigeno
+  care(w) {
+    w.caring = 2600;
+    w.update(0, 16);
+    w.facing = -w.dir;
+    w.img.setFlipX(w.facing < 0);
+    const s = w.scale;
+    const px = w.x + w.dir * 22 * s;
+    const top = w.img.y - 150 * s;
+    // gocce d'acqua sulla pianta
+    for (let i = 0; i < 6; i++) {
+      const d = this.add.rectangle(px + (Math.random() - 0.5) * 14, top - 20, 2, 5, 0x5e6d88).setDepth(w.depth + 2);
+      this.tweens.add({ targets: d, y: top + 10, alpha: 0, duration: 500, delay: 300 + i * 150, onComplete: () => d.destroy() });
     }
-    fadeIn(this, 350);
-
-    const from = NAMES[this.run.lastLocation] ?? "CASA";
-    const to = NAMES[this.destination.location];
-    const evening = this.destination.evening;
-
-    // città a livelli con parallasse
-    // i quartieri cambiano ordine a ogni run (zoneOffset estratto all'inizio)
-    this.zone = ZONES[(this.run.index + 1 + (this.run.zoneOffset ?? 0)) % ZONES.length];
-    this.add.rectangle(WORLD_W / 2, height / 2, WORLD_W, height, COLORS.bg).setDepth(-20);
-    drawCityscape(this, this.origin.id, { evening, width: WORLD_W, parallax: true, zone: this.zone });
-    drawStreetFloor(this, evening, WORLD_W);
-
-    this.drawProps(evening, from, to);
-
-    // passanti con zaino e mascherina, anche famiglie con i bambini (zainetto e maschera piccoli);
-    // ognuno ogni tanto si ferma a curare il proprio BIONOMAD (o lo trascura)
-    const textures = this.origin.id === "delhi" ? ["npc_d_mask", "npc_a_mask", "npc_b_mask"] : ["npc_a_mask", "npc_b_mask", "npc_c_mask"];
-    this.npcs = [];
-    [260, 700, 1100, 1500, 1820].forEach((x, i) => {
-      const speed = 28 + i * 6;
-      const direction = i % 2 ? -1 : 1;
-      const y = 440 + (i % 3) * 18;
-      const npc = new Npc(this, x, y, "", { texture: textures[i % 3], speed, direction, lively: true });
-      npc.worldWidth = WORLD_W;
-      this.npcs.push(npc);
-      // genitore con il figlio per mano
-      if (i % 2 === 0) {
-        const kid = new Npc(this, x + 44 * direction, y + 8, "", { texture: textures[(i + 1) % 3], speed, direction, child: true, lively: true });
-        kid.worldWidth = WORLD_W;
-        npc.partner = kid;
-        kid.partner = npc;
-        this.npcs.push(kid);
-      }
-    });
-
-    this.player = new Player(this, 70, 456, {
-      texture: characterTexture(this.origin.id, true),
-      withPack: true,
-      floor: [404, 482],
-      worldWidth: WORLD_W
-    });
-    this.inputProvider = new MockPlantInput(this);
-
-    this.cameras.main.setBounds(0, 0, WORLD_W, height);
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08, 0, 60);
-
-    this.hud = addHud(this, { oxygen: this.run.oxygen, location: this.origin.city, flag: this.origin.flag });
-    addObjectiveBox(this, `RAGGIUNGI: ${to}`);
-    textChip(this, 14, height - 30, this.zone.toUpperCase(), { size: 18, tag: "QUARTIERE" });
-    textChip(this, width - 14, height - 30, "D / →  cammina", { size: 20, originX: 1 });
-    this.createRouteBar(from, to);
-    setAmbient(evening ? "night" : "city");
-    this.setupSmogPeaks();
-
-    this.input.keyboard.once("keydown-ESC", () => goTo(this, "MenuScene"));
-  }
-
-  drawProps(evening, from, to) {
-    const g = this.add.graphics().setDepth(380);
-    // aiuole con piante filtranti
-    [520, 1120, 1560].forEach((x) => {
-      this.add.image(x, 404, "plant_tall").setOrigin(0.5, 1).setScale(3).setDepth(404);
-    });
-
-    // cartelli di partenza e arrivo
-    drawSign(this, 150, from, { dir: "left", sub: "da qui" });
-    drawSign(this, WORLD_W / 2, to, { dir: "right", sub: "900 m" });
-    drawSign(this, WORLD_W - 150, to, { dir: "right", sub: "arrivo" });
-
-    // primo piano
-    const front = this.add.graphics().setDepth(700).setScrollFactor(1.3, 1);
-    for (let x = 300; x < WORLD_W * 1.3; x += 520) {
-      front.fillStyle(0x3f6560, 1);
-      for (let i = 0; i < 4; i += 1) pixelDisc(front, x + i * 22, 524, 18, 0x3f6560, 1, 2);
-      ditherRect(front, x - 18, 520, 100, 20, 0x1c2839, 5);
-    }
-
-    // freccia di arrivo che pulsa
-    this.goal = targetMarker(this, { depth: 900 }).setPosition(WORLD_W - 60, 336);
-    this.tweens.addCounter({ from: -6, to: 6, duration: 520, yoyo: true, repeat: -1, ease: "Sine.easeInOut", onUpdate: (t) => this.goal.bob(t.getValue()) });
-  }
-
-  // percorso in alto: una linea "della metro" tra partenza e arrivo
-  createRouteBar(from, to) {
-    const { width } = this.scale;
-    const x0 = width / 2 - 170;
-    const x1 = width / 2 + 170;
-    const y = 76;
-    const fix = (obj, depth = 1001) => obj.setDepth(depth).setScrollFactor(0);
-    const g = fix(this.add.graphics(), 1000);
-    dropShadow(g, x0 - 150, y - 20, 640, 40, 4);
-    drawPanel(g, x0 - 150, y - 20, 640, 40, { fill: COLORS.paper, border: COLORS.ink });
-    // testate: partenza (blu) e arrivo (ruggine)
-    g.fillStyle(COLORS.ink, 1);
-    g.fillRect(x0 - 150, y - 20, 132, 40);
-    g.fillStyle(COLORS.red, 1);
-    g.fillRect(x1 + 18, y - 20, 132, 40);
-    fix(pixelText(this, x0 - 84, y - 12, "DA", { size: 8, color: COLORS.steelLight, origin: [0.5, 0] }));
-    fix(bodyText(this, x0 - 84, y + 6, from, { size: 20, color: COLORS.paper, origin: 0.5, fit: 120 }));
-    fix(pixelText(this, x1 + 84, y - 12, "VERSO", { size: 8, color: COLORS.paper, origin: [0.5, 0] }));
-    fix(bodyText(this, x1 + 84, y + 6, to, { size: 20, color: COLORS.paper, origin: 0.5, fit: 120 }));
-    // binario tratteggiato con tacche
-    g.fillStyle(COLORS.panelLight, 1);
-    for (let x = x0; x < x1; x += 12) g.fillRect(x, y - 2, 8, 4);
-    g.fillStyle(COLORS.steel, 1);
-    [0.25, 0.5, 0.75].forEach((t) => g.fillRect(Math.round(x0 + (x1 - x0) * t) - 1, y + 6, 2, 6));
-    this.routeFill = fix(this.add.graphics());
-    // stazioni alle estremità
-    const stations = fix(this.add.graphics(), 1002);
-    [[x0, COLORS.ink], [x1, COLORS.red]].forEach(([x, color]) => {
-      stations.fillStyle(color, 1);
-      stations.fillRect(x - 7, y - 7, 14, 14);
-      stations.fillStyle(COLORS.paper, 1);
-      stations.fillRect(x - 3, y - 3, 6, 6);
-    });
-    // il cittadino in miniatura cammina lungo la linea
-    const base = this.player.baseTexture;
-    this.routeDot = fix(this.add.image(x0, y + 8, base).setOrigin(0.5, 1).setScale(1.5), 1003);
-    this.time.addEvent({ delay: 180, loop: true, callback: () => this.routeDot.setTexture(this.routeDot.texture.key === base ? `${base}_w1` : base) });
-    this.route = { x0, x1, y };
-  }
-
-  // picco di inquinamento: a volte l'aria peggiora di colpo. Suona la sirena, il cielo
-  // si scurisce e tutti i passanti si fermano a curare il proprio BIONOMAD
-  setupSmogPeaks() {
-    const { width, height } = this.scale;
-    const level = this.origin.smog ?? 0;
-    const veil = this.add.rectangle(width / 2, height / 2, width, height, level >= 2 ? 0x8a6a3a : 0x6e6a60, 0).setScrollFactor(0).setDepth(600);
-    const peak = () => {
-      if (this.arrived) return;
-      Sfx.siren();
-      showToast(this, "PICCO DI PM2.5 · CURA IL TUO PRESIDIO", { color: COLORS.red, y: 150, duration: 3200 });
-      this.tweens.add({ targets: veil, fillAlpha: 0.16 + level * 0.06, duration: 900, yoyo: true, hold: 3200, ease: "Sine.easeInOut" });
-      this.cameras.main.shake(300, 0.002);
-      // i cittadini rispondono: si fermano e si prendono cura della pianta
-      this.npcs.forEach((npc, i) => {
-        if (!npc.busy) npc.careTimer = 200 + i * 260;
-      });
-      // l'ossigeno cala un po' più in fretta finché dura il picco
-      this.peakUntil = this.time.now + 4500;
-    };
-    // l'avviso è casuale: in un tragitto può arrivare oppure no, in un momento qualsiasi.
-    // più l'aria è inquinata, più è probabile (Reykjavík 35% · Milano 50% · Delhi 65%);
-    // dopo un picco la probabilità di un secondo cala
-    let chance = 0.35 + level * 0.15;
-    const schedule = () => {
-      this.time.delayedCall(Phaser.Math.Between(5000, 16000), () => {
-        if (this.arrived) return;
-        if (Math.random() < chance) {
-          peak();
-          chance *= 0.4;
-        }
-        schedule();
-      });
-    };
-    schedule();
+    this.tweens.add({ targets: w.img, scaleY: 0.97, duration: 260, yoyo: true, repeat: 3 });
+    this.time.delayedCall(1200, () => w.img.active && w.bubble(8));
   }
 
   update(time, delta) {
-    if (!this.player || this.arrived) return;
-    this.player.update(this.inputProvider.getState(), delta, time);
-    this.npcs.forEach((npc) => {
-      npc.update(delta, time);
-      npc.setDepth(npc.y);
+    if (!this.player) return;
+    this.passers.forEach((w) => {
+      if (w.x <= w.minX + 5) w.dir = 1;
+      if (w.x >= w.maxX - 5) w.dir = -1;
+      // ogni tanto un passante si ferma a curare il suo zaino-serra
+      if (w.caring > 0) {
+        w.caring -= delta;
+        w.update(0, delta);
+        if (w.caring <= 0) {
+          w.facing = w.dir;
+          w.careIn = 5000 + Math.random() * 8000;
+        }
+        return;
+      }
+      w.careIn -= delta;
+      if (w.careIn <= 0) this.care(w);
+      w.update(w.dir, delta);
     });
-
-    // avanzamento sulla barra del percorso
-    const progress = Phaser.Math.Clamp((this.player.x - 70) / (WORLD_W - 110), 0, 1);
-    const { x0, x1, y } = this.route;
-    this.routeFill.clear();
-    this.routeFill.fillStyle(COLORS.ink, 1);
-    this.routeFill.fillRect(x0, y - 2, (x1 - x0) * progress, 4);
-    this.routeDot.setX(x0 + (x1 - x0) * progress);
-
-    // in strada l'ossigeno scende, ma a metà velocità rispetto agli eventi
-    const peakFactor = this.peakUntil && this.time.now < this.peakUntil ? 1.6 : 1;
-    // tra un luogo e l'altro l'ossigeno cala poco, con differenze lievi tra le difficoltà
-    this.hud.setOxygen(this.hud.oxygen - (delta * peakFactor) / ((this.origin.travelDrainSeconds ?? 300) * 1000));
-    if (this.hud.oxygen <= 0) {
-      this.arrived = true;
-      this.hud.setOxygen(0);
-      failRun(this.registry);
-      faint(this.player).then(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose", fainted: true })));
+    if (this.done) {
+      this.o2.set(this.oxygen, time);
       return;
     }
+    const input = this.pad.poll();
+    this.player.update(input.dir, delta);
+    const drain = (this.origin.travelDrainSeconds ?? 300) * 1000;
+    this.oxygen = Math.max(0, this.oxygen - delta / drain);
+    this.o2.set(this.oxygen, time);
+    this.mark.setActive(Math.abs(this.player.x - this.goalX) < 90);
 
-    if (this.player.x >= WORLD_W - 40) {
-      this.arrived = true;
-      this.run.oxygen = this.hud.oxygen;
+    if (this.oxygen <= 0) {
+      this.done = true;
+      failRun(this.registry);
+      Sfx.gameOver();
+      toast(this, "OSSIGENO ESAURITO", { duration: 3000 });
+      this.player.faint(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose" })));
+      return;
+    }
+    if (this.player.x >= this.goalX - 20) {
+      this.done = true;
+      this.run.oxygen = this.oxygen;
+      this.run.lastLocation = this.dest.location;
       this.registry.set("run", this.run);
-      const home = this.destination.location === "home";
-      goTo(this, home ? "EndScene" : "EventScene", home ? { result: "win" } : undefined);
+      Sfx.confirm();
+      goTo(this, this.finished ? "EndScene" : "EventScene", this.finished ? { result: "win" } : undefined);
     }
   }
 }

@@ -10,6 +10,9 @@
     <!-- favicon: logo b+ BIODOM in pixel art (incorporato, funziona da qualsiasi cartella) -->
     <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAA0UlEQVR4XmMUs/FloCVgYWBguL1lAY2sUPVJYKKR0XAw9C0AxQEcaFv4QNhXT2whMugIahn6QURzH6DEAZEAHu5Y4w8tCgfIB5huRE5XyGyCqYjYICJoEC5AchBhjQA8ALsPsGY0uNHaFj7E50RigwiSNvDHDVZAWhDBHU58QJFmARlg1AKCACWIyIhDggBnHOAv0YjPB+gWoJUzyJmL+KSJDLD4AM112hboRhPvfAYGHEGEy4irJ7aQZDoDA+6iglSDqFaakgpGczJBwEjr5jsAGHhDjQd5FAQAAAAASUVORK5CYII=" />
     <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAClklEQVR4Xu3czXHTUBhAUYehhnTAigZYpISkB0qjiBRBA6xohr1soVxJ8bPsc9bxn8Zz3/cUS0/PL28nuOSLw8IcXw58OeiUA+Wg+3r+kL/vv/rzcHjfXn9OPoNlBcsKnXKgHHTKgXLQKQfKQaccKAedcqAcdMqBctApB8pBpxwoB51yoBx0ysGsC78+X+H7j9f0qD+/39PfH1o9OKfTrRwf5cDMQaccKAedcqAcdMqBctApB8pBpxwoB51yoBx0yoFy0CkHykGnHCgHnXKgHHT7XJpwx1ZcWLDdLi+6/foPywqWFTrlQDnolAPloFMOlINOOVAOujGnz3c5Pbxo+/njXW6ys+LD7vLOt7OsYFmhUw6Ug045mDVmt3Idx90m3AjlwMxBpxwoB909D6QrnM+wN3ImewjLCpYVOuVAOeiUg1ljdiujtgArTqhPHjLqnQ+hHJg56JQD5aAbM5COMhknV8ynKxx3hrWsYFmhUw6Ug045mPVYu5WJ833E4v7loX4NpByYOeiUA+WgUw6Ug045UA465UA56JQD5aBTDpSDTjlQDjrlQDnolAPloFMOlINOOVAOOuVAOeiUg1n7XCtb75jzUFecHpdyYOagUw6Ug045+OTdynZD9i+L9/E5d9ybiq6gHJg56JQD5aDb5/T5xIpbOJ5bnBYXZ8PFZ+D/LCtYVuiUA+WgUw5mfcpu5Vz9NdBHXGczsrgnumPKgZmDTjlQDjrlYPRuZWKXf75s98g7kY9QDswcdMqBctBd6fT5IrPhDbKsYFmhUw6Ug045UA465UA56JQD5aBTDpSDTjlQDjrlQDnolAPloFMOlINOOVAOOuVAOeiUA+WgUw5mPT2/vDk8XKQcmDnolAPloFMOZv0DR8xPZSErrkwAAAAASUVORK5CYII=" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <style>
       html,
       body {
@@ -23,31 +26,9 @@
         -webkit-user-select: none;
         user-select: none;
         -webkit-tap-highlight-color: transparent;
+        background: #1c2839;
+        font-family: "Roboto Mono", ui-monospace, monospace;
       }
-
-      /* bordi ai lati del gioco: carta navy a quadretti con un retino leggero */
-      body {
-        background-color: #1c2839;
-        background-image:
-          radial-gradient(#26364b 1px, transparent 1.4px),
-          linear-gradient(#22324a 4px, transparent 4px),
-          linear-gradient(90deg, #22324a 4px, transparent 4px);
-        background-size: 8px 8px, 64px 64px, 64px 64px;
-        background-position: 0 0, -2px -2px, -2px -2px;
-        font-family: "VT323", monospace;
-      }
-      body::before {
-        content: "BIODOM+ · BIONOMAD · O2RIGIN · ";
-        position: fixed;
-        inset: auto 0 6px 0;
-        color: #34485e;
-        font-size: 18px;
-        letter-spacing: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        pointer-events: none;
-      }
-
       #game {
         position: fixed;
         inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -55,104 +36,8 @@
       canvas {
         image-rendering: pixelated;
         image-rendering: crisp-edges;
-        box-shadow: 0 0 0 4px #163c4d, 0 0 0 8px #0f1a26, 0 12px 40px rgba(0, 0, 0, 0.45);
       }
-
-      /* ---- comandi touch ---- */
-      .touch-controls {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 10;
-      }
-      .tc-btn {
-        pointer-events: auto;
-        font-family: "VT323", monospace;
-        font-size: 22px;
-        color: #f1f0ed;
-        background: rgba(22, 60, 77, 0.78);
-        border: 2px solid #f1f0ed;
-        border-radius: 0;
-        box-shadow: 4px 4px 0 rgba(15, 26, 38, 0.6);
-        touch-action: none;
-      }
-      .tc-btn.is-down {
-        background: #b4553f;
-        transform: translate(2px, 2px);
-        box-shadow: 2px 2px 0 rgba(15, 26, 38, 0.6);
-      }
-      .tc-pad {
-        position: absolute;
-        left: calc(16px + env(safe-area-inset-left));
-        bottom: calc(16px + env(safe-area-inset-bottom));
-        display: grid;
-        grid-template-columns: repeat(3, 52px);
-        grid-template-rows: repeat(3, 52px);
-        gap: 4px;
-      }
-      .tc-pad .up { grid-column: 2; grid-row: 1; }
-      .tc-pad .left { grid-column: 1; grid-row: 2; }
-      .tc-pad .right { grid-column: 3; grid-row: 2; }
-      .tc-pad .down { grid-column: 2; grid-row: 3; }
-      .tc-actions {
-        position: absolute;
-        right: calc(16px + env(safe-area-inset-right));
-        bottom: calc(16px + env(safe-area-inset-bottom));
-        display: flex;
-        align-items: flex-end;
-        gap: 10px;
-      }
-      .tc-plant {
-        display: grid;
-        grid-template-columns: repeat(2, 64px);
-        gap: 4px;
-      }
-      .tc-plant .tc-btn {
-        font-size: 18px;
-        padding: 6px 0;
-      }
-      .tc-btn.big {
-        width: 84px;
-        height: 84px;
-        font-size: 26px;
-      }
-      .tc-top {
-        position: absolute;
-        top: calc(8px + env(safe-area-inset-top));
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 8px;
-      }
-      .tc-btn.small {
-        padding: 2px 12px;
-        font-size: 20px;
-      }
-
-      /* i tasti della pianta compaiono solo durante le azioni sulla pianta */
-      .tc-plant { display: none; }
-      body.plant-active .tc-plant { display: grid; }
-      /* solo i tasti del sensore richiesto */
-      .tc-plant .tc-btn { display: none; }
-      body.plant-light .tc-plant .s-light,
-      body.plant-temperature .tc-plant .s-temperature,
-      body.plant-irrigation .tc-plant .s-irrigation,
-      body.plant-vials .tc-plant .s-vials { display: block; }
-      .tc-plant .v1 { color: #5c9a6b; }
-      .tc-plant .v2 { color: #3b6fb0; }
-      .tc-plant .v3 { color: #b4553f; }
-
-      /* telefoni in orizzontale: comandi più piccoli e trasparenti */
-      @media (max-height: 500px) {
-        .tc-btn { opacity: 0.7; font-size: 18px; }
-        .tc-pad { grid-template-columns: repeat(3, 38px); grid-template-rows: repeat(3, 38px); gap: 2px; left: calc(6px + env(safe-area-inset-left)); bottom: 6px; }
-        .tc-actions { right: calc(6px + env(safe-area-inset-right)); bottom: 6px; }
-        .tc-btn.big { width: 60px; height: 60px; font-size: 20px; }
-        .tc-plant { grid-template-columns: repeat(2, 52px); }
-        .tc-btn.small { padding: 0 8px; font-size: 16px; }
-      }
-
-      /* telefono in verticale: si chiede di ruotarlo */
+      /* tablet o telefono in verticale: si chiede di ruotarlo */
       .rotate {
         display: none;
         position: fixed;
@@ -161,23 +46,23 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
         color: #f1f0ed;
-        font-size: 28px;
+        font-size: 26px;
         text-align: center;
-        background: inherit;
+        background: #1c2839;
       }
       .rotate .phone {
         width: 46px;
         height: 80px;
-        border: 4px solid #f1f0ed;
+        border: 3px solid #f1f0ed;
         animation: turn 1.6s ease-in-out infinite;
       }
       @keyframes turn {
         0%, 30% { transform: rotate(0deg); }
         60%, 100% { transform: rotate(-90deg); }
       }
-      @media (orientation: portrait) and (max-width: 700px) {
+      @media (orientation: portrait) {
         .rotate { display: flex; }
       }
     </style>
@@ -186,7 +71,7 @@
     <div id="game"></div>
     <div class="rotate">
       <div class="phone"></div>
-      <div>ruota il telefono<br />per giocare</div>
+      <div>ruota il tablet<br />in orizzontale</div>
     </div>
     <script type="module" src="./src/main.js"></script>
   </body>

@@ -1,23 +1,104 @@
+// pannello AZIONE SULLA PIANTA: cosa fare, a che punto sei, e (senza pianta collegata)
+// i pulsanti grandi per simularla sul tablet. Nessun testo in più.
+import Phaser from "../phaser.js";
 import { PlantSensors, VIAL_COLORS } from "../input/PlantSensors.js";
-import { brandMarks, bodyText, COLORS, drawPanel, dropShadow, hex, pixelText } from "./theme.js";
+import { paint } from "../world/skyline.js";
+import { K } from "../art/people.js";
+import { box, button, C, HEX, txt } from "./hud.js";
 
-// pannello "AZIONE SULLA PIANTA"
-const W = 400;
-const H = 270;
+const X0 = 410;
+const Y0 = 110;
+const W = 830;
+const H = 470;
+
+// sansevieria nel vaso bianco, retinata come il resto: foglie a spada con le bande
+export function plantArt(scene, key = "plant_big", k = 1) {
+  if (scene.textures.exists(key)) return;
+  const c = paint(240 * k, 300 * k, k, ({ X, G }) => {
+    // foglie: [base x, altezza, inclinazione, larghezza, tono]
+    const leaves = [[96, 230, -0.32, 15, 0.5], [104, 268, -0.12, 18, 0.62], [120, 290, 0.02, 20, 0.7], [134, 250, 0.16, 17, 0.58], [146, 210, 0.36, 14, 0.5], [112, 180, -0.22, 13, 0.78], [128, 196, 0.24, 13, 0.8]];
+    leaves.forEach(([bx, h, tilt, w, tone], i) => {
+      const by = 210;
+      const tx = bx + Math.sin(tilt) * h;
+      const ty = by - Math.cos(tilt) * h;
+      const nx = Math.cos(tilt);
+      const ny = Math.sin(tilt);
+      X.save();
+      X.beginPath();
+      X.moveTo(bx - (w / 2) * nx, by - (w / 2) * ny);
+      X.quadraticCurveTo(bx - w * 0.7 * nx + (tx - bx) * 0.5, by - w * 0.7 * ny + (ty - by) * 0.5, tx, ty);
+      X.quadraticCurveTo(bx + w * 0.7 * nx + (tx - bx) * 0.5, by + w * 0.7 * ny + (ty - by) * 0.5, bx + (w / 2) * nx, by + (w / 2) * ny);
+      X.closePath();
+      const g = X.createLinearGradient(bx - w, 0, bx + w, 0);
+      g.addColorStop(0, G(tone + 0.15));
+      g.addColorStop(1, G(tone - 0.2));
+      X.fillStyle = g;
+      X.fill();
+      X.clip();
+      // bande ondulate scure, tipiche della sansevieria
+      X.strokeStyle = G(tone - 0.35);
+      X.lineWidth = 2;
+      for (let k = 12; k < h; k += 11 + (i % 3)) {
+        const cx = bx + Math.sin(tilt) * k;
+        const cy = by - Math.cos(tilt) * k;
+        X.beginPath();
+        for (let t = -w; t <= w; t += 3) {
+          const px = cx + t * nx;
+          const py = cy + t * ny + Math.sin(t * 0.9 + k) * 1.6;
+          if (t === -w) X.moveTo(px, py);
+          else X.lineTo(px, py);
+        }
+        X.stroke();
+      }
+      X.restore();
+    });
+    // vaso cilindrico bianco con il bordo
+    const pg = X.createLinearGradient(66, 0, 174, 0);
+    pg.addColorStop(0, G(0.98));
+    pg.addColorStop(0.6, G(0.82));
+    pg.addColorStop(1, G(0.55));
+    X.fillStyle = pg;
+    X.fillRect(70, 206, 100, 90);
+    X.fillStyle = G(0.7);
+    X.fillRect(66, 200, 108, 8);
+    X.fillStyle = G(0.12);
+    X.fillRect(72, 202, 96, 4);
+    X.fillStyle = G(0.6);
+    X.fillRect(70, 278, 100, 2);
+  }, { seedValue: 3, cell: 1 });
+  scene.textures.addCanvas(key, c);
+}
+
+const SENSOR_HINT = {
+  light: (s) => (s.below !== undefined ? "COPRI LA PIANTA CON LA MANO" : "PUNTA LA TORCIA SULLA PIANTA"),
+  temperature: (s) => (s.dropBy !== undefined ? `RAFFREDDA DI ${s.dropBy} °C` : `SCALDA DI ${s.riseBy} °C`),
+  irrigation: (s) => (s.on ? "APRI LA LEVA DELL'ACQUA" : "CHIUDI LA LEVA DELL'ACQUA"),
+  vials: () => "INSERISCI LE 2 FIALE INDICATE",
+  touch: () => "TOCCA UNA FOGLIA"
+};
 
 export class PlantPanel {
   constructor(scene) {
     this.scene = scene;
-    this.container = null;
+    this.c = null;
+    this.sim = { C: false, I: false, H: false, F: false, Q: false, E: false };
+    plantArt(scene);
+    const kb = scene.input.keyboard;
+    this.keys = kb.addKeys("C,I,H,F,Q,E,R,ONE,TWO,THREE,ZERO");
+    kb.on("keydown-R", () => this.open && this.toggleLever());
+    kb.on("keydown-ONE", () => this.open && this.vial(1));
+    kb.on("keydown-TWO", () => this.open && this.vial(2));
+    kb.on("keydown-THREE", () => this.open && this.vial(3));
+    kb.on("keydown-ZERO", () => this.open && PlantSensors.removeVial());
   }
 
   get open() {
-    return Boolean(this.container);
+    return Boolean(this.c);
   }
 
   show(step, { timeoutMs = 0, emergency = false } = {}) {
     const scene = this.scene;
-    this.close(true);
+    this.close();
     this.step = step;
     this.progress = 0;
     this.elapsed = 0;
@@ -26,192 +107,130 @@ export class PlantPanel {
     this.floodMs = 0;
     this.overheated = false;
     this.lastSlots = [...PlantSensors.state.slots];
-
-    const { width } = scene.scale;
-    // spostato a destra: a sinistra può comparire la lista delle task
-    const x = Math.round(width / 2 - W / 2 + 110);
-    const y = 100;
-    this.box = { x, y };
-    const c = scene.add.container(0, 0).setDepth(2000);
-    const marks = brandMarks(scene, x, y, W, H, { color: emergency ? COLORS.red : COLORS.ink });
-    const g = scene.add.graphics();
-    dropShadow(g, x, y, W, H, 8);
-    drawPanel(g, x, y, W, H, { fill: COLORS.paper, border: emergency ? COLORS.red : COLORS.ink });
-    g.fillStyle(emergency ? COLORS.red : COLORS.ink, 1);
-    g.fillRect(x, y, W, 28);
-    const head = pixelText(scene, x + 12, y + 10, emergency ? "EMERGENZA · CURA" : "AZIONE SULLA PIANTA", { size: 8, color: COLORS.paper });
-    const status = pixelText(scene, x + W - 12, y + 10, PlantSensors.state.connected ? "ELEGOO COLLEGATA" : "SIMULAZIONE", {
-      size: 8,
-      color: PlantSensors.state.connected ? 0x9fd4b0 : COLORS.steelLight,
-      origin: [1, 0]
-    });
-    const title = pixelText(scene, x + 16, y + 42, step.text, { size: 16, fit: W - 32 });
-
-    // illustrazione della pianta con l'effetto dell'azione
-    const artBg = drawPanel(scene.add.graphics(), x + 16, y + 68, 120, 132, { fill: COLORS.bg, border: COLORS.panelLight });
-    this.plant = scene.add.image(x + 76, y + 192, "plant_tall").setOrigin(0.5, 1).setScale(5);
+    const c = scene.add.container(0, 0).setDepth(1800).setScrollFactor(0);
+    const bg = box(scene, X0, Y0, W, H, { alpha: 1, border: emergency ? C.c4 : C.c3, bw: emergency ? 3 : 2 });
+    const title = txt(scene, X0 + 32, Y0 + 26, step.text.replace(/^[+!]\s*/, ""), { size: 34, weight: "500", wrap: W - 64 });
+    const hint = txt(scene, X0 + 32, Y0 + 26 + title.height + 10, SENSOR_HINT[step.sensor]?.(step) ?? "", { size: 22, color: HEX.c3, wrap: W - 64 });
+    // la pianta sta nella sua colonna a sinistra, lontano dai numeri
+    const plant = scene.add.image(X0 + 30, Y0 + H - 20, "plant_big").setOrigin(0, 1);
     this.fx = scene.add.graphics();
-
-    // indicatore del sensore
-    this.valueLabel = bodyText(scene, x + 152, y + 70, "", { size: 22, color: COLORS.ink, fit: W - 168 });
-    this.valueMaxW = W - 168;
+    // colonna destra: valore (1-2 righe), poi barra del sensore, poi completamento, poi pulsanti
+    this.value = txt(scene, X0 + 300, Y0 + 132, "", { size: 26, wrap: W - 340 });
     this.gauge = scene.add.graphics();
-    this.progressLabel = pixelText(scene, x + 152, y + 128, "COMPLETAMENTO", { size: 8, color: COLORS.steel });
-    this.progressBar = scene.add.graphics();
-    const hint = bodyText(scene, x + 152, y + 160, step.hint, { size: 18, color: COLORS.steel, wrap: W - 168, lineSpacing: -4 });
-
-    const keyHint = PlantSensors.state.connected
-      ? "Usa la pianta vera"
-      : step.sensor === "vials"
-        ? "Tastiera: 1 verde · 2 blu · 3 rossa · 0 togli"
-        : step.sensor === "irrigation"
-          ? `Tastiera: premi ${step.key} (apre / chiude la leva)`
-          : `Tastiera: tieni premuto ${step.key}`;
-    const keyLabel = bodyText(scene, x + 16, y + H - 30, keyHint, { size: 20, color: COLORS.red, fit: W - 32 });
-    this.timerBar = scene.add.graphics();
-
-    c.add([marks, g, head, status, title, artBg, this.plant, this.fx, this.valueLabel, this.gauge, this.progressLabel, this.progressBar, hint, keyLabel, this.timerBar]);
-    c.setAlpha(0).setScale(0.96);
-    scene.tweens.add({ targets: c, alpha: 1, scale: 1, duration: 220, ease: "Back.easeOut" });
-    scene.tweens.add({ targets: this.plant, scaleY: 5.25, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    this.container = c;
+    this.doneLabel = txt(scene, X0 + 300, Y0 + 270, "COMPLETAMENTO", { size: 18, color: HEX.c3 });
+    this.timer = scene.add.graphics();
+    c.add([bg, title, hint, plant, this.fx, this.value, this.gauge, this.doneLabel, this.timer]);
+    this.plantImg = plant;
+    this.box = { plantX: X0 + 40, plantW: plant.displayWidth, plantTop: Y0 + H - 30 - plant.displayHeight };
+    // pulsanti per simulare la pianta (solo se non è collegata)
+    this.simButtons = [];
+    if (!PlantSensors.state.connected) this.makeSimButtons(c, step);
+    c.setAlpha(0);
+    scene.tweens.add({ targets: c, alpha: 1, duration: 160 });
+    this.c = c;
   }
 
-  // ritorna { satisfied, done, timedOut }
+  makeSimButtons(c, step) {
+    const scene = this.scene;
+    const y = Y0 + H - 100;
+    const x = X0 + 300;
+    const hold = (label, key) => {
+      const b = button(scene, x, y, 360, 80, label, null, { size: 26, depth: 1850 });
+      const zone = b.c.list[b.c.list.length - 1];
+      zone.on("pointerdown", () => (this.sim[key] = true));
+      zone.on("pointerup", () => (this.sim[key] = false));
+      zone.on("pointerout", () => (this.sim[key] = false));
+      return b;
+    };
+    if (step.sensor === "light") this.simButtons.push(hold(step.below !== undefined ? "TIENI: COPRI" : "TIENI: TORCIA", step.below !== undefined ? "C" : "I"));
+    if (step.sensor === "temperature") this.simButtons.push(hold(step.dropBy !== undefined ? "TIENI: RAFFREDDA" : "TIENI: SCALDA", step.dropBy !== undefined ? "F" : "H"));
+    if (step.sensor === "touch") this.simButtons.push(hold("TIENI: TOCCA", "Q"));
+    if (step.sensor === "irrigation") this.simButtons.push(button(scene, x, y, 360, 80, "LEVA ACQUA", () => this.toggleLever(), { size: 26, depth: 1850 }));
+    if (step.sensor === "vials") {
+      [1, 2, 3].forEach((v, i) => this.simButtons.push(button(scene, x + i * 124, y, 112, 76, VIAL_COLORS[v].name, () => this.vial(v), { size: 20, depth: 1850 })));
+      this.simButtons.push(button(scene, x + 372, y, 112, 76, "TOGLI", () => PlantSensors.removeVial(), { size: 20, depth: 1850 }));
+    }
+    this.simButtons.forEach((b) => c.add(b.c));
+  }
+
+  toggleLever() {
+    if (PlantSensors.state.connected) return;
+    PlantSensors.state.irrigation = !PlantSensors.state.irrigation;
+  }
+
+  vial(v) {
+    PlantSensors.insertVial(v, this.step?.required);
+  }
+
+  // simulazione dei sensori (tastiera o pulsanti a schermo)
+  simulate(delta, baseTemperature) {
+    const k = this.keys;
+    const down = (key) => ({ isDown: this.sim[key] || k[key].isDown });
+    PlantSensors.simulate({ C: down("C"), I: down("I"), H: down("H"), F: down("F"), Q: down("Q"), E: down("E") }, delta, baseTemperature);
+  }
+
+  // ritorna { satisfied, done, timedOut, negligence }
   update(delta) {
-    if (!this.container) return { satisfied: false, done: false, timedOut: false };
+    if (!this.c) return { satisfied: false, done: false, timedOut: false };
     const step = this.step;
     const s = PlantSensors.state;
-    const { x, y } = this.box;
-    const gx = x + 152;
-    const gy = y + 98;
-    const gw = W - 168;
     let satisfied = false;
     let fill = 0;
-    let marker = null;
+    let mark = null;
     let negligence = null;
+    const fx = this.fx;
+    fx.clear();
+    const { plantX, plantW, plantTop } = this.box;
 
-    this.fx.clear();
     if (step.sensor === "light") {
       fill = s.light;
       satisfied = step.below !== undefined ? s.light < step.below : s.light > step.above;
-      marker = step.below ?? step.above;
-      this.valueLabel.setText(`LUCE ${Math.round(s.light * 100)}%  ${step.below !== undefined ? "<" : ">"} ${Math.round(marker * 100)}%`);
+      mark = step.below ?? step.above;
+      this.value.setText(`LUCE ${Math.round(s.light * 100)}%   ${step.below !== undefined ? "SOTTO" : "SOPRA"} ${Math.round(mark * 100)}%`);
       if (step.below !== undefined) {
-        // mano che copre la pianta
-        this.fx.fillStyle(0xe8dccd, Math.min(1, (1 - s.light) * 1.1));
-        this.fx.fillRect(x + 36, y + 84, 80, 56);
-        this.fx.fillRect(x + 40, y + 76, 12, 10);
-        this.fx.fillRect(x + 58, y + 74, 12, 10);
-        this.fx.fillRect(x + 76, y + 74, 12, 10);
-        this.fx.fillRect(x + 94, y + 76, 12, 10);
+        fx.fillStyle(C.c0, Math.min(0.85, (1 - s.light) * 0.9));
+        fx.fillRect(plantX, plantTop, plantW, 200);
       } else {
-        this.fx.fillStyle(0xe8c66a, s.light * 0.6);
-        this.fx.fillRect(x + 20, y + 72, 112, 124);
+        fx.fillStyle(C.c4, s.light * 0.25);
+        fx.fillRect(plantX, plantTop, plantW, 300);
       }
     } else if (step.sensor === "temperature") {
-      // scaldare (riseBy) o raffreddare (dropBy); oltre maxOver si esagera e la pianta si rovina
       const cooling = step.dropBy !== undefined;
-      const delta = cooling ? -step.dropBy : step.riseBy;
-      const target = this.baseTemperature + delta;
+      const d = cooling ? -step.dropBy : step.riseBy;
+      const target = this.baseTemperature + d;
       satisfied = cooling ? s.temperature <= target : s.temperature >= target;
-      const range = Math.abs(delta) + 8;
+      const range = Math.abs(d) + 8;
       const lowest = cooling ? target - 4 : this.baseTemperature - 2;
       fill = (s.temperature - lowest) / range;
-      marker = (target - lowest) / range;
-      this.valueLabel.setText(`TEMP ${s.temperature.toFixed(1)}°C → ${target.toFixed(1)}°C`);
+      mark = (target - lowest) / range;
+      this.value.setText(`${s.temperature.toFixed(1)} °C  →  ${target.toFixed(1)} °C`);
       if (step.maxOver && !cooling && s.temperature > target + step.maxOver && !this.overheated) {
         this.overheated = true;
         negligence = "overheat";
       }
       if (step.maxOver && !cooling && s.temperature < target + step.maxOver - 1) this.overheated = false;
-      const warm = Math.max(-1, Math.min(1, (s.temperature - this.baseTemperature) / Math.abs(delta)));
-      if (warm > 0) {
-        this.fx.fillStyle(COLORS.red, warm * 0.35);
-        this.fx.fillRect(x + 20, y + 72, 112, 124);
-      } else {
-        this.fx.fillStyle(0x9fb4c2, -warm * 0.45);
-        this.fx.fillRect(x + 20, y + 72, 112, 124);
-      }
-      if (!cooling && warm < 0.3) {
-        this.fx.fillStyle(COLORS.paper, 1 - Math.max(0, warm) * 3);
-        [[34, 90], [96, 84], [60, 120], [110, 132], [44, 150]].forEach(([dx, dy]) => this.fx.fillRect(x + dx, y + dy, 6, 6));
-      }
-      if (cooling && warm > -0.3) {
-        // aria calda che sale
-        const t = this.scene.time.now;
-        this.fx.fillStyle(COLORS.red, 0.6);
-        for (let i = 0; i < 5; i += 1) this.fx.fillRect(x + 34 + i * 20, y + 180 - ((t / 12 + i * 30) % 100), 3, 6);
-      }
     } else if (step.sensor === "vials") {
-      // servono le 2 fiale del colore indicato, in qualsiasi ordine;
-      // una fiala di un colore non richiesto (o di troppo) è negligenza
       const required = step.required ?? [1, 2];
-      const slots = s.slots;
-      // abbina ogni fiala inserita a un colore richiesto ancora libero
       const remaining = [...required];
-      const matched = slots.map((value) => {
-        if (!value) return false;
-        const k = remaining.indexOf(value);
-        if (k === -1) return false;
-        remaining.splice(k, 1);
+      const matched = s.slots.map((v) => {
+        if (!v) return false;
+        const i = remaining.indexOf(v);
+        if (i === -1) return false;
+        remaining.splice(i, 1);
         return true;
       });
       const correct = matched.filter(Boolean).length;
       satisfied = correct === required.length;
       fill = correct / required.length;
-      // in simulazione accanto a ogni colore c'è il tasto da premere
-      const keyHint = (c) => (s.connected ? VIAL_COLORS[c].name : `${VIAL_COLORS[c].name} [${c}]`);
-      const text = `POZZETTO: ${required.map(keyHint).join(" + ")}`;
-      if (this.valueLabel.text !== text) {
-        this.valueLabel.setText(text).setFontSize(22);
-        let size = 22;
-        while (this.valueLabel.width > this.valueMaxW && size > 14) this.valueLabel.setFontSize((size -= 1));
-      }
-      slots.forEach((value, i) => {
-        if (value && value !== this.lastSlots[i] && !matched[i]) negligence = "wrongVial";
+      const slotTxt = s.slots.map((v, i) => (v ? `${VIAL_COLORS[v].name}${matched[i] ? " ✓" : " ✗"}` : "—")).join("  |  ");
+      this.value.setText(`SERVONO: ${required.map((c) => VIAL_COLORS[c].name).join(" + ")}\nPOZZETTO: ${slotTxt}`);
+      s.slots.forEach((v, i) => {
+        if (v && v !== this.lastSlots[i] && !matched[i]) negligence = "wrongVial";
       });
-      this.lastSlots = [...slots];
-      // in alto i colori richiesti, che si spuntano man mano; sotto i due posti del pozzetto
-      const got = [...required].map(() => false);
-      slots.forEach((value, i) => {
-        if (!matched[i]) return;
-        const k = required.findIndex((c, j) => c === value && !got[j]);
-        if (k !== -1) got[k] = true;
-      });
-      required.forEach((c, i) => {
-        const rx = x + 40 + i * 40;
-        this.fx.fillStyle(VIAL_COLORS[c].color, got[i] ? 0.35 : 1);
-        this.fx.fillRect(rx, y + 78, 12, 12);
-        this.fx.fillStyle(COLORS.ink, 1);
-        this.fx.fillRect(rx, y + 90, 12, 2);
-        if (got[i]) {
-          this.fx.fillStyle(COLORS.ink, 1);
-          this.fx.fillRect(rx - 2, y + 83, 16, 2);
-        }
-      });
-      [x + 56, x + 96].forEach((vx, i) => {
-        const value = slots[i];
-        // posto del pozzetto
-        this.fx.fillStyle(COLORS.ink, 1);
-        this.fx.fillRect(vx - 8, y + 156, 16, 4);
-        this.fx.fillRect(vx - 8, y + 156, 4, 14);
-        this.fx.fillRect(vx + 4, y + 156, 4, 14);
-        if (value) {
-          this.fx.fillStyle(COLORS.inkDeep, 1);
-          this.fx.fillRect(vx - 4, y + 124, 8, 34);
-          this.fx.fillStyle(VIAL_COLORS[value].color, 1);
-          this.fx.fillRect(vx - 2, y + 136, 4, 20);
-          if (!matched[i] && Math.floor(this.scene.time.now / 200) % 2) {
-            this.fx.fillStyle(COLORS.red, 1);
-            this.fx.fillRect(vx - 10, y + 118, 20, 3);
-          }
-        }
-      });
+      this.lastSlots = [...s.slots];
     } else if (step.sensor === "irrigation") {
       satisfied = s.irrigation === step.on;
       fill = s.irrigation ? 1 : 0;
-      // leva lasciata aperta troppo a lungo: la pianta si allaga
       if (step.on === false && s.irrigation) {
         this.floodMs += delta;
         if (this.floodMs > (step.floodMs ?? 4000)) {
@@ -219,62 +238,58 @@ export class PlantPanel {
           negligence = "flood";
         }
       }
-      this.valueLabel.setText(`IRRIGAZIONE ${s.irrigation ? "ACCESA" : "SPENTA"}`);
+      this.value.setText(`LEVA ${s.irrigation ? "APERTA" : "CHIUSA"}`);
       if (s.irrigation) {
         const t = this.scene.time.now;
-        this.fx.fillStyle(COLORS.steel, 1);
-        for (let i = 0; i < 6; i += 1) {
-          const dy = (t / 6 + i * 23) % 70;
-          this.fx.fillRect(x + 40 + i * 14, y + 80 + dy, 3, 6);
-        }
+        fx.fillStyle(C.c4, 0.9);
+        for (let i = 0; i < 7; i += 1) fx.fillRect(plantX + 30 + i * 26, plantTop + ((t / 5 + i * 37) % 180), 4, 12);
       }
     } else if (step.sensor === "touch") {
       satisfied = s.touchLeft || s.touchRight;
       fill = satisfied ? 1 : 0;
-      this.valueLabel.setText(satisfied ? "FOGLIA TOCCATA" : "TOCCA UNA FOGLIA");
-      if (satisfied) {
-        this.fx.fillStyle(0xe8dccd, 1);
-        this.fx.fillRect(s.touchLeft ? x + 30 : x + 100, y + 104, 16, 10);
-      }
+      this.value.setText(satisfied ? "FOGLIA TOCCATA" : "IN ATTESA");
     }
 
-    // barra del sensore con la soglia
-    this.gauge.clear();
-    drawPanel(this.gauge, gx, gy, gw, 18, { fill: COLORS.bg, border: COLORS.ink });
-    this.gauge.fillStyle(satisfied ? COLORS.ink : COLORS.steel, 1);
-    this.gauge.fillRect(gx + 4, gy + 4, Math.round((gw - 8) * Math.max(0, Math.min(1, fill))), 10);
-    if (marker !== null) {
-      this.gauge.fillStyle(COLORS.red, 1);
-      this.gauge.fillRect(gx + 4 + Math.round((gw - 8) * Math.max(0, Math.min(1, marker))) - 1, gy - 4, 3, 26);
+    // barra del sensore con la soglia, poi la barra di completamento
+    const gx = X0 + 300;
+    const gw = W - 340;
+    const g = this.gauge;
+    g.clear();
+    // la barra del sensore sta sempre sotto il testo del valore, mai sopra
+    const gy = Math.max(Y0 + 190, Math.round(this.value.y + this.value.height + 18));
+    const dy = gy + 44;
+    this.doneLabel.setY(dy);
+    const py = dy + 30;
+    g.lineStyle(2, C.c3, 1);
+    g.strokeRect(gx, gy, gw, 26);
+    g.fillStyle(satisfied ? C.c4 : C.c2, 1);
+    g.fillRect(gx + 4, gy + 4, Math.round((gw - 8) * Phaser.Math.Clamp(fill, 0, 1)), 18);
+    if (mark !== null) {
+      g.fillStyle(C.c4, 1);
+      g.fillRect(gx + 4 + Math.round((gw - 8) * Phaser.Math.Clamp(mark, 0, 1)) - 2, gy - 6, 4, 38);
     }
-
     const hold = step.holdMs ?? 1000;
-    this.progress = Math.max(0, Math.min(hold, this.progress + (satisfied ? delta : -delta * 0.6)));
-    this.progressBar.clear();
-    drawPanel(this.progressBar, gx, y + 140, gw, 14, { fill: COLORS.bg, border: COLORS.ink });
-    this.progressBar.fillStyle(0x5c7a6b, 1);
-    this.progressBar.fillRect(gx + 3, y + 143, Math.round((gw - 6) * (this.progress / hold)), 8);
-    this.progressLabel.setColor(hex(satisfied ? COLORS.ink : COLORS.steel));
+    this.progress = Phaser.Math.Clamp(this.progress + (satisfied ? delta : -delta * 0.6), 0, hold);
+    g.lineStyle(2, C.c3, 1);
+    g.strokeRect(gx, py, gw, 18);
+    g.fillStyle(C.c4, 1);
+    g.fillRect(gx + 3, py + 3, Math.round((gw - 6) * (this.progress / hold)), 12);
 
     this.elapsed += delta;
+    this.timer.clear();
     if (this.timeoutMs) {
       const left = Math.max(0, 1 - this.elapsed / this.timeoutMs);
-      this.timerBar.clear();
-      this.timerBar.fillStyle(COLORS.red, 1);
-      this.timerBar.fillRect(x, y + H - 6, Math.round(W * left), 6);
+      this.timer.fillStyle(C.c4, 1);
+      this.timer.fillRect(X0, Y0 + H - 6, Math.round(W * left), 6);
     }
-
     return { satisfied, done: this.progress >= hold, timedOut: this.timeoutMs > 0 && this.elapsed >= this.timeoutMs, negligence };
   }
 
-  close(instant = false) {
-    const c = this.container;
-    if (!c) return;
-    this.container = null;
-    if (instant) {
-      c.destroy();
-      return;
-    }
-    this.scene.tweens.add({ targets: c, alpha: 0, scale: 0.96, duration: 180, onComplete: () => c.destroy() });
+  close() {
+    if (!this.c) return;
+    const c = this.c;
+    this.c = null;
+    Object.keys(this.sim).forEach((k) => (this.sim[k] = false));
+    c.destroy();
   }
 }

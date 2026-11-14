@@ -1,380 +1,188 @@
 import Phaser from "../phaser.js";
-import { Sfx, setAmbient } from "../systems/Sfx.js";
-import { characterTexture } from "../ui/pixelSprites.js";
-import { animateImage } from "../entities/Player.js";
+import { setAmbient } from "../systems/Sfx.js";
 import { PlantSensors } from "../input/PlantSensors.js";
-import { TITLE_WORD } from "../ui/pixelSprites.js";
-import { brandMarks, ditherDisc, ditherRect, o2Label, bodyText, COLORS, showToast, drawPanel, dropShadow, fadeIn, goTo, hex, paperGrid, pixelDisc, pixelText } from "../ui/theme.js";
+import { paint, quant } from "../world/skyline.js";
+import { K, operatorKey, careFrames, holdFrames } from "../art/people.js";
+import { brackets, button, C, canvasImage, fadeIn, goTo, HEX, toast, txt, VIEW } from "../ui/hud.js";
 
-// menu principale in stile "schermata di avvio"
-const MENU_ITEMS = [
-  { label: "GIOCA", hint: "Indossa BIONOMAD+ e sopravvivi alla giornata.", target: "CharacterSelectScene", cursor: "pot_flower", scale: 2 },
-  { label: "CREDITI", hint: "Scopri BIODOM e i suoi dispositivi.", target: "CreditsScene", cursor: "pot_plant", scale: 2 },
-  { label: "COLLEGA PIANTA", hint: "Collega l'Elegoo via USB (Chrome o Edge).", action: "plant", cursor: "active_pack", scale: 2.4 }
-];
+// titolo retinato: lettere grandi con sfumatura dall'alto e ombra, poi il retino del gioco
+function titleCanvas() {
+  const c = document.createElement("canvas");
+  c.width = 720;
+  c.height = 170;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.font = 'bold 132px "Roboto Mono", ui-monospace, monospace';
+  x.textBaseline = "alphabetic";
+  const draw = (dx, dy, fill) => {
+    x.fillStyle = fill;
+    x.fillText("O", dx, 130 + dy);
+    const ow = x.measureText("O").width;
+    x.font = 'bold 66px "Roboto Mono", ui-monospace, monospace';
+    x.fillText("2", dx + ow + 2, 150 + dy);
+    const tw = x.measureText("2").width;
+    x.font = 'bold 132px "Roboto Mono", ui-monospace, monospace';
+    x.fillText("RIGIN", dx + ow + tw + 8, 130 + dy);
+  };
+  draw(8, 8, "rgb(60,60,60)");
+  const g = x.createLinearGradient(0, 20, 0, 150);
+  g.addColorStop(0, "rgb(255,255,255)");
+  g.addColorStop(0.55, "rgb(225,225,225)");
+  g.addColorStop(1, "rgb(120,120,120)");
+  draw(0, 0, g);
+  // righe di scansione sottili dentro le lettere
+  x.globalCompositeOperation = "source-atop";
+  x.fillStyle = "rgba(0,0,0,0.18)";
+  for (let y = 0; y < c.height; y += 6) x.fillRect(0, y, c.width, 2);
+  x.globalCompositeOperation = "source-over";
+  quant(c, 2);
+  return c;
+}
 
-const PANEL = { x: 70, y: 210, w: 380, h: 218 };
-const ROW_H = 44;
+export function ensureMenuBg(scene) {
+  if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop());
+}
 
+// sfondo del menu: una città qualunque, senza monumenti (le città si scoprono giocando)
+export function menuBackdrop() {
+  const LW = 2560 / K;
+  return paint(2560, 800, K, (T) => {
+    const { X, G, rnd, facade, skyG, ground, GY } = T;
+    skyG(LW, [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]]);
+    for (let i = 0; i < 140; i++) {
+      X.fillStyle = G(0.9, 0.3 + rnd() * 0.6);
+      X.fillRect(rnd() * LW, rnd() * 300, 2, 2);
+    }
+    // due file di palazzi anonimi, la seconda più vicina e più scura
+    for (let x = -10; x < LW; ) {
+      const bw = (26 + rnd() * 40) | 0;
+      const bh = (90 + rnd() * 150) | 0;
+      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], 0.4, 0.3, { gx: 6, gy: 8, lit: 0.04, glass: 0.85 });
+      x += bw + ((rnd() * 6) | 0);
+    }
+    for (let x = -20; x < LW; ) {
+      const bw = (40 + rnd() * 50) | 0;
+      const bh = (50 + rnd() * 90) | 0;
+      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], 0.26, 0.18, { gx: 7, gy: 9, lit: 0.07 });
+      x += bw + ((rnd() * 10) | 0);
+    }
+    ground(LW, 0);
+  }, { seedValue: 99 });
+}
+
+// menu: Milano di notte, il titolo e quattro pulsanti grandi
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super("MenuScene");
   }
 
   create() {
-    const { width, height } = this.scale;
-    this.selectedIndex = 0;
-    this.rows = [];
-    fadeIn(this, 400);
-    setAmbient(null); // il vento si sente solo in città
+    fadeIn(this, 500);
+    this._leaving = false;
+    setAmbient(null);
+    ensureMenuBg(this);
+    const bg = this.add.image(0, 0, "menu_bg").setOrigin(0);
+    // la città scorre lentamente dietro al menu
+    // la città scorre a velocità costante (1 pixel per fotogramma: niente scatti) e torna indietro dolcemente
+    // la città resta quasi ferma: una deriva lentissima, appena percepibile
+    this.bg = bg;
+    this.bgX = -(2560 - VIEW.w) / 2;
+    bg.x = Math.round(this.bgX);
+    // l'operatore con il suo BIONOMAD, in grande sulla strada
+    // l'operatore cammina sul posto mentre la città gli scorre dietro
+    this.opKey = operatorKey(this, "a", "milano");
+    careFrames(this, this.opKey);
+    this.bareKey = holdFrames(this, operatorKey(this, "a", "milano", { bare: true }));
+    this.opImg = this.add.image(940, 776, `${this.opKey}_idle`).setOrigin(0.5, 1).setScale(2);
+    this.packImg = this.add.image(0, 0, "pack_item").setOrigin(0).setScale(2).setVisible(false);
+    // ciclo: respira → si sfila lo zaino e lo porta davanti → cura la pianta (bollicine di O₂) → lo rimette
+    this.cycle = 0;
+    brackets(this);
 
-    // sfondo a quadretti che scorre lentamente
-    const grid = paperGrid(this, { step: 48 });
-    grid.setScale(1.12).setPosition(-48, -48);
-    this.tweens.add({ targets: grid, x: 0, y: 0, duration: 7000, repeat: -1 });
+    txt(this, 64, 64, "B I O N O M A D", { size: 22, color: HEX.c3 }).setScrollFactor(0);
+    if (!this.textures.exists("menu_title")) this.textures.addCanvas("menu_title", titleCanvas());
+    this.add.image(56, 98, "menu_title").setOrigin(0);
 
-    this.createStage(width, height);
-    this.createTitle();
-    this.createMenuPanel();
+    // voci del menu come le etichette del concept: numerate, bordo sottile; si accendono al passaggio
+    const items = [
+      ["GIOCA", () => goTo(this, "SetupScene")],
+      [PlantSensors.state.connected ? "PIANTA COLLEGATA ✓" : "COLLEGA PIANTA", () => this.connect()],
+      ["CREDITI", () => goTo(this, "CreditsScene")]
+    ];
+    this.buttons = items.map(([label, fn, primary], i) => button(this, 64, 310 + i * 80, 420, 60, `[0${i + 1}]  ${label}`, fn, { primary, left: true, size: 24 }));
+    this.plantBtn = this.buttons[1];
+    this.plantLabel = (s) => this.plantBtn.setLabel(`[02]  ${s}`);
 
-    const keys = this.input.keyboard;
-    ["UP", "W"].forEach((key) => keys.on(`keydown-${key}`, () => this.move(-1)));
-    ["DOWN", "S"].forEach((key) => keys.on(`keydown-${key}`, () => this.move(1)));
-    ["ENTER", "SPACE"].forEach((key) => keys.on(`keydown-${key}`, () => this.confirm()));
+    // logo piccolo, allineato al margine destro (stesso margine dei pulsanti a sinistra)
+    this.add.image(VIEW.w - 64, VIEW.h - 34, "logo_biodom").setOrigin(1, 1).setScale(2).setTint(C.c4).setDepth(1500);
 
-    this.select(0, true);
+    this.input.keyboard.on("keydown-ENTER", () => this.buttons[0].press());
   }
 
-  createTitle() {
-    const x0 = PANEL.x;
-    const scale = 7;
-    const baseY = 54;
-
-    // etichetta "bionomad" con filetto, come una testata
-    const brand = pixelText(this, x0 + 2, baseY - 10, "B I O N O M A D", { size: 16, color: COLORS.steel });
-    brand.setAlpha(0);
-    this.tweens.add({ targets: brand, alpha: 1, duration: 400 });
-
-    // lettere del logotipo
-    let x = x0;
-    const top = baseY + 18;
-    this.titleLetters = [];
-    TITLE_WORD.forEach((name, i) => {
-      const tex = this.textures.get(`title_${name}`).getSourceImage();
-      const shadow = this.add.image(x + scale, top + scale, `title_${name}_sh`).setOrigin(0, 0).setScale(scale);
-      const letter = this.add.image(x, top, `title_${name}`).setOrigin(0, 0).setScale(scale);
-      [shadow, letter].forEach((img) => {
-        img.y -= 60;
-        img.setAlpha(0);
-        this.tweens.add({ targets: img, y: img.y + 60, alpha: 1, duration: 520, delay: 200 + i * 90, ease: "Bounce.easeOut" });
-      });
-      this.titleLetters.push({ letter, shadow, baseY: top, phase: i * 0.7 });
-      x += (tex.width + (name === "two" ? 1 : 2)) * scale;
-    });
-
-    this.titleWaveStart = this.time.now + 200 + TITLE_WORD.length * 90 + 600;
+  update(time, delta) {
+    if (!this.bg) return;
+    // deriva di 4 px al secondo, avanti e indietro in 80 s
+    this.bgX = -(2560 - VIEW.w) / 2 + Math.sin(time / 12700) * 160;
+    this.bg.x = Math.round(this.bgX);
+    const CYCLE = 7600;
+    const prev = this.cycle;
+    this.cycle = (this.cycle + delta) % CYCLE;
+    const t = this.cycle;
+    const op = this.opImg;
+    // posizioni dello zaino (coordinate del disegno 120x200): sulla schiena e tenuto davanti
+    const at = (cx, cy) => [op.x + (cx - 60) * 2, op.y - (200 - cy) * 2];
+    const BACK = at(28, 57);
+    const FRONT = at(74, 70);
+    const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
+    let key = this.opKey;
+    let frame = "idle";
+    let pack = null; // null = zaino addosso (disegnato nel personaggio)
+    if (t >= 1400 && t < 1600) frame = "c0";
+    else if (t >= 1600 && t < 1800) frame = "c1";
+    else if (t >= 1800 && t < 5600) {
+      key = this.bareKey;
+      const u = t < 2300 ? ease((t - 1800) / 500) : t >= 5100 ? 1 - ease((t - 5100) / 500) : 1;
+      pack = [BACK[0] + (FRONT[0] - BACK[0]) * u, BACK[1] + (FRONT[1] - BACK[1]) * u - Math.sin(u * Math.PI) * 24];
+      frame = u < 0.5 ? "idle" : t >= 2400 && t < 5000 ? `h${Math.floor((t - 2400) / 170) % 4}` : "h0";
+    } else if (t >= 5600 && t < 5800) frame = "c1";
+    else if (t >= 5800 && t < 6000) frame = "c0";
+    op.setTexture(`${key}_${frame}`);
+    this.packImg.setVisible(!!pack);
+    if (pack) this.packImg.setPosition(Math.round(pack[0]), Math.round(pack[1]));
+    // respiro: un leggerissimo su e giù quando è fermo
+    op.setScale(2, 2 * (1 + 0.006 * Math.sin(time / 520)));
+    // a metà della cura la pianta rilascia ossigeno
+    if ((prev < 3100 && t >= 3100) || (prev < 4300 && t >= 4300)) this.bubbles();
   }
 
-  update(time) {
-    // onda leggera sulle lettere del titolo (un "respiro" di 1 pixel)
-    if (!this.titleLetters || time < this.titleWaveStart) return;
-    this.titleLetters.forEach(({ letter, shadow, baseY, phase }) => {
-      const offset = Math.round(Math.sin(time * 0.003 + phase) * 1.5) * 2;
-      letter.y = baseY + offset;
-      shadow.y = baseY + 7 + offset / 2;
-    });
-  }
-
-  createMenuPanel() {
-    const { x, y, w, h } = PANEL;
-    const panel = this.add.container(0, 0);
-    const g = this.add.graphics();
-    dropShadow(g, x, y, w, h, 8);
-    drawPanel(g, x, y, w, h, { fill: COLORS.paper, border: COLORS.ink });
-
-    this.highlight = this.add.graphics();
-    drawPanel(this.highlight, 0, 0, w - 28, ROW_H - 8, { fill: COLORS.ink, border: COLORS.ink });
-    this.highlight.setPosition(x + 14, y + 18);
-
-    this.leaf = this.add.image(x + 32, y + 18, "pot_plant").setScale(2);
-
-    panel.add([g, this.highlight, this.leaf]);
-
-    MENU_ITEMS.forEach((item, index) => {
-      const rowY = y + 18 + index * ROW_H;
-      const text = item.action === "plant" && PlantSensors.state.connected ? "PIANTA OK" : item.label;
-      const label = pixelText(this, x + 58, rowY + 10, text, { size: 16, color: COLORS.ink });
-      const zone = this.add.zone(x + w / 2, rowY + ROW_H / 2 - 4, w - 28, ROW_H).setInteractive({ useHandCursor: true });
-      zone.on("pointerover", () => this.select(index));
-      zone.on("pointerdown", () => {
-        this.select(index);
-        this.confirm();
-      });
-      panel.add(label);
-      this.rows.push({ label, rowY });
-    });
-
-    g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x + 14, y + h - 62, w - 28, 2);
-    // il suggerimento va a capo dentro al riquadro
-    this.hint = bodyText(this, x + 16, y + h - 54, "", { size: 22, color: COLORS.steel, wrap: w - 32, lineSpacing: -4 });
-    panel.add(this.hint);
-
-    panel.setAlpha(0).x = -30;
-    this.tweens.add({ targets: panel, x: 0, alpha: 1, duration: 500, delay: 200, ease: "Cubic.easeOut" });
-  }
-
-  createStage(width, height) {
-    // a ogni accesso al menu cambiano città e cittadino in primo piano
-    const STAGES = {
-      milano: { far: COLORS.steelLight, face: [COLORS.steel, COLORS.steelLight], side: [0x4f6f84, COLORS.steel], dark: [0x3f5a6c, COLORS.steel], halo: COLORS.panelLight, sun: COLORS.bgSoft, smog: 6, roof: null },
-      delhi: { far: 0xd8c9a9, face: [0xb59a72, 0xcdb48c], side: [0x8f7650, 0xb59a72], dark: [0x6e5a3c, 0x8f7650], halo: 0xe2d6bd, sun: 0xeee4cc, smog: 9, roof: null },
-      reykjavik: { far: 0xc4d8e4, face: [0x5e7f94, 0x9fb4c2], side: [0x46627a, 0x7d9aad], dark: [0x2c3e52, 0x5e7f94], halo: 0xdfe7ea, sun: COLORS.paper, smog: 2, roof: COLORS.paper }
-    };
-    const origins = Object.keys(STAGES);
-    const last = this.registry.get("menuStage");
-    this.stageOrigin = Phaser.Utils.Array.GetRandom(origins.filter((o) => o !== last));
-    this.registry.set("menuStage", this.stageOrigin);
-    this.stageGender = Math.random() < 0.5 ? "m" : "f";
-    const st = STAGES[this.stageOrigin];
-
-    const g = this.add.graphics();
-    const ground = height - 54;
-    // sole velato dallo smog: alone a retino a cerchi concentrici (più fitto dove l'aria è peggiore)
-    ditherDisc(g, 700, 250, 130, st.halo, st.smog / 1.2);
-    pixelDisc(g, 700, 250, 96, st.halo, 1, 4);
-    pixelDisc(g, 700, 250, 84, st.sun, 1, 4);
-    ditherDisc(g, 700, 250, 84, COLORS.paper, 6);
-    // skyline lontano, più chiaro e a retino
-    [[470, 40, 110], [520, 30, 170], [610, 44, 90], [660, 26, 200], [700, 50, 130], [780, 34, 160], [850, 46, 120], [910, 40, 150]].forEach(([x, w, h]) => {
-      ditherRect(g, x, ground - h, w, h, st.far, 8, 2);
-    });
-    // monumento della città sullo sfondo (sagoma piena, tra skyline e palazzi)
-    const mark = st.side[1];
-    g.fillStyle(mark, 1);
-    if (this.stageOrigin === "milano") {
-      // Duomo: facciata a capanna con guglie e la Madonnina
-      g.fillRect(640, ground - 150, 130, 150);
-      for (let i = 0; i < 7; i += 1) g.fillRect(644 + i * 20, ground - 176 - (i % 2) * 10, 6, 30 + (i % 2) * 10);
-      g.fillRect(700, ground - 236, 10, 90);
-      g.fillRect(696, ground - 246, 18, 10);
-      g.fillStyle(0xe8c66a, 1);
-      g.fillRect(702, ground - 254, 6, 8);
-    } else if (this.stageOrigin === "delhi") {
-      // India Gate: arco monumentale con cornicione e cupoletta
-      g.fillRect(650, ground - 190, 110, 190);
-      g.fillStyle(st.halo, 1);
-      g.fillRect(684, ground - 130, 42, 130);
-      pixelDisc(g, 705, ground - 130, 21, st.halo, 1, 3);
-      g.fillStyle(mark, 1);
-      g.fillRect(640, ground - 200, 130, 12);
-      g.fillRect(670, ground - 222, 70, 22);
-      pixelDisc(g, 705, ground - 226, 16, mark, 1, 2);
-    } else {
-      // montagne innevate e Hallgrímskirkja a gradoni
-      [[470, 120], [560, 150], [880, 130]].forEach(([mx, mh]) => {
-        for (let i = 0; i < mh; i += 4) {
-          g.fillStyle(i < 24 ? COLORS.paper : st.far, 1);
-          g.fillRect(mx - i * 0.9, ground - mh + i, i * 1.8, 4);
-        }
-      });
-      g.fillStyle(mark, 1);
-      [[650, 60, 80], [664, 46, 110], [676, 34, 140], [686, 22, 170], [692, 10, 210]].forEach(([x, w, h]) => g.fillRect(x, ground - h, w * 2 - (x - 650) * 0, h));
-      g.fillRect(694, ground - 230, 6, 24);
-    }
-
-    // palazzi in primo piano: facciata, lato in ombra, finestre, tetti con antenne
-    const buildings = [[500, 80, 150], [575, 50, 230], [630, 110, 120], [745, 60, 200], [805, 90, 140], [895, 80, 180]];
-    buildings.forEach(([x, w, h], i) => {
-      const face = st.face[i % 2];
-      const side = st.side[i % 2];
-      g.fillStyle(face, 1);
-      g.fillRect(x, ground - h, w, h);
-      g.fillStyle(side, 1);
-      g.fillRect(x + w - 10, ground - h, 10, h);
-      ditherRect(g, x, ground - h, w - 10, 6, COLORS.paper, 6, 2);
-      // a Reykjavík i tetti sono innevati
-      if (st.roof) {
-        g.fillStyle(st.roof, 1);
-        g.fillRect(x - 2, ground - h - 8, w + 4, 4);
-      }
-      g.fillStyle(COLORS.ink, 1);
-      g.fillRect(x - 2, ground - h - 4, w + 4, 4);
-      if (i % 3 !== 1) {
-        g.fillRect(x + 12, ground - h - 18, 2, 14);
-        g.fillRect(x + 8, ground - h - 18, 10, 2);
-      } else {
-        drawPanel(g, x + w / 2 - 12, ground - h - 16, 24, 12, { fill: side, border: COLORS.ink, borderWidth: 2 });
-      }
-      // finestre a griglia: qualcuna accesa
-      for (let wy = ground - h + 16; wy < ground - 20; wy += 18) {
-        for (let wx = x + 8; wx < x + w - 18; wx += 14) {
-          const lit = ((wx * 7 + wy * 13 + i) % 11) < 2;
-          g.fillStyle(lit ? 0xe8c66a : st.dark[i % 2], lit ? 0.9 : 0.8);
-          g.fillRect(wx, wy, 6, 8);
-        }
-      }
-    });
-    // marciapiede, cordolo e strada
-    g.fillStyle(COLORS.ink, 1);
-    g.fillRect(0, ground - 6, width, 6);
-    g.fillStyle(COLORS.steel, 1);
-    g.fillRect(0, ground - 6, width, 2);
-    g.fillStyle(COLORS.inkDeep, 1);
-    g.fillRect(0, ground, width, 54);
-    ditherRect(g, 0, ground, width, 8, COLORS.ink, 6, 2);
-    // lampione
-    g.fillStyle(COLORS.ink, 1);
-    g.fillRect(560, ground - 120, 4, 114);
-    g.fillRect(560, ground - 120, 26, 4);
-    g.fillStyle(0xe8c66a, 1);
-    g.fillRect(578, ground - 116, 10, 4);
-    ditherRect(g, 560, ground - 112, 46, 100, 0xe8c66a, 2, 2, 0.6);
-
-    const hero = this.add.container(700, height - 54);
-    const pack = this.add.image(-45, -36, "pack").setOrigin(0.5, 1).setScale(6);
-    const heroKey = () => characterTexture(this.stageOrigin, true, this.stageGender);
-    const body = this.add.image(0, 0, heroKey()).setOrigin(0.5, 1).setScale(6);
-    hero.add([pack, body]);
-    this.hero = hero;
-    // passeggia avanti e indietro, ogni tanto si ferma e saluta
-    let mode = "idle";
-    animateImage(this, body, heroKey, () => mode);
-    const stroll = () => {
-      const targetX = Phaser.Math.Between(600, 840);
-      const dir = targetX >= hero.x ? 1 : -1;
-      hero.scaleX = dir;
-      mode = "walk";
+  // bollicine di O₂ che salgono dallo zaino (pixel quadrati, nei colori del gioco)
+  bubbles() {
+    const op = this.opImg;
+    const px = op.x + (88 - 60) * 2;
+    const py = op.y - (200 - 76) * 2;
+    for (let i = 0; i < 9; i++) {
+      const size = 4 + (i % 3) * 2;
+      const b = this.add.rectangle(px + (Math.random() - 0.5) * 30, py, size, size, C.c4).setAlpha(0);
       this.tweens.add({
-        targets: hero,
-        x: targetX,
-        duration: Math.abs(targetX - hero.x) * 14 + 200,
-        onUpdate: () => {
-          body.y = -Math.round(Math.abs(Math.sin(this.time.now * 0.012)) * 4);
-          pack.y = -36 - Math.round(Math.abs(Math.sin(this.time.now * 0.012 - 0.6)) * 5);
-        },
-        onComplete: () => {
-          body.y = 0;
-          pack.y = -36;
-          mode = Math.random() < 0.4 ? "cheer" : "idle";
-          if (mode === "cheer") this.tweens.add({ targets: hero, y: hero.y - 18, duration: 180, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
-          this.time.delayedCall(Phaser.Math.Between(1400, 2600), () => {
-            mode = "idle";
-            this.time.delayedCall(500, stroll);
-          });
-        }
-      });
-    };
-    this.time.delayedCall(1200, stroll);
-
-    // bollicine di ossigeno che escono dalle piante dello zaino
-    this.time.addEvent({
-      delay: 380,
-      loop: true,
-      callback: () => {
-        const bubble = this.add.graphics();
-        const size = Phaser.Math.Between(3, 6) * 2;
-        pixelDisc(bubble, 0, 0, size, COLORS.ink, 1, 2);
-        pixelDisc(bubble, 0, 0, size - 2, COLORS.paper, 1, 2);
-        bubble.setPosition(hero.x - 45 * hero.scaleX + Phaser.Math.Between(-12, 12), height - 150);
-        this.tweens.add({ targets: bubble, y: bubble.y - Phaser.Math.Between(120, 200), alpha: 0, duration: 2600, ease: "Sine.easeOut", onComplete: () => bubble.destroy() });
-        this.tweens.add({ targets: bubble, x: bubble.x + Phaser.Math.Between(-30, 30), duration: 1300, yoyo: true, ease: "Sine.easeInOut" });
-      }
-    });
-
-    // etichetta "O2+" fluttuante
-    const tag = this.add.container(800, 170);
-    const tagBg = drawPanel(this.add.graphics(), -34, -16, 68, 32, { fill: COLORS.paper, border: COLORS.ink });
-    // etichetta in stile BIODOM: linguetta ruggine e "+" agli angoli
-    tagBg.fillStyle(COLORS.red, 1);
-    tagBg.fillRect(-32, -14, 6, 28);
-    tag.add([tagBg, o2Label(this, 3, -1, { px: 22, color: COLORS.ink, suffix: "+" }), brandMarks(this, -34, -16, 68, 32, { color: COLORS.steel, gap: 7, lines: false })]);
-    this.tweens.add({ targets: tag, y: 156, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-
-    // comandi: tasti disegnati (acciaio, lettera chiara) seguiti dall'azione
-    {
-      const keys = this.add.graphics();
-      let kx = 18;
-      [["W/S", "SCEGLI"], ["INVIO", "CONFERMA"], ["M", "AUDIO"]].forEach(([key, action]) => {
-        const k = bodyText(this, 0, 0, key, { size: 18, color: COLORS.paper });
-        const kw = Math.round(k.width + 10);
-        const ky = height - 27 - 10;
-        keys.fillStyle(COLORS.inkDeep, 1);
-        keys.fillRect(kx, ky + 2, kw, 20);
-        keys.fillStyle(COLORS.steel, 1);
-        keys.fillRect(kx, ky, kw, 19);
-        keys.fillStyle(COLORS.steelLight, 1);
-        keys.fillRect(kx + 2, ky + 1, kw - 4, 1);
-        k.setPosition(kx + 5, ky + Math.round((19 - k.height) / 2));
-        const a = bodyText(this, kx + kw + 8, 0, action, { size: 20, color: COLORS.steelLight });
-        a.setY(height - 27 - Math.round(a.height / 2));
-        kx += kw + 8 + a.width + 22;
+        targets: b,
+        y: py - 120 - Math.random() * 90,
+        x: b.x + (Math.random() - 0.5) * 50,
+        alpha: { from: 0.9, to: 0 },
+        duration: 1600 + Math.random() * 900,
+        delay: i * 140,
+        ease: "Sine.easeOut",
+        onComplete: () => b.destroy()
       });
     }
-    // logotipo vero di biodom+ in pixel, con la dicitura
-    // logo e dicitura centrati sulla stessa riga della barra
-    const rowY = height - 27;
-    const tagline = pixelText(this, width - 18, rowY, "BIOSICUREZZA ATMOSFERICA", { size: 8, color: COLORS.steelLight, origin: [1, 0.5] });
-    // la base delle lettere del logo coincide con la base del testo
-    this.add.image(Math.round(tagline.x - tagline.width - 14), rowY - 4, "logo_biodom").setOrigin(1, 0.5).setTint(COLORS.paper);
   }
 
-  move(step) {
-    Sfx.blip();
-    this.select(Phaser.Math.Wrap(this.selectedIndex + step, 0, MENU_ITEMS.length));
-  }
-
-  select(index, instant = false) {
-    this.selectedIndex = index;
-    const row = this.rows[index];
-    const duration = instant ? 0 : 180;
-    this.tweens.killTweensOf(this.highlight);
-    this.tweens.add({ targets: this.highlight, y: row.rowY, duration, ease: "Cubic.easeOut" });
-    this.tweens.add({ targets: this.leaf, y: row.rowY + ROW_H / 2 - 4, duration, ease: "Cubic.easeOut" });
-    this.rows.forEach((r, i) => {
-      r.label.setColor(hex(i === index ? COLORS.paper : COLORS.ink));
-      this.tweens.add({ targets: r.label, x: PANEL.x + (i === index ? 66 : 58), duration, ease: "Cubic.easeOut" });
-    });
-    // ogni voce ha la sua piantina-cursore, che "spunta" quando cambia
-    const item = MENU_ITEMS[index];
-    if (this.leaf.texture.key !== item.cursor || instant) {
-      this.leaf.setTexture(item.cursor);
-      this.leaf.setScale(instant ? item.scale : 0.4);
-      this.tweens.add({ targets: this.leaf, scale: item.scale, duration: 260, ease: "Back.easeOut" });
-    }
-    // il suggerimento deve stare nel riquadro
-    this.hint.setFontSize(22).setText(MENU_ITEMS[index].hint);
-    let size = 22;
-    while (this.hint.height > 44 && size > 14) {
-      size -= 2;
-      this.hint.setFontSize(size);
-    }
-  }
-
-  async connectPlant() {
-    const row = this.rows[MENU_ITEMS.findIndex((item) => item.action === "plant")];
-    if (PlantSensors.state.connected) {
-      showToast(this, "La pianta è già collegata.");
-      return;
-    }
+  async connect() {
+    if (PlantSensors.state.connected) return;
     try {
       await PlantSensors.connect();
-      row.label.setText("PIANTA OK");
-      showToast(this, "Pianta collegata! I sensori sono attivi.", { color: 0x5c7a6b });
-      PlantSensors.send("G");
+      this.plantLabel("PIANTA COLLEGATA ✓");
+      toast(this, "Pianta collegata");
     } catch (error) {
-      showToast(this, PlantSensors.supported ? "Collegamento annullato o porta occupata." : "Serve Chrome o Edge su localhost.", { color: COLORS.red });
+      toast(this, error?.message ?? "Collegamento non riuscito", { duration: 3200 });
     }
-  }
-
-  confirm() {
-    Sfx.confirm();
-    const item = MENU_ITEMS[this.selectedIndex];
-    if (item.action === "plant") {
-      this.connectPlant();
-      return;
-    }
-    this.tweens.add({ targets: this.rows[this.selectedIndex].label, scale: 1.08, duration: 90, yoyo: true });
-    goTo(this, item.target);
   }
 }

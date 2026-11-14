@@ -157,6 +157,7 @@ export const Sfx = {
     tone(440, 0.4, { type: "triangle", vol: 0.05, slide: 440, delay: 0.1 });
   },
   // comunicato ufficiale: tre note da annuncio pubblico
+  tick: () => tone(1800, 0.02, { type: "square", vol: 0.012 }),
   announce: () => [659, 523, 784].forEach((f, i) => tone(f, 0.22, { type: "sine", vol: 0.07, delay: i * 0.2 })),
   win: () => [523, 659, 784, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, { type: "triangle", vol: 0.08, delay: i * 0.12 })),
   gameOver: () => [392, 330, 262, 196].forEach((f, i) => tone(f, 0.4, { type: "sawtooth", vol: 0.04, delay: i * 0.28, slide: -20 }))

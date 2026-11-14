@@ -1,237 +1,281 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
-import { animateWalker, Player, turnTo } from "../entities/Player.js";
 import { getOrigin } from "../config/origins.js";
-import { getRun } from "../systems/RunManager.js";
-import { characterTexture } from "../ui/pixelSprites.js";
-import { buildHouse } from "../world/locations.js";
-import { addHud, addObjectiveBox, bodyText, brandMarks, burst, COLORS, drawPanel, keyLabel, fadeIn, goTo, textChip, titleCard } from "../ui/theme.js";
+import { currentEvent, dayTime, getRun } from "../systems/RunManager.js";
+import { buildSkyline } from "../world/skyline.js";
+import { buildPlace } from "../art/places.js";
+import { Walker } from "../entities/Walker.js";
+import { holdFrames, operatorKey } from "../art/people.js";
+import { brackets, button, C, canvasImage, ditherBand, ditherTitle, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../ui/hud.js";
 
-// cutscene di inizio run
+const FEET = 764;
+
+// scena iniziale: a casa l'operatore indossa il BIONOMAD, arriva il comunicato,
+// poi esce dalla porta
 export class IntroScene extends Phaser.Scene {
   constructor() {
     super("IntroScene");
   }
 
   create() {
-    const { width, height } = this.scale;
-    const run = getRun(this.registry);
-    if (!run) {
-      this.scene.start("MenuScene");
-      return;
-    }
-    this.origin = getOrigin(this.registry);
-    this.done = false;
-    this.indoor = true;
-    this.walking = false;
-    fadeIn(this, 500);
-
-    this.add.rectangle(width / 2, height / 2, width, height, COLORS.bg).setDepth(-100);
-    this.world = buildHouse(this, { originId: this.origin.id });
-    const hud = addHud(this, { oxygen: 0.3, location: this.origin.city, flag: this.origin.flag });
-    const caption = addObjectiveBox(this, "07:30 · CASA");
-    textChip(this, width - 14, height - 30, "SPAZIO  salta", { size: 20, originX: 1 });
-
-    // lo zaino BIONOMAD+ appoggiato a terra
-    // lo zaino è appoggiato sulla consolle; la pianta "respira" con un leggero bagliore
-    const pack = this.add.image(this.world.points.pack.x - 20, this.world.points.pack.y, "pack").setOrigin(0.5, 1).setScale(4).setDepth(405);
-    this.tweens.add({ targets: pack, scaleY: 4.12, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-
-    const player = new Player(this, 420, 440, { texture: characterTexture(this.origin.id), withPack: false, floor: this.world.floor });
-    player.frozen = true;
-    this.player = player;
-    this.walk = (x, y, duration) =>
-      new Promise((resolve) => {
-        player.facing = x >= player.x ? 1 : -1;
-        this.walking = true;
-        this.tweens.add({ targets: player, x, y, duration, ease: "Sine.easeInOut", onComplete: () => { this.walking = false; resolve(); } });
-      });
-    this.wait = (ms) => new Promise((resolve) => this.time.delayedCall(ms, resolve));
-    // fumetto sopra la testa
-    this.say = (text) => {
-      const bubble = this.add.container(player.x, player.y - 118).setDepth(980);
-      const label = bodyText(this, 0, 0, text, { size: 22, color: COLORS.ink, origin: 0.5 });
-      const w = label.width + 20;
-      const g = drawPanel(this.add.graphics(), -w / 2, -15, w, 30, { fill: COLORS.paper, border: COLORS.ink });
-      g.fillStyle(COLORS.ink, 1);
-      g.fillRect(-4, 15, 8, 6);
-      bubble.add([g, label]);
-      bubble.setScale(0.6).setAlpha(0);
-      this.tweens.add({ targets: bubble, scale: 1, alpha: 1, duration: 220, ease: "Back.easeOut" });
-      this.tweens.add({ targets: bubble, alpha: 0, y: bubble.y - 8, duration: 250, delay: 1500, onComplete: () => bubble.destroy() });
-    };
-
-    // SPAZIO / INVIO: durante il comunicato lo chiudono, poi saltano la cutscene
-    const skip = () => {
-      if (this.protocolOpen) this.protocolSkip = true;
-      else this.finish();
-    };
-    this.input.keyboard.on("keydown-SPACE", skip);
-    this.input.keyboard.on("keydown-ENTER", skip);
-    this.input.on("pointerdown", () => this.protocolOpen && (this.protocolSkip = true));
-
-    this.play(pack, hud, caption);
-  }
-
-  async play(pack, hud, caption) {
-    const player = this.player;
-    // cartello d'apertura, poi il cittadino si sveglia stiracchiandosi
-    await this.wait(300);
+    this._leaving = false;
+    this.ready = false;
+    fadeIn(this, 600);
     setAmbient(null);
-    Sfx.announce();
-    await this.showProtocol();
-    if (this.done) return;
-    await titleCard(this, this.origin.city, `07:30 · PM2.5 ${Math.round(this.origin.pm25 * 9)} · ${this.origin.difficulty}`);
-    if (this.done) return;
-    player.act("cheer", 500, 6);
-    await this.wait(700);
-    this.say("Uff... l'aria è pesante.");
-    this.time.delayedCall(500, () => Sfx.cough());
-    // tossisce: due scossoni e una nuvoletta
-    [0, 260].forEach((d) => this.time.delayedCall(d + 500, () => {
-      this.tweens.add({ targets: player.sprite, x: 3, duration: 50, yoyo: true, repeat: 1 });
-      const puff = this.add.rectangle(player.x + 22 * player.facing, player.y - 56, 6, 6, COLORS.stone).setDepth(990);
-      this.tweens.add({ targets: puff, x: puff.x + 20 * player.facing, y: puff.y - 10, alpha: 0, scale: 2, duration: 500, onComplete: () => puff.destroy() });
-    }));
-    await this.wait(1400);
-    caption.setText("INDOSSA BIONOMAD+");
-    await this.walk(this.world.points.pack.x - 60, 418, 1100);
-    await this.wait(300);
-    player.act("act", 500, 0);
-    this.tweens.killTweensOf(pack);
-    this.tweens.add({ targets: pack, x: player.x - 30, y: player.y - 24, alpha: 0, duration: 400, ease: "Sine.easeIn" });
-    await this.wait(380);
-    player.setPack(true);
-    Sfx.attach();
-    player.setBaseTexture(characterTexture(this.origin.id, true));
-    // lo zaino si aggancia: lampo, scintille e bollicine d'ossigeno
-    this.cameras.main.flash(180, 159, 212, 176);
-    this.cameras.main.shake(140, 0.004);
-    burst(this, player.x - 30 * player.facing, player.y - 50, { colors: [0x9fd4b0, COLORS.paper, 0x7e9c8c], count: 16, spread: 70, gravity: -20 });
-    for (let i = 0; i < 8; i += 1) {
-      this.time.delayedCall(i * 110, () => {
-        const b = this.add.rectangle(player.x + Phaser.Math.Between(-40, 20), player.y - 60, 6, 6, COLORS.paper).setStrokeStyle(2, COLORS.ink).setDepth(990);
-        this.tweens.add({ targets: b, y: b.y - Phaser.Math.Between(60, 120), x: b.x + Phaser.Math.Between(-16, 16), alpha: 0, duration: 900, ease: "Sine.easeOut", onComplete: () => b.destroy() });
-      });
-    }
-    this.tweens.addCounter({ from: 0.3, to: 1, duration: 1000, ease: "Cubic.easeOut", onUpdate: (t) => hud.setOxygen(t.getValue()) });
-    this.say("Ah, si respira!");
-    player.act("cheer", 700, 12);
-    await this.wait(1300);
-    caption.setText("ESCI DI CASA");
-    await this.walk(this.world.points.door.x, 410, 1300);
-    // la porta si apre e il cittadino esce
-    const opening = this.add.rectangle(this.world.door.x + 42, (this.world.door.top + 380) / 2, 72, 380 - this.world.door.top - 12, COLORS.inkDeep).setDepth(5);
-    opening.setScale(0, 1);
-    this.tweens.add({ targets: opening, scaleX: 1, duration: 300 });
-    // dalla porta entra la luce (velata dallo smog) e si allunga sul pavimento
-    const light = this.add.graphics().setDepth(6).setAlpha(0);
-    light.fillStyle(COLORS.paper, 0.35);
-    for (let i = 0; i < 10; i += 1) light.fillRect(this.world.door.x + 6 - i * 8, 380 + i * 8, 72 + i * 16, 8);
-    this.tweens.add({ targets: light, alpha: 1, duration: 400 });
-    await this.wait(400);
-    // ultimo sguardo alla casa, poi esce rimpicciolendo
-    player.facing = -1;
-    await this.wait(450);
-    player.facing = 1;
-    player.act("cheer", 300, 8);
-    await this.wait(350);
-    this.walking = true;
-    this.tweens.add({ targets: player, alpha: 0, scale: 0.8, y: player.y - 14, duration: 500, ease: "Sine.easeIn" });
-    await this.wait(600);
-    this.finish();
-  }
+    this.indoor = true;
+    const origin = getOrigin(this.registry);
+    const sky = skylineLayers(this, origin.id, buildSkyline, { time: dayTime(getRun(this.registry)) });
+    this.cameras.main.setScroll(Math.round((sky.worldW - VIEW.w) * 0.1), 0);
+    const place = buildPlace("home");
+    canvasImage(this, "place_home", place.canvas).setScrollFactor(0);
+    this.points = place.points;
+    this.op = this.registry.get("operator") ?? "a";
+    brackets(this);
 
-  // comunicato ufficiale che apre la giornata: perché tutti portano il presidio
-  async showProtocol() {
-    const { width, height } = this.scale;
-    const layer = this.add.container(0, 0).setDepth(2000).setAlpha(0);
-    const shade = this.add.rectangle(width / 2, height / 2, width, height, COLORS.inkDeep, 0.88);
-    const w = 680;
-    const x = (width - w) / 2;
-    const top = 70;
-    const pad = 24;
-    const items = [];
-    // intestazione: triangolo d'avviso, titolo, numero del documento
-    const header = bodyText(this, x + 46, top + 9, "COMUNICATO UFFICIALE", { size: 22, color: COLORS.paper });
-    const docNo = bodyText(this, x + w - 16, top + 11, "PPR · 01", { size: 18, color: COLORS.steelLight, origin: [1, 0] });
-    // riga "emesso da" con il logo vero del consorzio
-    const metaY = top + 52;
-    const meta = bodyText(this, x + pad, metaY, "PROTOCOLLO DI PROTEZIONE RESPIRATORIA · EMESSO DA", { size: 18, color: COLORS.steel });
-    const logo = this.add.image(x + pad + meta.width + 8, metaY + 5, "logo_biodom_s").setOrigin(0, 0).setTint(COLORS.steel);
-    items.push(header, docNo, meta, logo);
-    const paragraphs = [
-      "A causa dell'elevata contaminazione tossica nell'atmosfera, l'aria esterna non è respirabile e rappresenta un grave pericolo per la salute.",
-      "L'ONU ha attivato il Protocollo di Protezione Respiratoria, distribuendo su scala nazionale il presidio BIONOMAD via consorzio biodom+."
-    ];
-    let y = metaY + 34;
-    paragraphs.forEach((line) => {
-      const t = bodyText(this, x + pad, y, line, { size: 22, color: COLORS.ink, wrap: w - pad * 2 });
-      items.push(t);
-      y += t.height + 10;
-    });
-    // l'obbligo dell'operatore: riquadro evidenziato con la barra ruggine
-    const notice = bodyText(this, x + pad + 18, y + 10, "La stabilità della biomassa è affidata al titolare del presidio: ogni interruzione del flusso per mancata manutenzione è registrata come scostamento di conformità dell'operatore.", {
-      size: 22,
-      color: COLORS.red,
-      wrap: w - pad * 2 - 30
-    });
-    const noticeY = y;
-    const noticeH = notice.height + 20;
-    y += noticeH + 16;
-    items.push(notice);
-    // piè di pagina: tasto per continuare
-    const hint = keyLabel(this, "SPAZIO  continua", { size: 20 });
-    const h = y - top + hint.height + 18;
-    hint.label.setPosition(x + w - pad - hint.width, top + h - hint.height - 12);
-    items.push(hint.label);
-
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.3);
-    g.fillRect(x + 6, top + 6, w, h);
-    drawPanel(g, x, top, w, h, { fill: COLORS.paper, border: COLORS.ink, borderWidth: 3 });
-    g.fillStyle(COLORS.ink, 1);
-    g.fillRect(x, top, w, 42);
-    // triangolo d'avviso a pixel
-    g.fillStyle(COLORS.red, 1);
-    for (let r = 0; r < 9; r += 1) g.fillRect(x + 26 - r, top + 12 + r * 2, r * 2 + 2, 2);
-    g.fillStyle(COLORS.paper, 1);
-    g.fillRect(x + 26, top + 17, 2, 6);
-    g.fillRect(x + 26, top + 25, 2, 2);
-    // filetto sotto la riga "emesso da"
-    g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x + pad, metaY + 24, w - pad * 2, 2);
-    // riquadro dell'obbligo
-    g.fillStyle(0xf3e3dc, 1);
-    g.fillRect(x + pad, noticeY, w - pad * 2, noticeH);
-    g.fillStyle(COLORS.red, 1);
-    g.fillRect(x + pad, noticeY, 4, noticeH);
-    // filetto sopra il piè di pagina
-    g.fillStyle(COLORS.panelLight, 1);
-    g.fillRect(x + pad, top + h - hint.height - 22, w - pad * 2, 2);
-    layer.add([shade, brandMarks(this, x, top, w, h, { color: COLORS.paper, alpha: 0.6 }), g, ...items]);
-    this.tweens.add({ targets: layer, alpha: 1, duration: 400 });
-    // tempo per leggere, poi sparisce
-    this.protocolOpen = true;
-    this.protocolSkip = false;
-    for (let i = 0; i < 90 && !this.done && !this.protocolSkip; i += 1) await this.wait(100);
-    this.protocolOpen = false;
-    this.tweens.add({ targets: layer, alpha: 0, duration: 350, onComplete: () => layer.destroy() });
-    await this.wait(380);
+    // l'operatore entra in scena senza zaino e va verso l'hub
+    this.city = origin.id;
+    this.walker = new Walker(this, operatorKey(this, this.op, this.city, { bare: true }), 120, FEET, { sound: true, indoor: true, speed: 220 });
+    [this.walker.img, this.walker.shadow].forEach((o) => o.setScrollFactor(0));
+    this.walker.pack = false;
+    this.walkTo = this.points.hub - 90;
+    this.phase = "walk";
+    this.input.keyboard.on("keydown-ENTER", () => this.go());
+    this.input.keyboard.on("keydown-SPACE", () => this.go());
+    // tocco per saltare la scena
+    this.skip = txt(this, VIEW.w - 40, VIEW.h - 40, "TOCCA PER SALTARE", { size: 16, color: HEX.c3, origin: [1, 1] }).setScrollFactor(0);
+    this.input.once("pointerup", () => this.phase === "walk" && this.wearPack());
   }
 
   update(time, delta) {
-    if (!this.player) return;
-    // camminata "pilotata" dalla cutscene
-    turnTo(this.player, this.player.facing, this.walking);
-    this.player.setDepth(this.player.y);
-    animateWalker(this.player, delta, this.walking ? 0.8 : 0, time);
+    if (!this.walker) return;
+    if (this.phase === "walk") {
+      this.walker.update(1, delta);
+      if (this.walker.x >= this.walkTo) this.wearPack();
+    } else if (this.phase === "out") {
+      this.walker.update(1, delta);
+      if (this.walker.x >= this.points.door && !this._leaving) {
+        const ev = currentEvent(this.registry);
+        goTo(this, ev && (ev.location === "home" || ev.location === "street") ? "EventScene" : "TravelScene");
+      }
+    } else {
+      this.walker.update(0, delta);
+    }
   }
 
-  finish() {
-    if (this.done) return;
-    this.done = true;
-    goTo(this, "TravelScene");
+  // aggancio dello zaino: l'operatore lo prende dall'hub, lo porta davanti a sé,
+  // lo passa sopra la spalla e lo indossa; la pianta si accende e rilascia ossigeno
+  wearPack() {
+    if (this.phase !== "walk") return;
+    this.phase = "wear";
+    this.skip.destroy();
+    this.walker.frozen = true;
+    this.walker.update(0, 16);
+    const bare = this.walker.key;
+    holdFrames(this, bare);
+    const img = this.walker.img;
+    const k = img.scaleX;
+    const at = (cx, cy) => [img.x + (cx - 60) * k, FEET - (200 - cy) * k];
+    // lo zaino parte dall'hub (dove era in carica)
+    const HUB = [this.points.hub - 14 * k, FEET - 250];
+    const FRONT = at(74, 70);
+    const BACK = at(28, 57);
+    const pack = this.add.image(HUB[0], HUB[1], "pack_item").setOrigin(0).setScale(k).setScrollFactor(0).setDepth(img.depth + 1);
+    const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
+    const lerp = (A, B, u, lift) => [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u - Math.sin(u * Math.PI) * lift];
+    img.setTexture(`${bare}_h0`);
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 1300,
+      onUpdate: (tw) => {
+        const t = tw.getValue();
+        let p;
+        if (t < 0.38) p = lerp(HUB, FRONT, ease(t / 0.38), 18);
+        else if (t < 0.5) p = FRONT;
+        else {
+          // sopra la spalla, dietro la schiena
+          img.setTexture(`${bare}_idle`);
+          pack.setDepth(img.depth - 1);
+          p = lerp(FRONT, BACK, ease((t - 0.5) / 0.5), 60);
+        }
+        pack.setPosition(Math.round(p[0]), Math.round(p[1]));
+      },
+      onComplete: () => {
+        pack.destroy();
+        Sfx.attach();
+        this.walker.key = operatorKey(this, this.op, this.city);
+        this.walker.pack = true;
+        img.setTexture(`${this.walker.key}_idle`);
+        // piccolo assestamento dello zaino sulle spalle (niente salto)
+        this.tweens.add({ targets: img, scaleY: 0.985, duration: 110, yoyo: true, ease: "Sine.easeInOut" });
+        this.walker.bubble?.(10);
+        this.time.delayedCall(700, () => this.showNotice());
+      }
+    });
+  }
+
+  // comunicato ufficiale al centro, come una scheda del fascicolo BIODOM.
+  // Si apre come un terminale: una riga che si allarga, il pannello che si spalanca,
+  // la testata che si stende, il titolo che si scrive con un cursore, il testo battuto a macchina.
+  showNotice() {
+    this.phase = "notice";
+    Sfx.announce();
+    const w = 860;
+    const h = 470;
+    const x = (VIEW.w - w) / 2;
+    const y = (VIEW.h - h) / 2 - 20;
+    const cxm = x + w / 2;
+    const cym = y + h / 2;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(2000);
+    const dim = this.add.rectangle(0, 0, VIEW.w, VIEW.h, C.c0, 0.6).setOrigin(0).setAlpha(0);
+    const shell = this.add.graphics();
+    const band = ditherBand(this, x, y, w, 64, { from: 0.06, to: 0.42 }).setVisible(false);
+    const hatch = this.add.graphics().setVisible(false);
+    for (let i = -20; i < w; i += 18) {
+      hatch.fillStyle(C.c2, 1);
+      hatch.fillTriangle(x + i, y + h - 10, x + i + 9, y + h - 10, x + i + 18, y + h - 1);
+      hatch.fillTriangle(x + i, y + h - 10, x + i + 9, y + h - 1, x + i + 18, y + h - 1);
+    }
+    const lines = this.add.graphics().setVisible(false);
+    lines.lineStyle(2, C.c3, 1);
+    lines.lineBetween(x, y + 64, x + w, y + 64);
+    lines.lineBetween(x, y + h - 112, x + w, y + h - 112);
+    lines.fillStyle(C.c4, 1);
+    [[x, y + 64], [x + w, y + 64], [x, y + h - 112], [x + w, y + h - 112]].forEach(([nx, ny]) => lines.fillRect(nx - 3, ny - 3, 6, 6));
+    const warn = this.add.graphics().setVisible(false);
+    warn.fillStyle(C.c4, 1);
+    warn.fillTriangle(x + 30, y + 48, x + 50, y + 14, x + 70, y + 48);
+    warn.fillStyle(C.c0, 1);
+    warn.fillRect(x + 48, y + 25, 4, 12);
+    warn.fillRect(x + 48, y + 40, 4, 4);
+    const HEAD = "COMUNICATO UFFICIALE · PPR-01";
+    const BODY = "Il tuo BIONOMAD ti dà ossigeno solo se la pianta sta bene.";
+    const GOAL = "▶  COMPLETA LE TASK DELLA GIORNATA";
+    const head = txt(this, x + 88, y + 32, "", { size: 20, origin: [0, 0.5] });
+    const logo = this.add.image(x + w - 26, y + 32, "logo_biodom").setOrigin(1, 0.5).setTint(C.c4).setVisible(false);
+    const title = ditherTitle(this, x + 40, y + 88, "L'ARIA ESTERNA\nNON È RESPIRABILE", { size: 46 }).setVisible(false);
+    const body = txt(this, x + 40, title.y + title.height + 14, BODY, { size: 22, color: HEX.c3, wrap: w - 80 });
+    body.setText("");
+    const goal = txt(this, x + 40, y + h - 60, "", { size: 22, origin: [0, 0.5] });
+    const cursor = this.add.rectangle(0, 0, 14, 40, C.c4).setOrigin(0).setVisible(false);
+    const scan = this.add.rectangle(x, 0, w, 3, C.c4, 0.9).setOrigin(0).setVisible(false);
+    c.add([dim, shell, band, hatch, lines, warn, head, logo, title, body, goal, cursor, scan]);
+    const btn = button(this, x + w - 300, y + h - 94, 270, 64, "INIZIA ▶", () => this.go(), { primary: true, size: 26, depth: 2001 });
+    btn.c.setVisible(false);
+    this.notice = [c, btn.c];
+
+    // guscio del pannello: rettangolo (cw x ch) centrato, con bordo e nodi
+    const drawShell = (cw, ch) => {
+      shell.clear();
+      shell.fillStyle(C.c0, 1);
+      shell.fillRect(cxm - cw / 2, cym - ch / 2, cw, ch);
+      shell.lineStyle(2, C.c3, 1);
+      shell.strokeRect(cxm - cw / 2, cym - ch / 2, cw, ch);
+      shell.fillStyle(C.c4, 1);
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => shell.fillRect(cxm + (sx * cw) / 2 - 3, cym + (sy * ch) / 2 - 3, 6, 6));
+    };
+    const type = (t, full, ms, done) => {
+      let i = 0;
+      const ev = this.time.addEvent({
+        delay: ms,
+        repeat: full.length - 1,
+        callback: () => {
+          i++;
+          t.setText(full.slice(0, i));
+          if (i % 3 === 0) Sfx.tick?.();
+          if (i >= full.length) done?.();
+        }
+      });
+      return ev;
+    };
+    const ease = (u) => 1 - Math.pow(1 - u, 3);
+    this.tweens.add({ targets: dim, alpha: 1, duration: 300 });
+    // 1) una riga luminosa si allarga dal centro
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 280,
+      onUpdate: (tw) => drawShell(Math.max(6, w * ease(tw.getValue())), 2),
+      onComplete: () => {
+        // 2) il pannello si spalanca in verticale
+        this.tweens.addCounter({
+          from: 0,
+          to: 1,
+          duration: 320,
+          onUpdate: (tw) => drawShell(w, Math.max(2, h * ease(tw.getValue()))),
+          onComplete: () => {
+            // 3) testata retinata che si stende da sinistra, poi divisori e avviso
+            band.setVisible(true).setCrop(0, 0, 0, 64);
+            this.tweens.addCounter({
+              from: 0,
+              to: w,
+              duration: 260,
+              onUpdate: (tw) => band.setCrop(0, 0, Math.round(tw.getValue()), 64),
+              onComplete: () => {
+                lines.setVisible(true);
+                hatch.setVisible(true);
+                warn.setVisible(true);
+                logo.setVisible(true);
+                type(head, HEAD, 18);
+                this.time.delayedCall(250, writeTitle);
+              }
+            });
+          }
+        });
+      }
+    });
+    // 4) il titolo si scrive con un cursore a blocco, una riga alla volta
+    const writeTitle = () => {
+      const tw0 = title.width;
+      const th = title.height;
+      const rowH = th / 2;
+      title.setVisible(true).setCrop(0, 0, 0, 0);
+      cursor.setVisible(true);
+      let row = 0;
+      const wipeRow = () => {
+        this.tweens.addCounter({
+          from: 0,
+          to: tw0,
+          duration: 380,
+          onUpdate: (tw) => {
+            const v = Math.round(tw.getValue());
+            if (row === 0) title.setCrop(0, 0, v, rowH);
+            else row2.setCrop(0, rowH, v, th - rowH);
+            cursor.setPosition(title.x + v + 4, title.y + row * rowH + 4);
+          },
+          onComplete: () => {
+            row++;
+            if (row < 2) wipeRow();
+            else {
+              title.setCrop();
+              row2.destroy();
+              this.tweens.add({ targets: cursor, alpha: 0, duration: 120, yoyo: true, repeat: 2, onComplete: () => cursor.setVisible(false) });
+              type(body, BODY, 14, () => type(goal, GOAL, 16, showButton));
+            }
+          }
+        });
+      };
+      // seconda riga: una copia del titolo ritagliata sulla riga sotto
+      const row2 = this.add.image(title.x, title.y, title.texture.key).setOrigin(0).setScrollFactor(0).setCrop(0, rowH, 0, rowH);
+      c.addAt(row2, c.getIndex(title) + 1);
+      wipeRow();
+    };
+    // 5) il pulsante si accende con una scansione
+    const showButton = () => {
+      btn.c.setVisible(true).setScale(1, 0.1);
+      this.tweens.add({ targets: btn.c, scaleY: 1, duration: 180, ease: "Back.easeOut" });
+      scan.setVisible(true).setPosition(x, y);
+      this.tweens.add({ targets: scan, y: y + h - 3, alpha: 0.2, duration: 500, ease: "Sine.easeIn", onComplete: () => scan.setVisible(false) });
+      this.ready = true;
+    };
+  }
+
+  go() {
+    if (!this.ready || this.phase !== "notice") return;
+    this.phase = "out";
+    // il comunicato e il pulsante spariscono del tutto (non solo trasparenti)
+    this.tweens.add({ targets: this.notice, alpha: 0, duration: 250, onComplete: () => this.notice.forEach((o) => o.destroy()) });
+    this.walker.frozen = false;
+    this.walker.speed = 260;
   }
 }
-

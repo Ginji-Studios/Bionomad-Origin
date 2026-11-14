@@ -51,6 +51,11 @@ export function startRun(registry, originId) {
   return registry.get("run");
 }
 
+// le task si alternano: giorno, notte, giorno... (la prima è di giorno)
+export function dayTime(run) {
+  return (run?.index ?? 0) % 2 === 1 ? "night" : "day";
+}
+
 export function getRun(registry) {
   return registry.get("run");
 }
