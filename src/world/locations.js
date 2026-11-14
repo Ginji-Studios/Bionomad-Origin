@@ -146,6 +146,45 @@ function standing(scene, baseY) {
   return scene.add.graphics().setDepth(baseY);
 }
 
+function biodomPoster(scene, x, y, w, h, { variant = "air", depth = 412 } = {}) {
+  const g = scene.add.graphics().setDepth(depth);
+  g.fillStyle(COLORS.inkDeep, 1);
+  g.fillRect(x, y, w, h);
+  g.lineStyle(2, COLORS.paper, 1);
+  g.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  g.fillStyle(COLORS.red, 1);
+  g.fillRect(x + 8, y + 8, Math.min(34, w - 16), 4);
+  const title = scene.add.text(x + 8, y + 4, "BIODOM+", {
+    fontFamily: '"VT323", monospace',
+    fontSize: `${Math.max(12, Math.min(24, Math.floor(h * 0.3), Math.floor((w - 16) / 4)))}px`,
+    color: "#f1f0ed"
+  }).setDepth(depth + 1);
+  if (h < 44) {
+    if (title.width + 26 < w) {
+      g.fillStyle(COLORS.steelLight, 1);
+      g.fillRect(x + title.width + 18, y + 9, w - title.width - 30, 2);
+    }
+    return g;
+  }
+  const slogans = {
+    air: "AIR IS A COMMON RESOURCE",
+    care: "CARE KEEPS US BREATHING",
+    symbiosis: "PLANT + PERSON = FUTURE"
+  };
+  scene.add.text(x + 8, y + 34, slogans[variant] ?? slogans.air, {
+    fontFamily: '"VT323", monospace',
+    fontSize: `${Math.max(12, Math.min(18, Math.floor(h * 0.16)))}px`,
+    color: "#cdd2ce",
+    wordWrap: { width: w - 16 }
+  }).setDepth(depth + 1);
+  g.fillStyle(COLORS.steelLight, 1);
+  for (let i = 0; i < 4; i += 1) {
+    const yy = y + h - 24 + i * 4;
+    g.fillRect(x + 8 + (i % 2) * 8, yy, Math.max(10, w - 28 - (i % 3) * 12), 2);
+  }
+  return g;
+}
+
 // cielo e skyline per origine
 
 const SKY = {
@@ -752,37 +791,10 @@ export function buildBusStop(scene, originId, { evening = true } = {}) {
     ditherRect(s, px, py, pw, 12, 0xffffff, 6, 2, 0.6);
     ditherRect(s, px, py + ph - 14, pw, 14, COLORS.panelLight, 5, 2);
   });
-  // contenuti: manifesto BIODOM al centro, logo e slogan nei pannelli larghi
-  scene.add.image(500, 300, "poster_1").setDisplaySize(64, 100).setDepth(411);
-  // manifesti delle tavole del progetto: "Each breath is a choice" e il diagramma Symbiosis
-  scene.add.image(panels[0][0], panels[0][1], "poster_4").setOrigin(0, 0).setDisplaySize(panels[0][2], panels[0][3]).setDepth(411);
-  scene.add.image(panels[2][0], panels[2][1], "poster_5").setOrigin(0, 0).setDisplaySize(panels[2][2], panels[2][3]).setDepth(411);
-  // il diagramma viene ridisegnato sopra in pixel, così le scritte restano leggibili
-  {
-    const [px, py] = panels[2];
-    const d = scene.add.graphics().setDepth(412);
-    const lab = (tx, ty, text, size = 13, color = "#f1f0ed") =>
-      scene.add.text(px + tx, py + ty, text, { fontFamily: '"VT323", monospace', fontSize: `${size}px`, color }).setDepth(413);
-    // le linee passano sempre sotto o sopra le parole, mai attraverso
-    const top = lab(30, 14, "Life preservation");
-    const care = lab(8, 60, "Care");
-    const commit = lab(100, 88, "Commitment");
-    lab(4, 2, "[01]", 11, "#9fb4c2");
-    const lineY = py + 14 + top.height + 3;
-    const leftX = px + 18;
-    const rightX = px + 124;
-    d.fillStyle(COLORS.paper, 0.9);
-    d.fillRect(leftX, lineY, rightX - leftX + 1, 1);
-    d.fillRect(leftX, lineY, 1, care.y - lineY - 3);
-    // chip SYMBIOSIS sul ramo destro (copre anche il residuo chiaro dello sfondo)
-    const chipY = py + 44;
-    d.fillRect(rightX, lineY, 1, chipY - lineY);
-    d.fillStyle(0xdadfda, 1);
-    d.fillRect(px + 94, chipY, 60, 12);
-    lab(98, 44, "SYMBIOSIS", 11, "#163c4d");
-    d.fillStyle(COLORS.paper, 0.9);
-    d.fillRect(rightX, chipY + 12, 1, commit.y - (chipY + 12) - 3);
-  }
+  // manifesti BIODOM ridisegnati nello stesso stile retinato della fermata.
+  biodomPoster(scene, panels[0][0], panels[0][1], panels[0][2], panels[0][3], { variant: "care" });
+  biodomPoster(scene, panels[1][0], panels[1][1], panels[1][2], panels[1][3], { variant: "air" });
+  biodomPoster(scene, panels[2][0], panels[2][1], panels[2][2], panels[2][3], { variant: "symbiosis" });
   if (evening) {
     panels.forEach(([px, py, pw, ph]) => {
       const glow = scene.add.rectangle(px + pw / 2, py + ph / 2, pw + 16, ph + 16, 0xe8e4d4, 0.12).setDepth(409);
@@ -1184,16 +1196,18 @@ export function buildBus(scene, originId, { evening = false } = {}) {
     frame.fillStyle(COLORS.ink, 1);
     frame.fillRect(x + 4, 190, 202, 2); // vetro scorrevole
   });
-  // pannelli pubblicitari sopra i finestrini (uno BIODOM)
+  // pannelli pubblicitari sopra i finestrini, con un manifesto BIODOM in pixel.
   wins.forEach((x, i) => {
     drawPanel(frame, x + 20, 86, 170, 26, { fill: i === 1 ? COLORS.ink : COLORS.paper, border: COLORS.ink, borderWidth: 2 });
-    frame.fillStyle(i === 1 ? COLORS.red : COLORS.steel, 1);
-    frame.fillRect(x + 28, 94, 30, 10);
-    frame.fillStyle(i === 1 ? COLORS.paper : COLORS.ink, 1);
-    frame.fillRect(x + 66, 96, 90 - (i % 2) * 20, 2);
-    frame.fillRect(x + 66, 102, 60, 2);
+    if (i === 1) biodomPoster(scene, x + 20, 86, 170, 26, { depth: 2 });
+    else {
+      frame.fillStyle(COLORS.steel, 1);
+      frame.fillRect(x + 28, 94, 30, 10);
+      frame.fillStyle(COLORS.ink, 1);
+      frame.fillRect(x + 66, 96, 90 - (i % 2) * 20, 2);
+      frame.fillRect(x + 66, 102, 60, 2);
+    }
   });
-  if (scene.textures.exists("logo_biodom")) scene.add.image(wins[1] + 150, 99, "logo_biodom").setTint(COLORS.paper).setScale(0.5).setDepth(1);
   // soffitto con luci e corrimano
   frame.fillStyle(COLORS.ink, 1);
   frame.fillRect(0, 46, W, 6);

@@ -27,7 +27,62 @@ export class EndScene extends Phaser.Scene {
     const hero = this.add.image(300, 764, `${operatorKey(this, op, origin.id)}_idle`).setOrigin(0.5, 1).setScrollFactor(0);
     if (!win) hero.setAngle(85).setY(770).setAlpha(0.8);
     brackets(this);
+    if (win) {
+      this.playFinalCutscene(run, hero);
+      return;
+    }
+    this.showResult(run, false);
+  }
 
+  playFinalCutscene(run, hero) {
+    this.inCutscene = true;
+    const w = 820;
+    const h = 300;
+    const x = (VIEW.w - w) / 2;
+    const y = (VIEW.h - h) / 2;
+    const c = this.add.container(0, 0).setDepth(2000).setScrollFactor(0);
+    const dim = this.add.rectangle(0, 0, VIEW.w, VIEW.h, C.c0, 0.7).setOrigin(0);
+    const panel = box(this, x, y, w, h, { alpha: 0.98, border: C.c4 });
+    const band = ditherBand(this, x + 2, y + 2, w - 4, 70, { from: 0.06, to: 0.4 });
+    const title = ditherTitle(this, x + 36, y + 22, "RITORNO A CASA", { size: 40 });
+    const body = txt(this, x + 36, y + 120, "", { size: 23, wrap: w - 72 });
+    const prompt = txt(this, x + w - 36, y + h - 30, "TOCCA O PREMI INVIO", { size: 16, color: HEX.c3, origin: [1, 1] });
+    c.add([dim, panel, band, title, body, prompt]);
+    prompt.setAlpha(0);
+
+    this.tweens.add({ targets: hero, x: 540, duration: 2200, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: hero, y: 758, duration: 360, yoyo: true, repeat: 5, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: c, alpha: 1, duration: 300 });
+
+    const message = "L'operatore rientra con la pianta stabile.\nL'aria di casa torna a essere respirabile.";
+    let i = 0;
+    this.time.addEvent({
+      delay: 28,
+      repeat: message.length - 1,
+      callback: () => {
+        i += 1;
+        body.setText(message.slice(0, i));
+        if (i === message.length) {
+          this.tweens.add({ targets: prompt, alpha: 1, duration: 240 });
+        }
+      }
+    });
+    this.time.delayedCall(5600, () => this.finishFinalCutscene(run, c, hero));
+    this.input.once("pointerup", () => this.finishFinalCutscene(run, c, hero));
+    this.input.keyboard.once("keydown-ENTER", () => this.finishFinalCutscene(run, c, hero));
+    this.input.keyboard.once("keydown-SPACE", () => this.finishFinalCutscene(run, c, hero));
+  }
+
+  finishFinalCutscene(run, cutscene, hero) {
+    if (!this.inCutscene) return;
+    this.inCutscene = false;
+    this.tweens.killTweensOf(hero);
+    hero.setPosition(540, 764);
+    cutscene.destroy();
+    this.showResult(run, true);
+  }
+
+  showResult(run, win) {
     const x = 420;
     const y = 110;
     const w = 800;

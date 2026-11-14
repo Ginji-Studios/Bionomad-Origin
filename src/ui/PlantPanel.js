@@ -4,12 +4,12 @@ import Phaser from "../phaser.js";
 import { PlantSensors, VIAL_COLORS } from "../input/PlantSensors.js";
 import { paint } from "../world/skyline.js";
 import { K } from "../art/people.js";
-import { box, button, C, HEX, txt } from "./hud.js";
+import { box, button, C, ditherBand, HEX, txt, VIEW } from "./hud.js";
 
-const X0 = 410;
-const Y0 = 110;
 const W = 830;
 const H = 470;
+const X0 = (VIEW.w - W) / 2;
+const Y0 = (VIEW.h - H) / 2;
 
 // sansevieria nel vaso bianco, retinata come il resto: foglie a spada con le bande
 export function plantArt(scene, key = "plant_big", k = 1) {
@@ -108,7 +108,8 @@ export class PlantPanel {
     this.overheated = false;
     this.lastSlots = [...PlantSensors.state.slots];
     const c = scene.add.container(0, 0).setDepth(1800).setScrollFactor(0);
-    const bg = box(scene, X0, Y0, W, H, { alpha: 1, border: emergency ? C.c4 : C.c3, bw: emergency ? 3 : 2 });
+    const panelBg = ditherBand(scene, X0, Y0, W, H, { from: 0.0, to: 0.3, vertical: true });
+    const bg = box(scene, X0, Y0, W, H, { alpha: 0, border: emergency ? C.c4 : C.c3, bw: emergency ? 3 : 2 });
     const title = txt(scene, X0 + 32, Y0 + 26, step.text.replace(/^[+!]\s*/, ""), { size: 34, weight: "500", wrap: W - 64 });
     const hint = txt(scene, X0 + 32, Y0 + 26 + title.height + 10, SENSOR_HINT[step.sensor]?.(step) ?? "", { size: 22, color: HEX.c3, wrap: W - 64 });
     // la pianta sta nella sua colonna a sinistra, lontano dai numeri
@@ -119,7 +120,7 @@ export class PlantPanel {
     this.gauge = scene.add.graphics();
     this.doneLabel = txt(scene, X0 + 300, Y0 + 270, "COMPLETAMENTO", { size: 18, color: HEX.c3 });
     this.timer = scene.add.graphics();
-    c.add([bg, title, hint, plant, this.fx, this.value, this.gauge, this.doneLabel, this.timer]);
+    c.add([panelBg, bg, title, hint, plant, this.fx, this.value, this.gauge, this.doneLabel, this.timer]);
     this.plantImg = plant;
     this.box = { plantX: X0 + 40, plantW: plant.displayWidth, plantTop: Y0 + H - 30 - plant.displayHeight };
     // pulsanti per simulare la pianta (solo se non è collegata)
