@@ -354,6 +354,12 @@ function side(T, ph, o) {
 
 // ---------------------------------------------------------------- vista frontale (crediti)
 
+// ciocche davanti (coordinate del disegno frontale, cx = 60): dalla tempia alle spalle
+const FRONT_LOCKS = [
+  [[42, 22], [36, 46], [38, 64], [40, 80], [36, 90], [44, 90], [47, 76], [44, 56], [46, 26]],
+  [[78, 22], [84, 46], [82, 64], [80, 80], [84, 90], [76, 90], [73, 76], [76, 56], [74, 26]]
+];
+
 function front(T, o) {
   const { X, G } = T;
   const cx = 60;
@@ -383,11 +389,6 @@ function front(T, o) {
     X.quadraticCurveTo(cx + 26, 70, cx + 22, 30);
     X.closePath();
     X.fill();
-    if (o.balayage) {
-      X.fillStyle = G(0.9);
-      X.fillRect(cx - 24, 62, 10, 34);
-      X.fillRect(cx + 14, 62, 10, 34);
-    }
   }
   // gambe e scarpe
   X.fillStyle = shade(cx - 16, cx + 16, legsT + 0.1, legsT - 0.05);
@@ -483,8 +484,13 @@ function front(T, o) {
     X.quadraticCurveTo(cx, 50, cx - 12, 44);
     X.closePath();
     X.fill();
-    X.fillStyle = G(0.3);
-    X.fillRect(cx - 4, 50, 8, 2);
+    // baffi sopra la bocca, labbra chiare ben visibili nella barba
+    X.fillStyle = G(hairT);
+    X.fillRect(cx - 7, 45, 14, 3);
+    X.fillStyle = G(skin - 0.05);
+    X.fillRect(cx - 5, 48, 10, 3);
+    X.fillStyle = G(0.12);
+    X.fillRect(cx - 3, 49, 6, 2);
   }
   // capelli sopra
   X.fillStyle = G(hairT);
@@ -497,6 +503,40 @@ function front(T, o) {
   X.fill();
   if (o.hair === "manbun") {
     ell(cx, 10, 8, 7, G(hairT));
+  }
+  if (o.earLocks) {
+    // ciocche che scendono ai lati del viso e coprono le orecchie
+    [-1, 1].forEach((d) => {
+      X.fillStyle = G(hairT);
+      X.beginPath();
+      X.moveTo(cx + d * 12, 18);
+      X.quadraticCurveTo(cx + d * 22, 22, cx + d * 22, 34);
+      X.lineTo(cx + d * 21, 50);
+      X.quadraticCurveTo(cx + d * 16, 52, cx + d * 14, 46);
+      X.quadraticCurveTo(cx + d * 15, 30, cx + d * 12, 18);
+      X.fill();
+      X.fillStyle = G(hairT + 0.1);
+      X.fillRect(cx + d * 18 - 1, 28, 2, 16);
+    });
+  }
+  if (o.frontLocks) {
+    // ciocche davanti alle spalle, dello stesso tono dei capelli (le punte si colorano dopo)
+    FRONT_LOCKS.forEach((pts) => {
+      X.fillStyle = G(hairT);
+      X.beginPath();
+      X.moveTo(...pts[0]);
+      for (let i = 1; i < pts.length; i += 2) X.quadraticCurveTo(...pts[i], ...pts[i + 1]);
+      X.closePath();
+      X.fill();
+    });
+    X.strokeStyle = G(hairT - 0.2);
+    X.lineWidth = 1;
+    FRONT_LOCKS.forEach((pts) => {
+      X.beginPath();
+      X.moveTo(...pts[0]);
+      for (let i = 1; i < pts.length; i += 2) X.quadraticCurveTo(...pts[i], ...pts[i + 1]);
+      X.stroke();
+    });
   }
   if (o.hat === "cap") {
     X.fillStyle = shade(cx - 20, cx + 20, 0.2, 0.06);
@@ -638,8 +678,8 @@ export const TEAM_LOOK = [
   { hair: "long", hairTone: 0.86, top: 0.22, legs: 0.08, earrings: true },
   { hair: "manbun", hairTone: 0.3, top: 0.9, legs: 0.75, beard: true },
   { hair: "long", hairTone: 0.3, hat: "cap", vest: true, top: 0.35, legs: 0.08, tuft: true },
-  { hair: "long", hairTone: 0.36, top: 0.12, legs: 0.3, skirt: true },
-  { hair: "long", hairTone: 0.55, balayage: true, top: 0.2, stripes: true, legs: 0.3 },
+  { hair: "long", hairTone: 0.36, top: 0.12, legs: 0.3, skirt: true, earLocks: true },
+  { hair: "long", hairTone: 0.55, balayage: true, frontLocks: true, top: 0.2, stripes: true, legs: 0.3 },
   { hair: "long", hairTone: 0.14, top: 0.78, legs: 0.4, overalls: true }
 ];
 const RUST = "#B4553F";
@@ -675,26 +715,29 @@ export function crewBust(scene, i) {
     [[44, 28, 18, 3], [45, 31, 12, 3], [46, 34, 6, 2]].forEach(([a, b, w, h]) => x.fillRect((a - 22) * 2, (b - 4) * 2, w * 2, h * 2));
   }
   if (o.balayage) {
-    // shatush fucsia: due ciocche davanti alle spalle, scure in alto e fucsia sulle punte
-    const x = c.getContext("2d");
-    const lock = (x0, dir) => {
-      for (let yy = 40; yy < 92; yy += 1) {
-        const w = 8 - Math.max(0, yy - 80) * 0.4;
-        const left = x0 + dir * Math.sin((yy - 40) / 18) * 2;
-        for (let xx = Math.round(left); xx < left + w; xx += 1) {
-          const px = (xx - 22) * 2;
-          const py = (yy - 4) * 2;
-          if (py >= c.height) continue;
-          let col = PALETTE[2];
-          if (yy > 62) col = (xx + yy) % 2 ? "#D94F9A" : "#E58CB6";
-          else if (yy > 56) col = (xx + yy) % 2 ? PALETTE[2] : "#D94F9A";
-          x.fillStyle = col;
-          x.fillRect(px, py, 2, 2);
-        }
+    // shatush fucsia: le ciocche sono già disegnate nel tono dei capelli; qui si colorano
+    // le punte, con un passaggio a retino tra il castano e il fucsia
+    const x = c.getContext("2d", { willReadFrequently: true });
+    const S = 2;
+    const locks = FRONT_LOCKS.map((pts) => {
+      const p = new Path2D();
+      const P = ([lx, ly]) => [(lx - 22) * S, (ly - 4) * S];
+      p.moveTo(...P(pts[0]));
+      for (let i = 1; i < pts.length; i += 2) p.quadraticCurveTo(...P(pts[i]), ...P(pts[i + 1]));
+      p.closePath();
+      return p;
+    });
+    for (let py = 0; py < c.height; py++) {
+      const t = (py / S + 4 - 56) / 10;
+      if (t <= 0) continue;
+      for (let px = 0; px < c.width; px++) {
+        if (!locks.some((l) => x.isPointInPath(l, px + 0.5, py + 0.5))) continue;
+        const cell = ((px >> 1) * 7 + (py >> 1) * 3) % 10;
+        if (t < 1 && cell >= t * 10) continue;
+        x.fillStyle = ((px >> 1) + (py >> 1)) % 2 ? "#D94F9A" : "#E58CB6";
+        x.fillRect(px, py, 1, 1);
       }
-    };
-    lock(60 - 22, -1);
-    lock(60 + 14, 1);
+    }
   }
   scene.textures.addCanvas(key, c);
   return key;

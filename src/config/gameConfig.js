@@ -7,6 +7,7 @@ import { IntroScene } from "../scenes/IntroScene.js";
 import { EventScene } from "../scenes/EventScene.js";
 import { TravelScene } from "../scenes/TravelScene.js";
 import { EndScene } from "../scenes/EndScene.js";
+import { OutroScene } from "../scenes/OutroScene.js";
 import { TutorialScene } from "../scenes/TutorialScene.js";
 import { CreditsScene } from "../scenes/CreditsScene.js";
 import { PauseScene } from "../scenes/PauseScene.js";
@@ -26,5 +27,5 @@ export const gameConfig = {
   input: {
     activePointers: 4
   },
-  scene: [BootScene, PreloadScene, MenuScene, SetupScene, IntroScene, TravelScene, EventScene, EndScene, TutorialScene, CreditsScene, PauseScene]
+  scene: [BootScene, PreloadScene, MenuScene, SetupScene, IntroScene, TravelScene, EventScene, EndScene, OutroScene, TutorialScene, CreditsScene, PauseScene]
 };

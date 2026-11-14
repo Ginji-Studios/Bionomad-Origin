@@ -147,7 +147,7 @@ export class SetupScene extends Phaser.Scene {
     g.lineStyle(1, sel ? C.c4 : C.c3, 1);
     g.strokeRect(x + 16, y + CH - 56, CW - 32, 40);
     this.layer.add(g);
-    this.layer.add(txt(this, x + CW / 2, y + CH - 36, sel ? `▶ ${text}` : text, { size: 20, origin: 0.5, color: sel ? HEX.c0 : HEX.c3 }));
+    this.layer.add(txt(this, x + CW / 2, y + CH - 36, text, { size: 20, origin: 0.5, color: sel ? HEX.c0 : HEX.c3 }));
   }
 
   hit(x, y, fn) {
@@ -176,7 +176,7 @@ export class SetupScene extends Phaser.Scene {
       this.layer.add(img);
       this.frame(x + 16, y + 44, CW - 32, IMG_H, { fill: 0 });
       this.rows(x + 16, y + 44 + IMG_H + 14, CW - 32, [["PM2.5", `${o.pm25} µg/m³`], ["INQUINAMENTO", AIR[id]], ["DIFFICOLTÀ", LEVEL[id]]], sel);
-      this.tag(x, y, sel, sel ? "SELEZIONATA" : DIFF[id]);
+      this.tag(x, y, sel, DIFF[id]);
       this.hit(x, y, () => (this.city === id ? this.confirm() : this.pickCity(id)));
     });
   }

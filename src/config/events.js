@@ -9,6 +9,7 @@
 //  - fiale: il colore deve corrispondere, quella sbagliata va tolta
 export const EVENTS = {
   ufficio_mattina: {
+    level: 1,
     title: "UFFICIO · MATTINA",
     time: "09:00",
     location: "office",
@@ -19,6 +20,7 @@ export const EVENTS = {
     ]
   },
   food_truck_acqua: {
+    level: 2,
     title: "FOOD TRUCK · ACQUA",
     time: "13:00",
     location: "foodtruck",
@@ -47,6 +49,7 @@ export const EVENTS = {
     ]
   },
   ufficio_sera: {
+    level: 1,
     title: "UFFICIO · SERA",
     time: "18:30",
     location: "office",
@@ -59,6 +62,7 @@ export const EVENTS = {
     ]
   },
   bus_sera: {
+    level: 1,
     title: "FERMATA BUS · SERA",
     time: "19:15",
     location: "busstop",
@@ -70,6 +74,7 @@ export const EVENTS = {
     ]
   },
   food_truck_ricarica: {
+    level: 1,
     title: "FOOD TRUCK · RICARICA",
     time: "12:30",
     location: "foodtruck",
@@ -84,6 +89,7 @@ export const EVENTS = {
 // eventi sulla pianta vera
 Object.assign(EVENTS, {
   bus_mattina: {
+    level: 2,
     title: "BUS · MATTINA",
     time: "08:10",
     location: "bus",
@@ -104,6 +110,7 @@ Object.assign(EVENTS, {
     ]
   },
   ufficio_freddo: {
+    level: 3,
     title: "UFFICIO · CONDIZIONATORE",
     time: "10:30",
     location: "office",
@@ -128,6 +135,7 @@ Object.assign(EVENTS, {
     ]
   },
   casa_fertilizzante: {
+    level: 2,
     title: "CASA · SERA",
     time: "20:00",
     location: "home",
@@ -148,6 +156,7 @@ Object.assign(EVENTS, {
     ]
   },
   bus_perso: {
+    level: 3,
     title: "BUS PERSO · A PIEDI",
     time: "19:30",
     location: "busstop",
@@ -171,6 +180,7 @@ Object.assign(EVENTS, {
     ]
   },
   ondata_caldo: {
+    level: 3,
     title: "PARCO · ONDATA DI CALORE",
     time: "14:30",
     location: "foodtruck",
@@ -202,6 +212,48 @@ Object.assign(EVENTS, {
     endsAt: "home",
     description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Oggi è l'unica task: torna a casa stabilizzando la pianta con 6 cure improvvise, mentre l'ossigeno cala più in fretta.",
     steps: [{ type: "emergency", target: "home", actionEveryMs: 4200, cures: 6, text: "STABILIZZA LA PIANTA E TORNA A CASA" }]
+  }
+});
+
+// altri eventi, per avere più varietà tra una partita e l'altra
+Object.assign(EVENTS, {
+  casa_mattina: {
+    level: 1,
+    title: "CASA · MATTINA",
+    time: "07:30",
+    location: "home",
+    plant: true,
+    description: "La pianta ha passato la notte al buio: prima di uscire dalle luce, poi esci di casa.",
+    steps: [
+      { type: "reach", target: "hub", text: "RAGGIUNGI L'HOME HUB" },
+      { type: "plant", sensor: "light", above: 0.75, holdMs: 2500, text: "DALLE LUCE", hint: "Accendi la torcia e puntala sul sensore di luce.", key: "I" },
+      { type: "exit", target: "door", text: "ESCI DI CASA" }
+    ]
+  },
+  parco_notte: {
+    level: 2,
+    title: "PARCO · LAMPIONE SPENTO",
+    time: "21:00",
+    location: "foodtruck",
+    evening: true,
+    plant: true,
+    description: "Ti fermi sulla panchina del parco ma il lampione è spento: la pianta ha bisogno di luce.",
+    steps: [
+      { type: "sit", target: "bench", duration: 2000, text: "SIEDITI SULLA PANCHINA" },
+      { type: "plant", sensor: "light", above: 0.8, holdMs: 3000, timeoutMs: 15000, text: "ILLUMINALA CON LA TORCIA", hint: "Punta la torcia sul sensore finché la barra non si riempie.", key: "I" }
+    ]
+  },
+  bus_notte: {
+    level: 2,
+    title: "BUS · NOTTE",
+    time: "22:10",
+    location: "bus",
+    evening: true,
+    plant: true,
+    description: "Sull'ultimo bus le luci al neon sono accecanti: copri la pianta finché non scendi.",
+    steps: [
+      { type: "plant", sensor: "light", below: 0.2, holdMs: 3500, malus: true, text: "COPRI IL BIONOMAD", hint: "Copri il sensore di luce con la mano finché la barra non si riempie.", key: "C" }
+    ]
   }
 });
 

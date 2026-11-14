@@ -155,36 +155,300 @@ function plantPot(T, x, h = 60) {
   }
 }
 
+// ---------- arredi per città ----------
+
+// parquet a spina di pesce (Milano)
+function herringbone(T, w) {
+  const { X, G } = T;
+  X.fillStyle = G(0.32);
+  X.fillRect(0, GY, w, 60);
+  for (let y = GY; y < 540; y += 8) {
+    for (let x = ((y - GY) / 8) % 2 ? 0 : 12; x < w; x += 24) {
+      X.fillStyle = G(0.22 + ((x + y) % 3) * 0.04);
+      X.fillRect(x, y, 12, 4);
+      X.fillStyle = G(0, 0.25);
+      X.fillRect(x + 12, y, 1, 8);
+    }
+  }
+  X.fillStyle = G(0.75);
+  X.fillRect(0, GY, w, 2);
+}
+
+// assi di legno chiaro (Reykjavík)
+function planksFloor(T, w) {
+  const { X, G, rnd } = T;
+  X.fillStyle = G(0.42);
+  X.fillRect(0, GY, w, 60);
+  for (let y = GY + 8; y < 540; y += 12) {
+    X.fillStyle = G(0, 0.2);
+    X.fillRect(0, y, w, 1);
+    for (let x = rnd() * 120; x < w; x += 140 + rnd() * 80) X.fillRect(x, y - 11, 1, 11);
+  }
+  X.fillStyle = G(0.8);
+  X.fillRect(0, GY, w, 2);
+}
+
+// boiserie: pannelli a rilievo nella parte bassa della parete (Milano)
+function wainscot(T, w, skip = []) {
+  const { X, G } = T;
+  X.fillStyle = G(0.4);
+  X.fillRect(0, GY - 150, w, 4);
+  for (let x = 20; x < w - 60; x += 110) {
+    if (skip.some(([a, b]) => x + 90 > a && x < b)) continue;
+    X.strokeStyle = G(0.48);
+    X.lineWidth = 2;
+    X.strokeRect(x, GY - 130, 90, 100);
+  }
+}
+
+// assi orizzontali di legno sulle pareti (Reykjavík)
+function plankWall(T, w, wins) {
+  const { X, G } = T;
+  for (let y = 20; y < GY - 14; y += 22) {
+    X.fillStyle = G(0, 0.16);
+    const inWin = (x) => wins.some(([wx, wy, ww, hh]) => x > wx && x < wx + ww && y > wy && y < wy + hh);
+    for (let x = 0; x < w; x += 4) if (!inWin(x)) X.fillRect(x, y, 4, 2);
+  }
+}
+
+// arco a sesto acuto sopra la finestra + grata jaali sul vetro (Delhi)
+function jharokha(T, [x, y, ww, hh]) {
+  const { X, G } = T;
+  X.strokeStyle = G(0.82);
+  X.lineWidth = 5;
+  X.beginPath();
+  X.moveTo(x - 8, y + 4);
+  X.quadraticCurveTo(x - 4, y - 60, x + ww / 2, y - 80);
+  X.quadraticCurveTo(x + ww + 4, y - 60, x + ww + 8, y + 4);
+  X.stroke();
+  X.strokeStyle = G(0.7, 0.55);
+  X.lineWidth = 2;
+  for (let i = -hh; i < ww; i += 26) {
+    X.beginPath();
+    X.moveTo(x + Math.max(0, i), y + Math.max(0, -i));
+    X.lineTo(x + Math.min(ww, i + hh), y + Math.min(hh, hh - (i + hh - ww) * (i + hh > ww ? 1 : 0)));
+    X.stroke();
+    X.beginPath();
+    X.moveTo(x + ww - Math.max(0, i), y + Math.max(0, -i));
+    X.lineTo(x + ww - Math.min(ww, i + hh), y + Math.min(hh, hh - (i + hh - ww) * (i + hh > ww ? 1 : 0)));
+    X.stroke();
+  }
+  // tettuccio sporgente
+  X.fillStyle = G(0.6);
+  X.fillRect(x - 16, y - 86, ww + 32, 8);
+}
+
+// davanzale con la neve (Reykjavík)
+function snowSill(T, [x, y, ww, hh]) {
+  const { X, G } = T;
+  X.fillStyle = G(0.95);
+  X.beginPath();
+  X.ellipse(x + ww / 2, y + hh - 2, ww / 2 - 6, 6, 0, Math.PI, 0);
+  X.fill();
+}
+
+// fregio a motivi geometrici lungo la parete (Delhi)
+function frieze(T, w, y) {
+  const { X, G } = T;
+  X.fillStyle = G(0.5);
+  X.fillRect(0, y, w, 16);
+  for (let x = 0; x < w; x += 20) {
+    X.fillStyle = G(0.75);
+    X.beginPath();
+    X.moveTo(x, y + 8);
+    X.lineTo(x + 10, y + 2);
+    X.lineTo(x + 20, y + 8);
+    X.lineTo(x + 10, y + 14);
+    X.fill();
+  }
+}
+
+// tappeto a righe e bordo decorato
+function rug(T, x, w, tone = 0.55) {
+  const { X, G } = T;
+  X.fillStyle = G(tone);
+  X.fillRect(x, GY + 6, w, 22);
+  for (let i = 0; i < w; i += 12) {
+    X.fillStyle = G(tone + 0.2);
+    X.fillRect(x + i, GY + 10, 6, 3);
+    X.fillRect(x + i + 6, GY + 21, 6, 3);
+  }
+  X.fillStyle = G(tone - 0.25);
+  X.fillRect(x, GY + 15, w, 2);
+}
+
+// ventilatore a soffitto
+function ceilingFan(T, x) {
+  const { X, G } = T;
+  X.fillStyle = G(0.2);
+  X.fillRect(x - 2, 0, 4, 40);
+  X.fillStyle = G(0.65);
+  X.fillRect(x - 70, 40, 140, 6);
+  X.fillStyle = G(0.85);
+  X.fillRect(x - 8, 36, 16, 14);
+}
+
+// stufa a legna con tubo e fuoco (Reykjavík)
+function stove(T, x) {
+  const { X, G, stone } = T;
+  stone([[x, GY], [x, GY - 90], [x + 70, GY - 90], [x + 70, GY]], 0.3, 0.16, { rib: 10 });
+  X.fillStyle = G(0.95);
+  X.fillRect(x + 14, GY - 70, 42, 30);
+  X.fillStyle = G(0.75);
+  for (let i = 0; i < 4; i++) X.fillRect(x + 18 + i * 10, GY - 52 - (i % 2) * 8, 5, 12 + (i % 2) * 8);
+  X.fillStyle = G(0.22);
+  X.fillRect(x + 28, 0, 14, GY - 90);
+}
+
+function picture(T, x, y, w, h) {
+  const { X, G, lgx } = T;
+  X.fillStyle = G(0.75);
+  X.fillRect(x - 4, y - 4, w + 8, h + 8);
+  X.fillStyle = lgx(x, x + w, 0.35, 0.6);
+  X.fillRect(x, y, w, h);
+  X.fillStyle = G(0.85);
+  X.beginPath();
+  X.arc(x + w * 0.7, y + h * 0.35, h * 0.15, 0, 7);
+  X.fill();
+}
+
+function shelf(T, x, y, w, n = 3) {
+  const { X, G } = T;
+  for (let r = 0; r < n; r++) {
+    X.fillStyle = G(0.6);
+    X.fillRect(x, y + r * 40, w, 4);
+    for (let i = 0; i < w - 10; i += 9) {
+      X.fillStyle = G(0.3 + ((i * 7 + r * 3) % 5) * 0.1);
+      X.fillRect(x + 4 + i, y + r * 40 - 26 + ((i + r) % 3) * 3, 7, 26 - ((i + r) % 3) * 3);
+    }
+  }
+}
+
 // ---------- luoghi ----------
 
-function home(T) {
-  const wins = [[150, 90, 220, 230], [470, 90, 220, 230]];
-  wall(T, LW, wins, { tone: 0.34 });
-  floor(T, LW);
-  sofa(T, 60, 170);
-  table(T, 300, 110, 50);
+function home(T, city) {
+  const { X, G } = T;
+  const wins = city === "reykjavik" ? [[170, 130, 180, 170], [490, 130, 180, 170]] : city === "delhi" ? [[160, 130, 200, 200], [480, 130, 200, 200]] : [[150, 70, 220, 250], [470, 70, 220, 250]];
+  wall(T, LW, wins, { tone: city === "reykjavik" ? 0.4 : city === "delhi" ? 0.36 : 0.34 });
+  if (city === "milano") {
+    herringbone(T, LW);
+    wainscot(T, LW, [[560, 640]]);
+    picture(T, 720, 150, 90, 64);
+    // lampada ad arco
+    X.strokeStyle = G(0.6);
+    X.lineWidth = 4;
+    X.beginPath();
+    X.moveTo(36, GY);
+    X.lineTo(36, GY - 160);
+    X.quadraticCurveTo(60, GY - 300, 230, GY - 230);
+    X.stroke();
+    X.fillStyle = G(0.92);
+    X.beginPath();
+    X.arc(232, GY - 222, 16, Math.PI, 0);
+    X.fill();
+    sofa(T, 60, 170);
+    table(T, 300, 110, 50);
+  } else if (city === "delhi") {
+    floor(T, LW);
+    frieze(T, LW, GY - 160);
+    wins.forEach((w) => jharokha(T, w));
+    ceilingFan(T, 760);
+    rug(T, 40, 360, 0.5);
+    // divano basso con cuscini e rulli
+    const { stone } = T;
+    stone([[60, GY], [60, GY - 40], [250, GY - 40], [250, GY]], 0.45, 0.3, { rib: 30 });
+    for (let i = 0; i < 4; i++) stone([[70 + i * 44, GY - 40], [70 + i * 44, GY - 78], [108 + i * 44, GY - 78], [108 + i * 44, GY - 40]], 0.7, 0.5, { rib: 10 });
+    // lanterna d'ottone appesa
+    X.fillStyle = G(0.2);
+    X.fillRect(318, 0, 2, 120);
+    X.fillStyle = G(0.85);
+    X.beginPath();
+    X.moveTo(306, 120);
+    X.lineTo(332, 120);
+    X.lineTo(326, 150);
+    X.lineTo(312, 150);
+    X.fill();
+    table(T, 300, 90, 36);
+    // nicchia ad arco con vaso
+    X.fillStyle = G(0.22);
+    X.beginPath();
+    X.moveTo(740, GY - 60);
+    X.lineTo(740, GY - 180);
+    X.quadraticCurveTo(775, GY - 230, 810, GY - 180);
+    X.lineTo(810, GY - 60);
+    X.fill();
+    X.fillStyle = G(0.7);
+    X.fillRect(762, GY - 110, 26, 40);
+  } else {
+    planksFloor(T, LW);
+    plankWall(T, LW, wins);
+    wins.forEach((w) => snowSill(T, w));
+    rug(T, 60, 240, 0.62);
+    stove(T, 760);
+    shelf(T, 60, 140, 150, 2);
+    sofa(T, 60, 170);
+    table(T, 300, 110, 50);
+    // termosifone sotto la finestra
+    X.fillStyle = G(0.7);
+    for (let i = 0; i < 9; i++) X.fillRect(200 + i * 14, GY - 110, 9, 60);
+  }
   plantPot(T, 440);
   hub(T, 590, GY, 1);
   door(T, LW - 130);
-  // lampada da terra
-  const { X, G } = T;
-  X.fillStyle = G(0.15);
-  X.fillRect(30, GY - 200, 4, 200);
-  X.fillStyle = G(0.9);
-  X.fillRect(16, GY - 214, 32, 16);
+  if (city !== "milano") {
+    // lampada da terra
+    X.fillStyle = G(0.15);
+    X.fillRect(30, GY - 200, 4, 200);
+    X.fillStyle = G(0.9);
+    X.fillRect(16, GY - 214, 32, 16);
+  }
   return { hub: 590, door: LW - 85 };
 }
 
-function office(T) {
-  const wins = [[40, 70, 520, 220]];
-  wall(T, LW, wins, { tone: 0.38 });
-  // montanti della vetrata continua
+function office(T, city) {
   const { X, G, stone } = T;
-  for (let x = 40; x <= 560; x += 104) {
-    X.fillStyle = G(0.72);
-    X.fillRect(x - 2, 70, 4, 220);
+  const wins = city === "delhi" ? [[40, 90, 240, 190], [320, 90, 240, 190]] : city === "reykjavik" ? [[60, 90, 480, 200]] : [[40, 70, 520, 220]];
+  wall(T, LW, wins, { tone: city === "reykjavik" ? 0.44 : 0.38 });
+  if (city === "milano") {
+    // vetrata continua con montanti sottili, poster di design
+    for (let x = 40; x <= 560; x += 104) {
+      X.fillStyle = G(0.72);
+      X.fillRect(x - 2, 70, 4, 220);
+    }
+    floor(T, LW);
+    picture(T, 780, 120, 120, 80);
+  } else if (city === "delhi") {
+    // tapparelle mezze abbassate, ventilatori a soffitto, calendario, raffrescatore
+    wins.forEach(([x, y, ww]) => {
+      for (let i = 0; i < 9; i++) {
+        X.fillStyle = G(0.62);
+        X.fillRect(x, y + i * 8, ww, 5);
+      }
+    });
+    floor(T, LW);
+    ceilingFan(T, 150);
+    ceilingFan(T, 700);
+    X.fillStyle = G(0.9);
+    X.fillRect(780, 130, 60, 76);
+    X.fillStyle = G(0.3);
+    X.fillRect(780, 130, 60, 14);
+    for (let i = 0; i < 12; i++) X.fillRect(786 + (i % 4) * 13, 152 + Math.floor(i / 4) * 16, 8, 8);
+    stone([[860, GY], [860, GY - 120], [930, GY - 120], [930, GY]], 0.66, 0.45, { rib: 6 });
+    for (let i = 0; i < 6; i++) {
+      X.fillStyle = G(0.25);
+      X.fillRect(868, GY - 110 + i * 12, 54, 4);
+    }
+  } else {
+    // legno chiaro, soffitto a doghe, piante e neve sul davanzale
+    planksFloor(T, LW);
+    for (let x = 0; x < LW; x += 18) {
+      X.fillStyle = G(0.55);
+      X.fillRect(x, 0, 12, 34);
+    }
+    wins.forEach((w) => snowSill(T, w));
+    plantPot(T, 800, 80);
+    plantPot(T, 600, 50);
   }
-  floor(T, LW);
   desk(T, 40);
   desk(T, 230);
   hub(T, 470, GY, 1);
@@ -318,10 +582,10 @@ const PLACES = { home, office, bus, busstop, foodtruck };
 export const OUTDOOR = new Set(["busstop", "foodtruck", "street"]);
 
 // disegna un luogo: canvas a schermo intero + punti (in pixel) dei bersagli
-export function buildPlace(id) {
+export function buildPlace(id, city = "milano") {
   let pts = {};
   const canvas = paint(1280, 800, K, (T) => {
-    pts = (PLACES[id] ?? home)(T) ?? {};
+    pts = (PLACES[id] ?? home)(T, city) ?? {};
   }, { seedValue: 21 });
   const points = Object.fromEntries(Object.entries(pts).map(([k, v]) => [k, px(v)]));
   return { canvas, points, floorY: px(GY) };

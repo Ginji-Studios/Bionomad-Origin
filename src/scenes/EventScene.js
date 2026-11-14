@@ -8,8 +8,8 @@ import { buildSkyline } from "../world/skyline.js";
 import { buildPlace, OUTDOOR } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
-import { PlantPanel } from "../ui/PlantPanel.js";
-import { box, brackets, cityHud, button, C, canvasImage, controls, ditherBand, fadeIn, goTo, HEX, marker, o2Hud, skylineLayers, taskPanel, toast, txt, VIEW } from "../ui/hud.js";
+import { PlantPanel } from "../ui/plantPanel.js";
+import { box, brackets, cityHud, button, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, skylineLayers, taskPanel, toast, txt, VIEW } from "../ui/hud.js";
 
 const NEAR = 80;
 const STEP_BONUS = 0.04;
@@ -68,8 +68,8 @@ export class EventScene extends Phaser.Scene {
       if (!outdoor) {
         // interno: il cielo resta fermo, la città si vede solo dalle finestre
       }
-      const place = buildPlace(loc);
-      canvasImage(this, `place_${loc}`, place.canvas).setScrollFactor(0).setDepth(0);
+      const place = buildPlace(loc, this.origin.id);
+      canvasImage(this, `place_${loc}_${this.origin.id}`, place.canvas).setScrollFactor(0).setDepth(0);
       this.points = place.points;
     }
     const sf = this.wide ? 1 : 0;
@@ -210,14 +210,9 @@ export class EventScene extends Phaser.Scene {
     this.mode = "prune";
     this.pad.setVisible(false);
     const c = this.add.container(0, 0).setDepth(1800).setScrollFactor(0);
-    const W = 830;
-    const H = 470;
-    const X0 = (VIEW.w - W) / 2;
-    const Y0 = (VIEW.h - H) / 2;
-    c.add([
-      ditherBand(this, X0, Y0, W, H, { from: 0.0, to: 0.3, vertical: true }),
-      box(this, X0, Y0, W, H, { alpha: 0 })
-    ]);
+    const X0 = 410;
+    const Y0 = 110;
+    c.add(box(this, X0, Y0, 830, 470, { alpha: 1 }));
     c.add(txt(this, X0 + 32, Y0 + 26, "POTA LE FOGLIE SECCHE", { size: 34, weight: "500" }));
     c.add(txt(this, X0 + 32, Y0 + 80, "TOCCA LE 3 FOGLIE SCURE", { size: 22, color: HEX.c3 }));
     const plant = this.add.image(X0 + 300, Y0 + 452, "plant_big").setOrigin(0, 1);
@@ -255,62 +250,15 @@ export class EventScene extends Phaser.Scene {
     this.mode = "busy";
     const g = this.add.graphics().setScrollFactor(0).setDepth(450);
     const bus = this.add.container(-420, 0).setScrollFactor(0).setDepth(450);
-    const top = FEET - 250;
-    g.fillStyle(C.c0, 1);
-    g.fillRect(0, top + 8, 420, 212);
-    g.fillStyle(C.c4, 1);
-    g.fillRect(8, top, 404, 176);
-    g.fillStyle(C.c2, 1);
-    g.fillRect(8, top + 112, 404, 64);
     g.fillStyle(C.c3, 1);
-    g.fillRect(8, top + 106, 404, 6);
-    g.fillStyle(C.c1, 1);
-    g.fillRect(8, top + 176, 404, 18);
-    // finestrini con riflessi a blocchi
-    for (let i = 0; i < 5; i += 1) {
-      const x = 22 + i * 78;
-      g.fillStyle(C.c0, 1);
-      g.fillRect(x, top + 20, 64, 70);
-      g.fillStyle(C.c2, 1);
-      g.fillRect(x + 5, top + 25, 54, 58);
-      g.fillStyle(C.c3, 1);
-      g.fillRect(x + 8, top + 29, 34, 3);
-      g.fillRect(x + 8, top + 37, 22, 3);
-      g.fillStyle(C.c4, 0.6);
-      g.fillRect(x + 46, top + 25, 4, 58);
-    }
-    // fascia e marchio BIODOM in caratteri pixel
+    g.fillRect(0, FEET - 250, 400, 220);
     g.fillStyle(C.c0, 1);
-    g.fillRect(116, top + 116, 188, 42);
+    for (let i = 0; i < 5; i += 1) g.fillRect(18 + i * 76, FEET - 230, 62, 70);
     g.fillStyle(C.c4, 1);
-    g.fillRect(126, top + 124, 168, 2);
-    g.fillStyle(C.c3, 1);
-    g.fillRect(126, top + 146, 104, 3);
-    const brand = txt(this, 210, top + 136, "BIODOM+", { size: 28, color: HEX.c4, origin: 0.5 });
-    bus.add(brand);
-    // porta, fari e paraurti
+    g.fillRect(0, FEET - 140, 400, 6);
     g.fillStyle(C.c0, 1);
-    g.fillRect(328, top + 116, 62, 72);
-    g.fillStyle(C.c3, 1);
-    g.fillRect(334, top + 122, 50, 54);
-    g.fillStyle(C.c4, 1);
-    g.fillRect(338, top + 128, 42, 3);
-    g.fillStyle(C.c0, 1);
-    g.fillRect(0, top + 194, 420, 8);
-    g.fillStyle(C.c4, 1);
-    g.fillRect(12, top + 180, 12, 8);
-    g.fillStyle(C.c2, 1);
-    g.fillRect(390, top + 180, 12, 8);
-    // ruote dentate nello stile pixel
-    [82, 336].forEach((x) => {
-      g.fillStyle(C.c0, 1);
-      g.fillCircle(x, FEET - 30, 30);
-      g.fillStyle(C.c3, 1);
-      g.fillCircle(x, FEET - 30, 18);
-      g.fillStyle(C.c0, 1);
-      g.fillRect(x - 3, FEET - 47, 6, 34);
-      g.fillRect(x - 17, FEET - 33, 34, 6);
-    });
+    g.fillCircle(80, FEET - 30, 28);
+    g.fillCircle(320, FEET - 30, 28);
     bus.add(g);
     this.tweens.add({
       targets: bus,

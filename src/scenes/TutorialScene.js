@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
-import { plantArt } from "../ui/PlantPanel.js";
+import { plantArt } from "../ui/plantPanel.js";
 import { operatorKey } from "../art/people.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 
@@ -35,14 +35,25 @@ export class TutorialScene extends Phaser.Scene {
     this.layer = this.add.container(0, 0);
     this.fx = this.add.graphics().setDepth(10);
     this.bar = this.add.graphics().setDepth(20);
-    // tocca per andare avanti; il pulsante ▶ finale porta al gioco
+    // tocca a destra per andare avanti, a sinistra per rivedere il video precedente
     this.input.on("pointerup", (p) => {
-      if (p.y < 700) this.advance();
+      if (p.y >= 700) return;
+      if (p.x < VIEW.w / 3) this.back();
+      else this.advance();
     });
+    this.input.keyboard.on("keydown-LEFT", () => this.back());
+    this.input.keyboard.on("keydown-RIGHT", () => this.advance());
+    // frecce ai lati: suggeriscono che si può tornare indietro o andare avanti
+    this.navL = txt(this, 14, 400, "‹", { size: 54, color: HEX.c3, origin: [0, 0.5] }).setDepth(30);
+    this.navR = txt(this, VIEW.w - 14, 400, "›", { size: 54, color: HEX.c3, origin: [1, 0.5] }).setDepth(30);
     this.input.keyboard.on("keydown-SPACE", () => this.advance());
     this.input.keyboard.on("keydown-ENTER", () => goTo(this, this.next));
     this.go = button(this, VIEW.w - 200, 716, 160, 56, "▶▶", () => goTo(this, this.next), { primary: true, size: 26 });
     this.showPage(0);
+  }
+
+  back() {
+    this.showPage(Math.max(0, this.page - 1));
   }
 
   advance() {
@@ -53,6 +64,7 @@ export class TutorialScene extends Phaser.Scene {
   showPage(i) {
     this.page = i;
     this.t = 0;
+    this.navL?.setAlpha(i === 0 ? 0.25 : 1);
     this.layer.removeAll(true);
     this.tiles = [];
     if (i === 0) this.pageMove();
@@ -187,43 +199,66 @@ export class TutorialScene extends Phaser.Scene {
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
     this.layer.add(this.add.image(290, 600, "plant_mid").setOrigin(0.5, 1));
+    // cartellino sotto il vaso: quale foglia si sta toccando
+    this.leafTag = txt(this, 290, 626, "", { size: 20, origin: 0.5 });
+    this.layer.add(this.leafTag);
+    // la città scorre dietro l'operatore, come nel gioco (lui resta al centro)
+    this.city = this.add.tileSprite(542, 560 - 380, 676, 380, "menu_bg").setOrigin(0).setTileScale(0.535);
+    this.city.tilePositionX = 900;
     const street = this.add.graphics();
     street.fillStyle(C.c1, 1);
     street.fillRect(542, 560, 676, 88);
     street.fillStyle(C.c3, 1);
     street.fillRect(542, 560, 676, 2);
-    this.layer.add(street);
+    this.layer.add([this.city, street]);
+    this.dash = this.add.graphics();
+    this.shadow = this.add.ellipse(880, 584, 64, 10, C.c0, 0.6);
     this.walker = this.add.image(880, 590, `${this.op}_idle`).setOrigin(0.5, 1);
     this.moveG = this.add.graphics();
-    this.layer.add([this.walker, this.moveG]);
+    this.layer.add([this.dash, this.shadow, this.walker, this.moveG]);
+    this.walkPhase = 0;
+    this.walkV = 0;
   }
 
   updateMove(t) {
-    // 0-2.6s foglia destra → cammina a destra; 2.6-5.2s foglia sinistra → a sinistra
-    const right = t < 2600;
-    const tt = right ? t : t - 2600;
-    const touching = tt > 500 && tt < 2400;
+    // 0-3.2s foglia destra → cammina a destra; 3.2-6.4s foglia sinistra → a sinistra
+    const right = t < PAGE_MS / 2;
+    const tt = right ? t : t - PAGE_MS / 2;
+    const touching = tt > 500 && tt < PAGE_MS / 2 - 400;
     const g = this.moveG;
     g.clear();
-    // punti delle foglie da toccare (sinistra / destra) sul vaso
     const leaf = right ? [352, 380] : [224, 380];
     if (touching) {
       g.lineStyle(3, C.c4, 0.8);
       g.strokeCircle(leaf[0], leaf[1], 18 + (tt % 400) / 40);
     }
-    this.hand(g, leaf[0] + (touching ? 0 : 0), leaf[1] + (touching ? 0 : 40));
-    // il personaggio cammina solo mentre la foglia è toccata
-    if (touching) {
-      this.walker.x = Phaser.Math.Clamp(this.walker.x + (right ? 2.4 : -2.4), 640, 1120);
-      this.walker.setTexture(`${this.op}_${Math.floor(t / 90) % 8}`).setFlipX(!right);
-    } else this.walker.setTexture(`${this.op}_idle`);
+    // la mano arriva sulla foglia e poi si stacca
+    const reach = Phaser.Math.Clamp(Math.min(tt / 400, (PAGE_MS / 2 - tt) / 300), 0, 1);
+    this.hand(g, leaf[0], leaf[1] + (1 - reach) * 60);
+    this.leafTag.setText(touching ? (right ? "FOGLIA DESTRA  ▶" : "◀  FOGLIA SINISTRA") : "");
+    // passo con accelerazione e frenata morbide, la città scorre in senso opposto
+    const target = touching ? (right ? 1 : -1) : 0;
+    this.walkV += (target - this.walkV) * 0.12;
+    if (Math.abs(this.walkV) < 0.02 && !touching) this.walkV = 0;
+    this.city.tilePositionX += this.walkV * 4.5;
+    this.walkPhase = (this.walkPhase + Math.abs(this.walkV) * 0.075) % 1;
+    if (Math.abs(this.walkV) > 0.08) this.walker.setTexture(`${this.op}_${Math.floor(this.walkPhase * 8)}`);
+    else this.walker.setTexture(`${this.op}_idle`);
+    if (target) this.walker.setFlipX(!right);
+    // strisce della strada che scorrono, per sentire il movimento
+    const d = this.dash;
+    d.clear();
+    d.fillStyle(C.c3, 0.7);
+    const off = ((this.city.tilePositionX * 1.6) % 80 + 80) % 80;
+    for (let x = 542 - off; x < 1218; x += 80) if (x > 542) d.fillRect(x, 606, Math.min(40, 1218 - x), 3);
     // frecce del tablet sotto la strada, accese insieme alla foglia
-    [[600, "◀", !right], [1110, "▶", right]].forEach(([bx, , on]) => {
-      g.fillStyle(on && touching ? C.c4 : C.c0, on && touching ? 1 : 0.8);
+    [[600, !right], [1110, right]].forEach(([bx, on]) => {
+      const lit = on && touching;
+      g.fillStyle(lit ? C.c4 : C.c0, lit ? 1 : 0.8);
       g.fillRect(bx - 30, 584, 60, 54);
       g.lineStyle(2, C.c3, 1);
       g.strokeRect(bx - 30, 584, 60, 54);
-      g.fillStyle(on && touching ? C.c0 : C.c4, 1);
+      g.fillStyle(lit ? C.c0 : C.c4, 1);
       if (bx > 900) g.fillTriangle(bx - 8, 596, bx - 8, 626, bx + 12, 611);
       else g.fillTriangle(bx + 8, 596, bx + 8, 626, bx - 12, 611);
     });
@@ -462,8 +497,9 @@ export class TutorialScene extends Phaser.Scene {
       b.fillRect(sx, 740, segW * p, 6);
     }
     if (this.t >= PAGE_MS) {
+      // alla fine dell'ultimo video parte il gioco
       if (this.page < 3) this.showPage(this.page + 1);
-      else this.t = 0;
+      else goTo(this, this.next);
     }
   }
 }

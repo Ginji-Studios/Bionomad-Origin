@@ -128,7 +128,7 @@ export class TravelScene extends Phaser.Scene {
       this.run.lastLocation = this.dest.location;
       this.registry.set("run", this.run);
       Sfx.confirm();
-      goTo(this, this.finished ? "EndScene" : "EventScene", this.finished ? { result: "win" } : undefined);
+      goTo(this, this.finished ? "OutroScene" : "EventScene");
     }
   }
 }

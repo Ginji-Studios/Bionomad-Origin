@@ -26,8 +26,8 @@ export class IntroScene extends Phaser.Scene {
     const origin = getOrigin(this.registry);
     const sky = skylineLayers(this, origin.id, buildSkyline, { time: dayTime(getRun(this.registry)) });
     this.cameras.main.setScroll(Math.round((sky.worldW - VIEW.w) * 0.1), 0);
-    const place = buildPlace("home");
-    canvasImage(this, "place_home", place.canvas).setScrollFactor(0);
+    const place = buildPlace("home", origin.id);
+    canvasImage(this, `place_home_${origin.id}`, place.canvas).setScrollFactor(0);
     this.points = place.points;
     this.op = this.registry.get("operator") ?? "a";
     brackets(this);

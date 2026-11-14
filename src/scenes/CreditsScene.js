@@ -201,6 +201,9 @@ function deviceArt(scene, kind, w, h) {
   return key;
 }
 
+// nomi del team, nello stesso ordine dei ritratti
+const TEAM_NAMES = ["CLAUDIA", "FEDERICO", "ANOUK", "SERENA", "FRANCESCA", "MARTA"];
+
 export class CreditsScene extends Phaser.Scene {
   constructor() {
     super("CreditsScene");
@@ -295,7 +298,7 @@ export class CreditsScene extends Phaser.Scene {
       const g = this.add.graphics();
       this.page.add(g);
       const img = this.add.image(x + cw / 2, y + 184, crewBust(this, k)).setOrigin(0.5, 1);
-      const label = txt(this, x + cw / 2, y + 204, `ID.0${k + 1}`, { size: 18, origin: 0.5 });
+      const label = txt(this, x + cw / 2, y + 204, TEAM_NAMES[k], { size: 18, origin: 0.5 });
       this.page.add([img, label]);
       this.crew.push({ g, img, label, x, y, cw });
     });
