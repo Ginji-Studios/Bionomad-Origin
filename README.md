@@ -61,7 +61,7 @@ Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial 
 | Fiale nel pozzetto | Lettore NFC PN532 (I2C) + adesivo NFC nel tappo | A4 SDA, A5 SCL, D2 IRQ, D3 RESET | Casa sera (fertilizzante), task extra |
 | LED rossi / verde | — | D9, D10 / D11 | Emergenza / task riuscita |
 
-Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** scalda, **F** raffredda, **R** apre / chiude la leva dell'acqua, **1 / 2 / 3** inserisci fiala verde / blu / rossa, **0** togli fiala, **Q / E** tocca foglia sinistra / destra. Su telefono e tablet compaiono solo i tasti dell'azione richiesta.
+Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** scalda, **F** raffredda, **R** apre / chiude la leva dell'acqua, **1 / 2 / 3** inserisci fiala verde / blu / rossa, **0** togli fiala, **Q / E** tocca foglia sinistra / destra. Su telefono e tablet compaiono i comandi touch; il pulsante **⛶** in alto attiva o disattiva il fullscreen.
 
 ## Struttura
 

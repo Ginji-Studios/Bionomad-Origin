@@ -2,12 +2,14 @@ import Phaser from "./phaser.js";
 import { toggleMute, unlockAudio } from "./systems/Sfx.js";
 import { gameConfig } from "./config/gameConfig.js";
 import { PauseScene } from "./scenes/PauseScene.js";
+import { setupTouchControls } from "./input/TouchControls.js";
 
 const game = new Phaser.Game({
   ...gameConfig,
   parent: "game"
 });
 window.game = game;
+setupTouchControls();
 
 // audio: si sblocca al primo tocco; M lo attiva e disattiva
 window.addEventListener("keydown", (e) => {

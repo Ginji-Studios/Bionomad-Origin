@@ -37,6 +37,89 @@
         image-rendering: pixelated;
         image-rendering: crisp-edges;
       }
+      .touch-controls {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .tc-btn {
+        pointer-events: auto;
+        font-family: "Roboto Mono", ui-monospace, monospace;
+        font-size: 22px;
+        color: #f1f0ed;
+        background: rgba(28, 40, 57, 0.88);
+        border: 2px solid #f1f0ed;
+        border-radius: 0;
+        box-shadow: 4px 4px 0 rgba(15, 26, 38, 0.6);
+        touch-action: none;
+      }
+      .tc-btn.is-down {
+        background: #5e6d88;
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 rgba(15, 26, 38, 0.6);
+      }
+      .tc-pad {
+        position: absolute;
+        left: calc(16px + env(safe-area-inset-left));
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        display: grid;
+        grid-template-columns: repeat(3, 52px);
+        grid-template-rows: repeat(3, 52px);
+        gap: 4px;
+      }
+      .tc-pad .up { grid-column: 2; grid-row: 1; }
+      .tc-pad .left { grid-column: 1; grid-row: 2; }
+      .tc-pad .right { grid-column: 3; grid-row: 2; }
+      .tc-pad .down { grid-column: 2; grid-row: 3; }
+      .tc-actions {
+        position: absolute;
+        right: calc(16px + env(safe-area-inset-right));
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+      }
+      .tc-plant {
+        display: none;
+        grid-template-columns: repeat(2, 64px);
+        gap: 4px;
+      }
+      .tc-plant .tc-btn {
+        font-size: 18px;
+        padding: 6px 0;
+      }
+      .tc-btn.big {
+        width: 84px;
+        height: 84px;
+        font-size: 26px;
+      }
+      .tc-top {
+        position: absolute;
+        top: calc(8px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+      }
+      .tc-btn.small {
+        padding: 2px 12px;
+        font-size: 20px;
+      }
+      @media (max-height: 500px) {
+        .tc-btn { opacity: 0.7; font-size: 18px; }
+        .tc-pad {
+          grid-template-columns: repeat(3, 38px);
+          grid-template-rows: repeat(3, 38px);
+          gap: 2px;
+          left: calc(6px + env(safe-area-inset-left));
+          bottom: 6px;
+        }
+        .tc-actions { right: calc(6px + env(safe-area-inset-right)); bottom: 6px; }
+        .tc-btn.big { width: 60px; height: 60px; font-size: 20px; }
+        .tc-plant { grid-template-columns: repeat(2, 52px); }
+        .tc-btn.small { padding: 0 8px; font-size: 16px; }
+      }
       /* tablet o telefono in verticale: si chiede di ruotarlo */
       .rotate {
         display: none;

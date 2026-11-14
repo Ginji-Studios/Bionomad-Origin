@@ -93,9 +93,26 @@ export function setupTouchControls() {
   const full = document.createElement("button");
   full.className = "tc-btn small";
   full.textContent = "⛶";
+  full.type = "button";
+  full.setAttribute("aria-label", "Attiva fullscreen");
   full.addEventListener("click", () => {
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    else document.documentElement.requestFullscreen?.().catch(() => {});
+    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    const enter = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+    if (fullscreenElement) {
+      if (exit) exit.call(document);
+      full.setAttribute("aria-label", "Attiva fullscreen");
+      return;
+    }
+    if (!enter) {
+      full.title = "Fullscreen non supportato da questo browser";
+      return;
+    }
+    Promise.resolve(enter.call(document.documentElement))
+      .then(() => full.setAttribute("aria-label", "Esci dal fullscreen"))
+      .catch(() => {
+        full.title = "Fullscreen non disponibile";
+      });
   });
   top.append(button("ESC", "Escape", "small"), full, button("INVIO", "Enter", "small"));
 
