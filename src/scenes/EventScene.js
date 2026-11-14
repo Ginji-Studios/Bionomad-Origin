@@ -8,7 +8,7 @@ import { buildSkyline } from "../world/skyline.js";
 import { buildPlace, OUTDOOR } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
-import { PlantPanel } from "../ui/plantPanel.js";
+import { PlantPanel } from "../ui/PlantPanel.js";
 import { box, brackets, cityHud, button, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, skylineLayers, taskPanel, toast, txt, VIEW } from "../ui/hud.js";
 
 const NEAR = 80;
