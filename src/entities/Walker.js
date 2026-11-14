@@ -1,5 +1,6 @@
 import Phaser from "../phaser.js";
 import { Sfx } from "../systems/Sfx.js";
+import { dieFrames } from "../art/people.js";
 
 // personaggio retinato che cammina a sinistra / destra sulla strada
 export class Walker {
@@ -55,6 +56,8 @@ export class Walker {
   }
 
   update(dir, delta) {
+    // durante lo svenimento l'animazione la guida faint()
+    if (this.dying) return;
     const dt = delta / 1000;
     this.bubbleMs -= delta;
     if (this.bubbleMs <= 0) {
@@ -84,9 +87,49 @@ export class Walker {
     this.scene.tweens.add({ targets: this.img, y: this.img.y - 14, duration: 140, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
   }
 
+  // svenimento quando l'ossigeno finisce: si porta la mano alla maschera, barcolla,
+  // le ginocchia cedono e cade in avanti; la pianta dello zaino si spegne
   faint(onDone) {
+    if (this.dying) return;
+    this.dying = true;
     this.frozen = true;
-    this.scene.tweens.add({ targets: this.img, angle: this.facing * 85, y: this.img.y + 6, alpha: 0.7, duration: 900, ease: "Quad.easeIn", onComplete: onDone });
+    this.vx = 0;
+    const sc = this.scene;
+    dieFrames(sc, this.key);
+    const img = this.img;
+    const f = this.facing;
+    const baseX = img.x;
+    const tex = (n) => img.setTexture(`${this.key}_d${n}`);
+    tex(0);
+    // barcolla: piccoli scarti avanti e indietro
+    sc.tweens.add({ targets: img, x: baseX + f * 4, duration: 140, yoyo: true, repeat: 3, ease: "Sine.easeInOut" });
+    sc.time.delayedCall(700, () => tex(1));
+    sc.time.delayedCall(900, () => tex(2));
+    sc.time.delayedCall(1100, () => tex(3));
+    sc.time.delayedCall(1500, () => {
+      // cade in avanti, ruotando sulle ginocchia
+      sc.tweens.add({
+        targets: img,
+        angle: f * 82,
+        x: baseX + f * 30,
+        y: img.y + 8,
+        duration: 520,
+        ease: "Quad.easeIn",
+        onComplete: () => {
+          sc.cameras.main.shake(140, 0.004);
+          // polvere a terra
+          for (let i = 0; i < 8; i++) {
+            const d = sc.add.rectangle(baseX + f * (40 + Math.random() * 90), img.y - 4, 4, 4, 0x5e6d88).setDepth(this.depth + 1).setScrollFactor(img.scrollFactorX);
+            sc.tweens.add({ targets: d, y: d.y - 10 - Math.random() * 14, x: d.x + (Math.random() - 0.5) * 30, alpha: 0, duration: 600, onComplete: () => d.destroy() });
+          }
+          // la pianta si spegne
+          sc.tweens.add({ targets: img, alpha: 0.75, duration: 600 });
+          img.setTint(0xb8bfcc);
+          onDone?.();
+        }
+      });
+      sc.tweens.add({ targets: this.shadow, scaleX: 1.8, x: baseX + f * 60, duration: 520 });
+    });
   }
 
   setDepth(d) {

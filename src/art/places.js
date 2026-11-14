@@ -3,6 +3,40 @@
 // Coordinate logiche: alto 540, pavimento a GY = 480, largo LW = 1280 / k.
 import { paint, GY } from "../world/skyline.js";
 import { K } from "./people.js";
+import { POSTER_IMG } from "../ui/posters.js";
+
+// manifesto BIODOM in cornice: l'immagine originale passa in scala di grigi (più luminosa e
+// contrastata, così le scritte restano leggibili) e poi il retino della palette la ridisegna.
+// Dentro i luoghi il manifesto viene messo in coda e retinato a parte a grana fine (cell 1).
+let QUEUE = null;
+export function posterArt(T, key, x, y, w, h, { frame = true } = {}) {
+  if (QUEUE && !T.direct) {
+    QUEUE.push([key, x, y, w, h, frame]);
+    return;
+  }
+  const { X, G } = T;
+  const img = POSTER_IMG[key];
+  if (frame) {
+    X.fillStyle = G(0.1);
+    X.fillRect(x - 4, y - 4, w + 8, h + 8);
+    X.fillStyle = G(0.72);
+    X.fillRect(x - 2, y - 2, w + 4, h + 4);
+  }
+  if (img) {
+    X.save();
+    X.filter = "grayscale(1) brightness(1.35) contrast(1.5)";
+    X.imageSmoothingEnabled = true;
+    X.drawImage(img, x, y, w, h);
+    X.restore();
+  } else {
+    X.fillStyle = G(0.5);
+    X.fillRect(x, y, w, h);
+  }
+  if (frame) {
+    X.fillStyle = G(0.95);
+    [[x, y], [x + w - 3, y], [x, y + h - 3], [x + w - 3, y + h - 3]].forEach(([a, b]) => X.fillRect(a, b, 3, 3));
+  }
+}
 
 export const LW = Math.round(1280 / K);
 const px = (x) => Math.round(x * K);
@@ -312,15 +346,54 @@ function picture(T, x, y, w, h) {
   X.fill();
 }
 
+// libreria a muro: fianchi e ripiani in legno, libri appoggiati di varie altezze,
+// qualcuno inclinato, e un oggetto per ripiano
 function shelf(T, x, y, w, n = 3) {
   const { X, G } = T;
+  const rowH = 44;
+  const h = n * rowH + 6;
+  // fondo e fianchi
+  X.fillStyle = G(0.24);
+  X.fillRect(x, y - rowH + 6, w, h);
+  X.fillStyle = G(0.58);
+  X.fillRect(x - 4, y - rowH + 2, 4, h + 4);
+  X.fillRect(x + w, y - rowH + 2, 4, h + 4);
+  X.fillRect(x - 4, y - rowH, w + 8, 4);
   for (let r = 0; r < n; r++) {
-    X.fillStyle = G(0.6);
-    X.fillRect(x, y + r * 40, w, 4);
-    for (let i = 0; i < w - 10; i += 9) {
-      X.fillStyle = G(0.3 + ((i * 7 + r * 3) % 5) * 0.1);
-      X.fillRect(x + 4 + i, y + r * 40 - 26 + ((i + r) % 3) * 3, 7, 26 - ((i + r) % 3) * 3);
+    const by = y + r * rowH;
+    let bx = x + 3;
+    let i = 0;
+    while (bx < x + w - 14) {
+      const bw = 5 + ((i * 3 + r) % 3) * 2;
+      const bh = 22 + ((i * 7 + r * 5) % 4) * 4;
+      X.fillStyle = G(0.36 + ((i * 7 + r * 3) % 5) * 0.11);
+      if (i % 6 === 5) {
+        // libro inclinato appoggiato al vicino
+        X.save();
+        X.translate(bx, by);
+        X.rotate(0.3);
+        X.fillRect(0, -bh + 4, bw, bh - 4);
+        X.restore();
+        bx += bw + 6;
+      } else {
+        X.fillRect(bx, by - bh, bw, bh);
+        X.fillStyle = G(0.85, 0.5);
+        X.fillRect(bx + 1, by - bh + 4, bw - 2, 1);
+        bx += bw + 1;
+      }
+      i++;
+      if (i === 4 + r) {
+        // soprammobile: un vasetto
+        X.fillStyle = G(0.8);
+        X.fillRect(bx + 4, by - 12, 10, 12);
+        bx += 20;
+      }
     }
+    // ripiano
+    X.fillStyle = G(0.62);
+    X.fillRect(x, by, w, 4);
+    X.fillStyle = G(0.4);
+    X.fillRect(x, by + 4, w, 2);
   }
 }
 
@@ -385,13 +458,12 @@ function home(T, city) {
     wins.forEach((w) => snowSill(T, w));
     rug(T, 60, 240, 0.62);
     stove(T, 760);
-    shelf(T, 60, 140, 150, 2);
+    shelf(T, 364, 200, 116, 2);
     sofa(T, 60, 170);
     table(T, 300, 110, 50);
-    // termosifone sotto la finestra
-    X.fillStyle = G(0.7);
-    for (let i = 0; i < 9; i++) X.fillRect(200 + i * 14, GY - 110, 9, 60);
   }
+  if (city === "reykjavik") posterArt(T, "poster_1", 400, 40, 44, 62);
+  else posterArt(T, city === "delhi" ? "poster_3" : "poster_2", 394, 120, 52, 73);
   plantPot(T, 440);
   hub(T, 590, GY, 1);
   door(T, LW - 130);
@@ -456,6 +528,7 @@ function office(T, city) {
   stone([[600, 120], [600, 70], [720, 70], [720, 120]], 0.75, 0.55, { rib: 4 });
   X.fillStyle = G(0.2);
   X.fillRect(608, 108, 104, 4);
+  posterArt(T, "poster_4", 606, 150, 110, 61);
   // annaffiatoio su un mobiletto
   table(T, 380, 60, 60);
   X.fillStyle = G(0.6);
@@ -467,17 +540,35 @@ function office(T, city) {
 
 function bus(T) {
   const { X, G, stone } = T;
+  // proporzioni sulle persone: soffitto poco sopra le teste, finestrini all'altezza del busto
+  const CEIL = GY - 200;
+  const WY = GY - 175;
+  const WH = 105;
   const wins = [];
-  for (let x = 30; x < LW; x += 170) wins.push([x, 110, 150, 150]);
+  for (let x = 30; x < LW; x += 170) wins.push([x, WY, 150, WH]);
   wall(T, LW, wins, { tone: 0.42 });
-  // soffitto e corrimano
-  X.fillStyle = G(0.22);
-  X.fillRect(0, 0, LW, 60);
+  // sopra il soffitto: cielo del bus "pieno", con le luci a striscia e i manifesti pubblicitari
+  X.fillStyle = G(0.16);
+  X.fillRect(0, 0, LW, CEIL);
+  X.fillStyle = G(0.24);
+  X.fillRect(0, CEIL - 46, LW, 46);
+  for (let x = 40; x < LW; x += 170) {
+    X.fillStyle = G(0.92);
+    X.fillRect(x, CEIL - 10, 110, 4);
+  }
+  posterArt(T, "poster_4", 120, CEIL - 120, 120, 66);
+  posterArt(T, "poster_1", 470, CEIL - 132, 56, 78);
+  posterArt(T, "poster_5", 700, CEIL - 120, 120, 66);
+  // corrimano all'altezza delle mani alzate e pali verticali
   X.fillStyle = G(0.8);
-  X.fillRect(0, 64, LW, 4);
+  X.fillRect(0, CEIL + 8, LW, 4);
   for (let x = 120; x < LW; x += 170) {
     X.fillStyle = G(0.75);
-    X.fillRect(x, 64, 5, GY - 64);
+    X.fillRect(x, CEIL + 8, 5, GY - CEIL - 8);
+    // maniglie a cinghia
+    X.fillStyle = G(0.6);
+    X.fillRect(x + 40, CEIL + 12, 2, 18);
+    X.fillRect(x + 36, CEIL + 30, 10, 8);
   }
   // pavimento in gomma
   const g = X.createLinearGradient(0, GY, 0, 540);
@@ -491,12 +582,12 @@ function bus(T) {
   }
   X.fillStyle = G(0.75);
   X.fillRect(0, GY, LW, 2);
-  // sedili
+  // sedili alla misura delle persone
   for (let x = 30; x < LW; x += 170) {
-    stone([[x + 20, GY - 40], [x + 20, GY - 120], [x + 40, GY - 120], [x + 40, GY - 40]], 0.5, 0.3, { rib: 8 });
-    stone([[x + 20, GY - 40], [x + 20, GY - 56], [x + 110, GY - 56], [x + 110, GY - 40]], 0.5, 0.3, { rib: 20 });
+    stone([[x + 20, GY - 34], [x + 20, GY - 92], [x + 34, GY - 92], [x + 34, GY - 34]], 0.5, 0.3, { rib: 8 });
+    stone([[x + 20, GY - 34], [x + 20, GY - 46], [x + 96, GY - 46], [x + 96, GY - 34]], 0.5, 0.3, { rib: 20 });
     X.fillStyle = G(0.15);
-    X.fillRect(x + 60, GY - 40, 6, 40);
+    X.fillRect(x + 54, GY - 34, 6, 34);
   }
   return { seat: 400 };
 }
@@ -515,6 +606,7 @@ function busstop(T) {
   X.strokeStyle = G(0.85);
   X.lineWidth = 2;
   X.strokeRect(306, GY - 228, 254, 150);
+  posterArt(T, "poster_2", 318, GY - 220, 70, 98);
   // panchina
   stone([[330, GY - 50], [330, GY - 62], [530, GY - 62], [530, GY - 50]], 0.6, 0.4, { rib: 20 });
   X.fillStyle = G(0.12);
@@ -546,6 +638,38 @@ function foodtruck(T) {
     X.fillStyle = G(i % 2 ? 0.85 : 0.35);
     X.fillRect(x + 40 + i * 22, GY - 200, 22, 20);
   }
+  // il dipendente dietro al bancone: grembiule, cappellino, mano appoggiata
+  const vx = x + 202; // a destra, così il riquadro del bancone non lo copre
+  const vy = GY - 92;
+  X.fillStyle = G(0.3);
+  X.beginPath();
+  X.moveTo(vx - 22, vy);
+  X.quadraticCurveTo(vx - 22, vy - 34, vx, vy - 36);
+  X.quadraticCurveTo(vx + 22, vy - 34, vx + 22, vy);
+  X.fill();
+  X.fillStyle = G(0.82);
+  X.fillRect(vx - 11, vy - 30, 22, 30);
+  X.fillStyle = G(0.3);
+  X.fillRect(vx - 6, vy - 30, 2, 8);
+  X.fillRect(vx + 4, vy - 30, 2, 8);
+  X.fillStyle = G(0.5);
+  X.fillRect(vx - 4, vy - 42, 8, 8);
+  X.fillStyle = G(0.6);
+  X.beginPath();
+  X.ellipse(vx, vy - 54, 11, 13, 0, 0, 7);
+  X.fill();
+  X.fillStyle = G(0.05);
+  X.fillRect(vx - 6, vy - 56, 3, 3);
+  X.fillRect(vx + 3, vy - 56, 3, 3);
+  X.fillStyle = G(0.3);
+  X.fillRect(vx - 3, vy - 47, 6, 2);
+  X.fillStyle = G(0.75);
+  X.fillRect(vx - 12, vy - 70, 24, 7);
+  X.fillRect(vx - 14, vy - 64, 28, 3);
+  X.fillStyle = G(0.6);
+  X.beginPath();
+  X.ellipse(vx + 26, vy - 4, 6, 4, 0, 0, 7);
+  X.fill();
   X.fillStyle = G(0.4);
   X.fillRect(x + 40, GY - 92, 200, 8);
   // ruote
@@ -569,6 +693,11 @@ function foodtruck(T) {
   X.moveTo(150, GY - 80);
   X.quadraticCurveTo(175, GY - 30, 168, GY - 4);
   X.stroke();
+  // cartellone pubblicitario BIODOM su due pali
+  X.fillStyle = G(0.14);
+  X.fillRect(712, GY - 150, 6, 150);
+  X.fillRect(842, GY - 150, 6, 150);
+  posterArt(T, "poster_5", 690, GY - 250, 180, 100);
   // panchina
   stone([[720, GY - 50], [720, GY - 62], [840, GY - 62], [840, GY - 50]], 0.6, 0.4, { rib: 20 });
   stone([[720, GY - 62], [720, GY - 100], [730, GY - 100], [730, GY - 62]], 0.6, 0.4);
@@ -584,9 +713,18 @@ export const OUTDOOR = new Set(["busstop", "foodtruck", "street"]);
 // disegna un luogo: canvas a schermo intero + punti (in pixel) dei bersagli
 export function buildPlace(id, city = "milano") {
   let pts = {};
+  QUEUE = [];
   const canvas = paint(1280, 800, K, (T) => {
     pts = (PLACES[id] ?? home)(T, city) ?? {};
   }, { seedValue: 21 });
+  // manifesti retinati a grana fine e incollati sopra
+  const ctx = canvas.getContext("2d");
+  QUEUE.forEach(([key, x, y, w, h, frame]) => {
+    const pad = 4;
+    const c = paint((w + pad * 2) * K, (h + pad * 2) * K, K, (T) => posterArt({ ...T, direct: true }, key, pad, pad, w, h, { frame }), { cell: 1, seedValue: 9 });
+    ctx.drawImage(c, Math.round((x - pad) * K), Math.round((y - pad) * K));
+  });
+  QUEUE = null;
   const points = Object.fromEntries(Object.entries(pts).map(([k, v]) => [k, px(v)]));
   return { canvas, points, floorY: px(GY) };
 }

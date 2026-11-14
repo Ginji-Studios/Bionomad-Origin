@@ -87,26 +87,68 @@ function side(T, ph, o) {
     X.fillStyle = fill;
     X.fill();
   };
-  const hip = [60, 118 - bob];
+  let hip = [60, 118 - bob];
   const sh = [62, 70 - bob];
   const long = style === "delhi" ? 34 : style === "milano" ? 24 : 0; // quanto scende l'abito sotto l'anca
 
   // gamba: la parte che avanza è quella sollevata (niente passo all'indietro)
+  const crouch = o.crouch ?? 0;
+  const hip0 = [...hip];
   const leg = (s, k) => {
-    const th = walking ? Math.sin(a + s) * 0.48 : s ? -0.05 : 0.07;
+    hip = [...hip0];
+    let th = walking ? Math.sin(a + s) * 0.48 : s ? -0.05 : 0.07;
     const lift = walking ? Math.max(0, Math.cos(a + s)) * 0.75 : 0;
-    const kx = hip[0] + Math.sin(th) * 37;
-    const ky = hip[1] + Math.cos(th) * 37;
-    const t2 = th - lift;
-    const fx = kx + Math.sin(t2) * 36;
-    const fy = ky + Math.cos(t2) * 36;
+    let kx = hip[0] + Math.sin(th) * 37;
+    let ky = hip[1] + Math.cos(th) * 37;
+    let t2 = th - lift;
+    let fx = kx + Math.sin(t2) * 36;
+    let fy = ky + Math.cos(t2) * 36;
+    if (crouch) {
+      // piegato sulle ginocchia: l'anca scende, i piedi restano a terra, il ginocchio va avanti
+      const hpx = hip[0] + 4 * crouch;
+      const hpy = hip[1] + 40 * crouch;
+      fx = 60 + (s ? -8 : 6) - 10 * crouch;
+      fy = 191;
+      const dx = fx - hpx;
+      const dy = fy - hpy;
+      const d = Math.min(72, Math.hypot(dx, dy));
+      const h = Math.sqrt(Math.max(0, 36.5 * 36.5 - (d / 2) * (d / 2)));
+      kx = hpx + dx / 2 + (-dy / Math.hypot(dx, dy)) * -h * (s ? 0.8 : 1);
+      ky = hpy + dy / 2 + (dx / Math.hypot(dx, dy)) * -h * (s ? 0.8 : 1);
+      if (kx < hpx) {
+        kx = hpx + dx / 2 + (dy / Math.hypot(dx, dy)) * h;
+        ky = hpy + dy / 2 - (dx / Math.hypot(dx, dy)) * h;
+      }
+      hip[0] = hpx;
+      hip[1] = hpy;
+      th = Math.atan2(kx - hpx, ky - hpy);
+      t2 = Math.atan2(fx - kx, fy - ky);
+    }
     const tone = legsT + 0.08 * k;
+    // coscia più piena e polpaccio più sottile, con un ginocchio morbido
+    const wTop = style === "delhi" ? 14 : 13;
     X.strokeStyle = G(tone);
-    X.lineWidth = style === "delhi" ? 14 : 12;
+    X.lineWidth = wTop;
     X.beginPath();
     X.moveTo(hip[0], hip[1]);
     X.lineTo(kx, ky);
-    X.lineTo(fx, fy);
+    X.stroke();
+    X.lineWidth = wTop - 3;
+    X.beginPath();
+    X.moveTo(kx, ky);
+    X.lineTo(fx, fy - 3);
+    X.stroke();
+    X.fillStyle = G(tone);
+    X.beginPath();
+    X.arc(kx, ky, (wTop - 1) / 2, 0, 7);
+    X.fill();
+    // piega di luce sul davanti della gamba
+    X.strokeStyle = G(tone + 0.12);
+    X.lineWidth = 1.5;
+    X.beginPath();
+    X.moveTo(hip[0] + Math.cos(th) * 4, hip[1] + 4);
+    X.lineTo(kx + Math.cos(th) * 4, ky);
+    X.lineTo(fx + Math.cos(t2) * 3, fy - 6);
     X.stroke();
     // scarpa
     if (style === "reykjavik") {
@@ -119,9 +161,19 @@ function side(T, ph, o) {
       X.fillStyle = G(0.12);
       X.fillRect(fx - 7, fy + 2, 22, 3);
     } else {
-      poly([[fx - 7, fy - 7], [fx + 6, fy - 7], [fx + 15, fy], [fx + 15, fy + 4], [fx - 8, fy + 4]], G(0.08 + 0.06 * k));
+      // scarpa con la punta arrotondata, suola chiara e un riflesso sulla tomaia
+      X.fillStyle = G(0.08 + 0.06 * k);
+      X.beginPath();
+      X.moveTo(fx - 8, fy + 4);
+      X.lineTo(fx - 7, fy - 7);
+      X.quadraticCurveTo(fx + 4, fy - 9, fx + 9, fy - 3);
+      X.quadraticCurveTo(fx + 17, fy - 1, fx + 16, fy + 4);
+      X.closePath();
+      X.fill();
       X.fillStyle = G(0.45);
       X.fillRect(fx - 8, fy + 3, 24, 2);
+      X.fillStyle = G(0.4);
+      X.fillRect(fx + 5, fy - 4, 4, 1);
     }
   };
   // braccio con manica e mano
@@ -133,19 +185,31 @@ function side(T, ph, o) {
     let hx = ex + Math.sin(t2) * 25;
     let hy = ey + Math.cos(t2) * 25;
     // posa "zaino in mano": il braccio dietro lo sorregge da sotto, quello davanti cura la pianta
-    if (o.hold) {
+    if (o.blend != null) {
+      // passaggio continuo: la mano davanti va dalla spalla (dove ha preso lo zaino) alla presa
+      // davanti al petto; il braccio dietro sale da riposo a sorreggere lo zaino
+      const v = o.blend;
+      const lerp4 = (A, B) => A.map((a, i) => a + (B[i] - a) * v);
+      if (s === 0) [ex, ey, hx, hy] = lerp4([74, 94, 44, 70], [80, 96, 89, 79]);
+      else [ex, ey, hx, hy] = lerp4([ex, ey, hx, hy], [70, 100, 84, 116]);
+    } else if (o.hold) {
+      // o.hold da 0 a 1: dalle braccia a riposo alla presa sullo zaino (per le transizioni)
+      const hb = o.hold === true ? 1 : o.hold;
       const tap = o.tap ?? 0;
-      if (s === 0) {
-        ex = 80;
-        ey = 96;
-        hx = 89 + tap * 0.4;
-        hy = 79 + tap;
-      } else {
-        ex = 70;
-        ey = 100;
-        hx = 84;
-        hy = 116;
-      }
+      const [tex, tey, thx, thy] = s === 0 ? [80, 96, 89 + tap * 0.4, 79 + tap] : [70, 100, 84, 116];
+      ex += (tex - ex) * hb;
+      ey += (tey - ey) * hb;
+      hx += (thx - hx) * hb;
+      hy += (thy - hy) * hb;
+    }
+    // si porta la mano alla maschera: manca l'aria
+    if (o.clutch) {
+      const c = o.clutch;
+      const [tex, tey, thx, thy] = s === 0 ? [82, 88, 74, 54] : [52, 92, 66, 104];
+      ex += (tex - ex) * c;
+      ey += (tey - ey) * c;
+      hx += (thx - hx) * c;
+      hy += (thy - hy) * c;
     }
     // posa "cura": il braccio davanti va all'indietro a toccare la pianta dello zaino
     if (s === 0 && o.reach) {
@@ -161,27 +225,61 @@ function side(T, ph, o) {
       hy += (ty - hy) * r;
     }
     const tone = top * (0.6 + 0.4 * k);
-    X.strokeStyle = G(s === 0 && (o.reach || o.hold) ? tone + 0.12 : tone);
+    // il braccio davanti è sempre un filo più chiaro del busto, in ogni posa: si legge senza cambiare colore
+    X.strokeStyle = G(s === 0 ? tone + 0.08 : tone);
     X.lineWidth = style === "reykjavik" ? 13 : 10;
     X.beginPath();
     X.moveTo(sh[0], sh[1]);
     X.lineTo(ex, ey);
     X.lineTo(hx, hy);
     X.stroke();
-    X.fillStyle = G(style === "reykjavik" ? 0.15 : skin * (0.7 + 0.3 * k));
+    // polsino della manica
+    const ang = Math.atan2(hy - ey, hx - ex);
+    X.strokeStyle = G(tone - 0.08);
+    X.lineWidth = 3;
     X.beginPath();
-    X.arc(hx, hy + 2, 5, 0, 7);
+    X.moveTo(hx - Math.cos(ang) * 5 - Math.sin(ang) * 5, hy - Math.sin(ang) * 5 + Math.cos(ang) * 5);
+    X.lineTo(hx - Math.cos(ang) * 5 + Math.sin(ang) * 5, hy - Math.sin(ang) * 5 - Math.cos(ang) * 5);
+    X.stroke();
+    // mano a mezzaluna con il pollice, un tono più chiaro sul dorso
+    const hand = style === "reykjavik" ? 0.15 : skin * (0.7 + 0.3 * k);
+    X.fillStyle = G(hand);
+    X.beginPath();
+    X.ellipse(hx + 1, hy + 2, 5, 6, ang - Math.PI / 2, 0, 7);
+    X.fill();
+    X.fillStyle = G(hand + 0.1);
+    X.beginPath();
+    X.ellipse(hx + 3, hy, 2, 2.5, 0, 0, 7);
     X.fill();
   };
 
-  // dupatta che sventola dietro (New Delhi)
-  if (style === "delhi" && o.scarf !== false) {
+  // dupatta che sventola dietro (New Delhi); da accasciato si disegna dopo, insieme al busto
+  const dupatta = () => {
+    if (!(style === "delhi" && o.scarf !== false)) return;
     const sw = walking ? Math.sin(a) * 4 : 0;
     poly([[56, 62 - bob], [44, 70 - bob], [36 + sw, 110], [42 + sw, 114], [52, 80 - bob], [60, 68 - bob]], shade(36, 60, (o.scarfT ?? 0.7), (o.scarfT ?? 0.7) - 0.25));
-  }
+  };
+  if (!crouch) dupatta();
 
-  leg(Math.PI, 0);
+  // camminando il corpo si inclina appena in avanti, come un passo vero
+  if (walking) {
+    X.translate(60, 196);
+    X.rotate(0.045);
+    X.translate(-60, -196);
+  }
+  if (crouch) {
+    // gambe piegate, poi tutto il busto si abbassa e si sbilancia in avanti
+    leg(Math.PI, 0);
+    leg(0, 1);
+    X.translate(4 * crouch, 40 * crouch);
+    X.translate(60, 118);
+    X.rotate(0.22 * crouch);
+    X.translate(-60, -118);
+    dupatta();
+  } else leg(Math.PI, 0);
   arm(Math.PI, 0.6);
+  // con trench e kurta lunghi la gamba davanti sta sotto l'abito, non sopra
+  if (long > 0 && !crouch) leg(0, 1);
 
   // zaino-serra compatto con la pianta luminosa
   if (o.pack !== false) drawPack(X, G, 32, 66 - bob, a, walking);
@@ -207,7 +305,21 @@ function side(T, ph, o) {
     for (let y = cy + 6; y < cy + 30; y += 6) X.fillRect(62, y, 2, 2);
   } else {
     // trench con cintura, collo e tasca
-    poly([[48, cy - 2], [74, cy - 2], [79, cy + 10], [83, cy + 50 + long], [78, cy + 56 + long], [46, cy + 56 + long], [42, cy + 50 + long], [44, cy + 10]], shade(42, 84, top + 0.14, top - 0.12));
+    X.fillStyle = shade(42, 84, top + 0.14, top - 0.12);
+    X.beginPath();
+    X.moveTo(48, cy - 2);
+    X.lineTo(70, cy - 2);
+    X.quadraticCurveTo(79, cy - 1, 79, cy + 10);
+    X.lineTo(83, cy + 50 + long);
+    X.quadraticCurveTo(82, cy + 56 + long, 78, cy + 56 + long);
+    X.lineTo(46, cy + 56 + long);
+    X.quadraticCurveTo(42, cy + 56 + long, 42, cy + 50 + long);
+    X.lineTo(44, cy + 10);
+    X.quadraticCurveTo(44, cy - 1, 48, cy - 2);
+    X.fill();
+    // piega del tessuto
+    X.fillStyle = G(top + 0.06);
+    X.fillRect(50, cy + 44, 2, 10 + long);
     X.fillStyle = G(0.08);
     X.fillRect(43, cy + 38, 39, 4);
     X.fillStyle = G(0.6);
@@ -229,7 +341,7 @@ function side(T, ph, o) {
     X.fillRect(55, cy + 16, 3, 2);
   }
 
-  leg(0, 1);
+  if (long === 0 && !crouch) leg(0, 1);
   arm(0, 1);
 
   // testa di profilo
@@ -319,6 +431,24 @@ function side(T, ph, o) {
     X.closePath();
     X.fill();
   }
+  // tratti del viso come nei ritratti del team: orecchio, occhio scuro col riflesso,
+  // sopracciglio, bocca (sotto la maschera restano coperti)
+  X.fillStyle = G(skin - 0.12);
+  X.beginPath();
+  X.ellipse(hx - 1, hy + 3, 3, 4.5, 0, 0, 7);
+  X.fill();
+  X.fillStyle = G(skin - 0.28);
+  X.fillRect(hx - 1, hy + 1, 1, 4);
+  X.fillStyle = G(0.05);
+  X.fillRect(hx + 8, hy - 2, 4, 4);
+  X.fillStyle = G(1);
+  X.fillRect(hx + 9, hy - 2, 2, 2);
+  X.fillStyle = G(hairT);
+  X.fillRect(hx + 7, hy - 6, 7, 2);
+  X.fillStyle = G(0.25);
+  X.fillRect(hx + 11, hy + 10, 4, 1.5);
+  X.fillStyle = G(skin - 0.2);
+  X.fillRect(hx + 15, hy + 2, 2, 2);
   if (o.mask === false) return;
   // occhiali e respiratore con il filtro rotondo
   X.fillStyle = G(0.12);
@@ -470,6 +600,30 @@ function front(T, o) {
   X.fillStyle = G(hairT);
   X.fillRect(cx - 11, 29, 8, 2);
   X.fillRect(cx + 3, 29, 8, 2);
+  if (o.glasses) {
+    // montatura scura con il ponte sul naso e un riflesso chiaro sulla lente
+    X.strokeStyle = G(0.06);
+    X.lineWidth = 1.5;
+    [-1, 1].forEach((d) => {
+      const ex = cx + d * 6.5;
+      X.beginPath();
+      if (o.glasses === "round") X.ellipse(ex, 36.5, 5.5, 5, 0, 0, 7);
+      else X.rect(ex - 5.5, 32, 11, 9);
+      X.stroke();
+      X.fillStyle = G(0.95, 0.5);
+      X.fillRect(ex + 1, 33.5, 2, 1.5);
+    });
+    X.beginPath();
+    X.moveTo(cx - 1, 35);
+    X.lineTo(cx + 1, 35);
+    X.stroke();
+    X.beginPath();
+    X.moveTo(cx - 12, 35);
+    X.lineTo(cx - 17, 36);
+    X.moveTo(cx + 12, 35);
+    X.lineTo(cx + 17, 36);
+    X.stroke();
+  }
   X.fillStyle = G(skin - 0.22);
   X.fillRect(cx - 1, 40, 3, 6);
   X.fillStyle = G(0.25);
@@ -606,6 +760,17 @@ export function careFrames(scene, key) {
   return key;
 }
 
+// fotogrammi dello svenimento: d0 mano alla maschera, d1-d3 le ginocchia cedono
+export function dieFrames(scene, key) {
+  const opts = SIDE_OPTS.get(key);
+  if (!opts || scene.textures.exists(`${key}_d0`)) return key;
+  const k = opts.scale ?? 1;
+  [[1, 0], [1, 0.35], [1, 0.7], [0.6, 1]].forEach(([clutch, crouch], i) =>
+    scene.textures.addCanvas(`${key}_d${i}`, finish(paint(Math.round(BW * k), Math.round(BH * k), k, (T) => side(T, 0, { ...opts, walking: false, clutch, crouch }), { seedValue: 11, cell: 1 })))
+  );
+  return key;
+}
+
 // zaino tolto e tenuto in mano davanti: fotogrammi h0-h3 (senza zaino addosso, la mano davanti
 // picchietta la pianta) + l'immagine dello zaino da sola, da muovere a parte ("pack_item")
 export function holdFrames(scene, bareKey) {
@@ -613,7 +778,11 @@ export function holdFrames(scene, bareKey) {
   if (!opts) return bareKey;
   if (!scene.textures.exists(`${bareKey}_h0`)) {
     const k = opts.scale ?? 1;
-    [0, -3, -5, -2].forEach((tap, i) => scene.textures.addCanvas(`${bareKey}_h${i}`, finish(paint(Math.round(BW * k), Math.round(BH * k), k, (T) => side(T, 0, { ...opts, walking: false, pack: false, hold: true, tap }), { seedValue: 11, cell: 1 }))));
+    const make = (name, o) => scene.textures.addCanvas(`${bareKey}_${name}`, finish(paint(Math.round(BW * k), Math.round(BH * k), k, (T) => side(T, 0, { ...opts, walking: false, pack: false, ...o }), { seedValue: 11, cell: 1 })));
+    // h0-h7: la mano picchietta la pianta con un ritmo morbido (seno)
+    for (let i = 0; i < 8; i++) make(`h${i}`, { hold: 1, tap: -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2) });
+    // m0-m4: dalla mano sulla spalla alla presa davanti (lo zaino segue la mano)
+    [0, 0.25, 0.5, 0.75, 1].forEach((v, i) => make(`m${i}`, { blend: v, tap: 0 }));
   }
   if (!scene.textures.exists("pack_item")) scene.textures.addCanvas("pack_item", finish(paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9), { seedValue: 11, cell: 1 }), { rim: false, outline: false }));
   return bareKey;
@@ -645,11 +814,12 @@ const OP_LOOK = {
   reykjavik: { a: { hair: "short", hat: "beanie", top: 0.38, hairTone: 0.7, hatT: 0.7 }, b: { hair: "long", hat: "beanie", top: 0.6, hairTone: 0.85, hatT: 0.3 } }
 };
 
-// chiave delle texture dell'operatore nella città (bare = senza zaino, per la scena iniziale)
-export function operatorKey(scene, id, city = "milano", { bare = false } = {}) {
-  const key = `op_${id}_${city}${bare ? "_bare" : ""}`;
+// chiave delle texture dell'operatore nella città (bare = senza zaino, per la scena iniziale).
+// Senza zaino, di default è anche senza maschera: la indossa solo con il BIONOMAD addosso
+export function operatorKey(scene, id, city = "milano", { bare = false, mask = !bare } = {}) {
+  const key = `op_${id}_${city}${bare ? "_bare" : ""}${bare && mask ? "_m" : ""}`;
   const look = OP_LOOK[city]?.[id] ?? OP_LOOK.milano.a;
-  return makeSide(scene, key, { ...look, style: city, pack: !bare });
+  return makeSide(scene, key, { ...look, style: city, pack: !bare, ...(mask ? {} : { mask: false }) });
 }
 
 // passanti: ognuno diverso, con l'abito della città; alcuni bambini
@@ -676,10 +846,10 @@ export function npcKey(scene, city, i) {
 // il team nei crediti, di fronte
 export const TEAM_LOOK = [
   { hair: "long", hairTone: 0.86, top: 0.22, legs: 0.08, earrings: true },
-  { hair: "manbun", hairTone: 0.3, top: 0.9, legs: 0.75, beard: true },
+  { hair: "manbun", hairTone: 0.3, top: 0.9, legs: 0.75, beard: true, glasses: "round" },
   { hair: "long", hairTone: 0.3, hat: "cap", vest: true, top: 0.35, legs: 0.08, tuft: true },
-  { hair: "long", hairTone: 0.36, top: 0.12, legs: 0.3, skirt: true, earLocks: true },
-  { hair: "long", hairTone: 0.55, balayage: true, frontLocks: true, top: 0.2, stripes: true, legs: 0.3 },
+  { hair: "long", hairTone: 0.36, top: 0.12, legs: 0.3, skirt: true, earLocks: true, glasses: "round" },
+  { hair: "long", hairTone: 0.55, balayage: true, frontLocks: true, glasses: "round", top: 0.2, stripes: true, legs: 0.3 },
   { hair: "long", hairTone: 0.14, top: 0.78, legs: 0.4, overalls: true }
 ];
 const RUST = "#B4553F";

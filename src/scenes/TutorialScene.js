@@ -2,13 +2,15 @@ import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/plantPanel.js";
-import { operatorKey } from "../art/people.js";
+import { dieFrames, operatorKey } from "../art/people.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 
 // tutorial senza testo: quattro "schermate video" animate che scorrono da sole,
 // come le storie sul telefono. Si capisce tutto dalle immagini:
 // 1 · muoversi e agire   2 · gesti di cura (+O₂)   3 · negligenze (−O₂)   4 · il respiro finisce → svieni
 const PAGE_MS = 6500;
+// l'ultimo video è più lungo: deve mostrare tutto lo svenimento
+const pageMs = (i) => (i === 3 ? 8800 : PAGE_MS);
 const TILE_W = 270;
 const TILE_H = 480;
 
@@ -220,7 +222,8 @@ export class TutorialScene extends Phaser.Scene {
     this.walkV = 0;
   }
 
-  updateMove(t) {
+  updateMove(t, delta = 16.7) {
+    const dt = Math.min(delta, 50) / 1000;
     // 0-3.2s foglia destra → cammina a destra; 3.2-6.4s foglia sinistra → a sinistra
     const right = t < PAGE_MS / 2;
     const tt = right ? t : t - PAGE_MS / 2;
@@ -238,10 +241,12 @@ export class TutorialScene extends Phaser.Scene {
     this.leafTag.setText(touching ? (right ? "FOGLIA DESTRA  ▶" : "◀  FOGLIA SINISTRA") : "");
     // passo con accelerazione e frenata morbide, la città scorre in senso opposto
     const target = touching ? (right ? 1 : -1) : 0;
-    this.walkV += (target - this.walkV) * 0.12;
+    // tutto legato al tempo reale (non ai fotogrammi): stessa andatura a 60 o 120 Hz.
+    // Passo normale: ~1,1 cicli di camminata al secondo, la città scorre a ~140 px/s
+    this.walkV += (target - this.walkV) * Math.min(1, dt * 7);
     if (Math.abs(this.walkV) < 0.02 && !touching) this.walkV = 0;
-    this.city.tilePositionX += this.walkV * 4.5;
-    this.walkPhase = (this.walkPhase + Math.abs(this.walkV) * 0.075) % 1;
+    this.city.tilePositionX += this.walkV * 260 * dt;
+    this.walkPhase = (this.walkPhase + Math.abs(this.walkV) * 1.1 * dt) % 1;
     if (Math.abs(this.walkV) > 0.08) this.walker.setTexture(`${this.op}_${Math.floor(this.walkPhase * 8)}`);
     else this.walker.setTexture(`${this.op}_idle`);
     if (target) this.walker.setFlipX(!right);
@@ -436,6 +441,7 @@ export class TutorialScene extends Phaser.Scene {
     const street = this.add.graphics();
     street.fillStyle(C.c1, 1);
     street.fillRect(142, 560, 996, 88);
+    dieFrames(this, this.op);
     this.walker = this.add.image(640, 590, `${this.op}_idle`).setOrigin(0.5, 1);
     this.breathG = this.add.graphics();
     this.layer.add([street, this.walker, this.breathG]);
@@ -446,7 +452,7 @@ export class TutorialScene extends Phaser.Scene {
     let v;
     if (t < 2500) v = 1 - (t / 2500) * 0.6;
     else if (t < 3500) v = 0.4 + ((t - 2500) / 1000) * 0.5;
-    else v = Math.max(0, 0.9 - ((t - 3500) / 2200) * 0.9);
+    else v = Math.max(0, 0.9 - ((t - 3500) / 1500) * 0.9);
     const g = this.breathG;
     g.clear();
     const n = Math.ceil(v * 10 - 0.001);
@@ -468,8 +474,20 @@ export class TutorialScene extends Phaser.Scene {
         g.fillRect(610 + (i % 4) * 10, 430 - ((t / 5 + i * 20) % 120), 4, 4);
       }
     }
-    const fainted = v <= 0;
-    this.walker.setAngle(fainted ? 85 : 0).setY(fainted ? 600 : 590).setAlpha(fainted ? 0.75 : 1);
+    // svenimento con la stessa animazione del gioco: mano alla maschera, ginocchia, caduta
+    const tf = t - 5000; // istante in cui l'ossigeno arriva a zero
+    const w = this.walker;
+    if (tf < 0) w.setTexture(`${this.op}_idle`).setAngle(0).setX(640).setY(590).setAlpha(1).clearTint();
+    else if (tf < 700) w.setTexture(`${this.op}_d0`).setX(640 + Math.sin(tf / 45) * 3);
+    else if (tf < 900) w.setTexture(`${this.op}_d1`);
+    else if (tf < 1100) w.setTexture(`${this.op}_d2`);
+    else w.setTexture(`${this.op}_d3`);
+    if (tf >= 1500) {
+      const u = Math.min(1, (tf - 1500) / 520);
+      w.setAngle(82 * u * u).setX(640 + 30 * u).setY(590 + 8 * u);
+      if (u >= 1) w.setAlpha(0.75).setTint(0xb8bfcc);
+    }
+    const fainted = v <= 0 && tf > 2100;
     if (fainted) {
       g.lineStyle(6, C.c4, 1);
       g.lineBetween(600, 290, 680, 370);
@@ -481,8 +499,8 @@ export class TutorialScene extends Phaser.Scene {
 
   update(time, delta) {
     this.t += delta;
-    if (this.page === 0) this.updateMove(this.t % PAGE_MS);
-    else if (this.page === 3) this.updateBreath(this.t % PAGE_MS);
+    if (this.page === 0) this.updateMove(this.t % PAGE_MS, delta);
+    else if (this.page === 3) this.updateBreath(this.t % pageMs(3));
     else this.tiles.forEach((tile) => this.updateTile(tile, this.t % PAGE_MS));
     const b = this.bar;
     b.clear();
@@ -492,11 +510,11 @@ export class TutorialScene extends Phaser.Scene {
       const sx = x0 + i * (segW + 12);
       b.fillStyle(C.c3, 1);
       b.fillRect(sx, 740, segW, 6);
-      const p = i < this.page ? 1 : i === this.page ? Math.min(1, this.t / PAGE_MS) : 0;
+      const p = i < this.page ? 1 : i === this.page ? Math.min(1, this.t / pageMs(i)) : 0;
       b.fillStyle(C.c4, 1);
       b.fillRect(sx, 740, segW * p, 6);
     }
-    if (this.t >= PAGE_MS) {
+    if (this.t >= pageMs(this.page)) {
       // alla fine dell'ultimo video parte il gioco
       if (this.page < 3) this.showPage(this.page + 1);
       else goTo(this, this.next);

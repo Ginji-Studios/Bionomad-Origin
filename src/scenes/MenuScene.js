@@ -39,57 +39,37 @@ function titleCanvas() {
 }
 
 export function ensureMenuBg(scene) {
-  if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop({ evening: true }));
-  if (!scene.textures.exists("menu_bg_day")) scene.textures.addCanvas("menu_bg_day", menuBackdrop({ evening: false }));
+  if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop());
 }
 
 // sfondo del menu: una città qualunque, senza monumenti (le città si scoprono giocando)
-export function menuBackdrop({ evening = true } = {}) {
+export function menuBackdrop() {
   const LW = 2560 / K;
   return paint(2560, 800, K, (T) => {
     const { X, G, rnd, facade, skyG, ground, GY } = T;
-    skyG(LW, evening ? [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]] : [[0, 0.28], [0.5, 0.46], [0.85, 0.66], [1, 0.78]]);
-    const orbX = LW * 0.62;
-    const orbY = 110;
-    if (evening) {
-      for (let i = 0; i < 140; i++) {
-        X.fillStyle = G(0.9, 0.3 + rnd() * 0.6);
-        X.fillRect(rnd() * LW, rnd() * 300, 2, 2);
-      }
-      X.fillStyle = G(0.78, 0.9);
-      X.beginPath();
-      X.arc(orbX, orbY, 32, 0, 7);
-      X.fill();
-    } else {
-      const halo = X.createRadialGradient(orbX, orbY, 34, orbX, orbY, 132);
-      halo.addColorStop(0, G(1, 0.8));
-      halo.addColorStop(0.55, G(0.95, 0.42));
-      halo.addColorStop(1, G(0.9, 0));
-      X.fillStyle = halo;
-      X.fillRect(orbX - 140, orbY - 140, 280, 280);
-      X.fillStyle = G(1);
-      X.beginPath();
-      X.arc(orbX, orbY, 48, 0, 7);
-      X.fill();
+    skyG(LW, [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]]);
+    for (let i = 0; i < 140; i++) {
+      X.fillStyle = G(0.9, 0.3 + rnd() * 0.6);
+      X.fillRect(rnd() * LW, rnd() * 300, 2, 2);
     }
     // due file di palazzi anonimi, la seconda più vicina e più scura
     for (let x = -10; x < LW; ) {
       const bw = (26 + rnd() * 40) | 0;
       const bh = (90 + rnd() * 150) | 0;
-      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], evening ? 0.4 : 0.62, evening ? 0.3 : 0.48, { gx: 6, gy: 8, lit: evening ? 0.04 : 0.12, glass: 0.85 });
+      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], 0.4, 0.3, { gx: 6, gy: 8, lit: 0.04, glass: 0.85 });
       x += bw + ((rnd() * 6) | 0);
     }
     for (let x = -20; x < LW; ) {
       const bw = (40 + rnd() * 50) | 0;
       const bh = (50 + rnd() * 90) | 0;
-      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], evening ? 0.26 : 0.48, evening ? 0.18 : 0.36, { gx: 7, gy: 9, lit: evening ? 0.07 : 0.16 });
+      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], 0.26, 0.18, { gx: 7, gy: 9, lit: 0.07 });
       x += bw + ((rnd() * 10) | 0);
     }
-    ground(LW, evening ? 0 : 0.18);
+    ground(LW, 0);
   }, { seedValue: 99 });
 }
 
-// menu: alternanza lenta tra giorno e notte
+// menu: Milano di notte, il titolo e quattro pulsanti grandi
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super("MenuScene");
@@ -101,21 +81,21 @@ export class MenuScene extends Phaser.Scene {
     setAmbient(null);
     ensureMenuBg(this);
     const bg = this.add.image(0, 0, "menu_bg").setOrigin(0);
-    this.bgDay = this.add.image(0, 0, "menu_bg_day").setOrigin(0).setAlpha(0);
     // la città scorre lentamente dietro al menu
     // la città scorre a velocità costante (1 pixel per fotogramma: niente scatti) e torna indietro dolcemente
     // la città resta quasi ferma: una deriva lentissima, appena percepibile
     this.bg = bg;
-    this.dayCycle = 0;
     this.bgX = -(2560 - VIEW.w) / 2;
     bg.x = Math.round(this.bgX);
     // l'operatore con il suo BIONOMAD, in grande sulla strada
     // l'operatore cammina sul posto mentre la città gli scorre dietro
     this.opKey = operatorKey(this, "a", "milano");
     careFrames(this, this.opKey);
-    this.bareKey = holdFrames(this, operatorKey(this, "a", "milano", { bare: true }));
+    this.bareKey = holdFrames(this, operatorKey(this, "a", "milano", { bare: true, mask: true }));
     this.opImg = this.add.image(940, 776, `${this.opKey}_idle`).setOrigin(0.5, 1).setScale(2);
     this.packImg = this.add.image(0, 0, "pack_item").setOrigin(0).setScale(2).setVisible(false);
+    this.opImg.setDepth(10);
+    this.glow = this.add.ellipse(0, 0, 52, 34, C.c4, 0.2).setDepth(12).setVisible(false);
     // ciclo: respira → si sfila lo zaino e lo porta davanti → cura la pianta (bollicine di O₂) → lo rimette
     this.cycle = 0;
     brackets(this);
@@ -145,49 +125,66 @@ export class MenuScene extends Phaser.Scene {
     // deriva di 4 px al secondo, avanti e indietro in 80 s
     this.bgX = -(2560 - VIEW.w) / 2 + Math.sin(time / 12700) * 160;
     this.bg.x = Math.round(this.bgX);
-    this.bgDay.x = Math.round(this.bgX);
-    const dayAlpha = (1 - Math.cos((this.dayCycle / 18000) * Math.PI * 2)) / 2;
-    this.bgDay.setAlpha(dayAlpha);
-    this.dayCycle = (this.dayCycle + delta) % 18000;
-    const CYCLE = 7600;
+    const CYCLE = 9200;
     const prev = this.cycle;
     this.cycle = (this.cycle + delta) % CYCLE;
     const t = this.cycle;
     const op = this.opImg;
     // posizioni dello zaino (coordinate del disegno 120x200): sulla schiena e tenuto davanti
     const at = (cx, cy) => [op.x + (cx - 60) * 2, op.y - (200 - cy) * 2];
-    const BACK = at(28, 57);
-    const FRONT = at(74, 70);
-    const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
+    const span = (a, b) => Phaser.Math.Clamp((t - a) / (b - a), 0, 1);
+    // un solo gesto continuo: la mano va alla spalla, sfila lo zaino e lo porta davanti
+    // (lo zaino resta attaccato alla mano), lo cura, poi lo rimette con il gesto inverso
+    const T1 = 1800, T2 = 2250, T3 = 3150, T4 = 6450, T5 = 7350, T6 = 7800;
     let key = this.opKey;
     let frame = "idle";
-    let pack = null; // null = zaino addosso (disegnato nel personaggio)
-    if (t >= 1400 && t < 1600) frame = "c0";
-    else if (t >= 1600 && t < 1800) frame = "c1";
-    else if (t >= 1800 && t < 5600) {
+    let v = -1; // posizione del gesto con lo zaino in mano (0 = mano alla spalla, 1 = davanti)
+    let tapY = 0;
+    if (t >= T1 && t < T2) frame = ["c0", "c1", "c2"][Math.min(2, Math.floor(span(T1, T2) * 3))];
+    else if (t >= T5 && t < T6) frame = ["c2", "c1", "c0"][Math.min(2, Math.floor(span(T5, T6) * 3))];
+    else if (t >= T2 && t < T5) {
       key = this.bareKey;
-      const u = t < 2300 ? ease((t - 1800) / 500) : t >= 5100 ? 1 - ease((t - 5100) / 500) : 1;
-      pack = [BACK[0] + (FRONT[0] - BACK[0]) * u, BACK[1] + (FRONT[1] - BACK[1]) * u - Math.sin(u * Math.PI) * 24];
-      frame = u < 0.5 ? "idle" : t >= 2400 && t < 5000 ? `h${Math.floor((t - 2400) / 170) % 4}` : "h0";
-    } else if (t >= 5600 && t < 5800) frame = "c1";
-    else if (t >= 5800 && t < 6000) frame = "c0";
+      if (t < T3) v = Math.min(4, Math.floor(span(T2, T3) * 5)) / 4;
+      else if (t >= T4) v = 1 - Math.min(4, Math.floor(span(T4, T5) * 5)) / 4;
+      else v = 1;
+      if (v < 1 || t < T3 || t >= T4) frame = `m${Math.round(v * 4)}`;
+      else {
+        const i = Math.floor((t - T3) / 110) % 8;
+        frame = `h${i}`;
+        tapY = -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2);
+      }
+    }
+    // lo zaino segue la mano: angolo in alto a sinistra = mano + scostamento
+    let pack = null;
+    if (v >= 0) {
+      const hx = 44 + (89 - 44) * v;
+      const hy = 70 + (79 - 70) * v;
+      pack = at(hx - 16 + v, hy - 13 + 4 * v);
+    }
+    const front = v > 0.4;
     op.setTexture(`${key}_${frame}`);
-    this.packImg.setVisible(!!pack);
-    if (pack) this.packImg.setPosition(Math.round(pack[0]), Math.round(pack[1]));
+    this.packImg.setVisible(!!pack).setDepth(front ? op.depth + 1 : op.depth - 1);
+    if (pack) this.packImg.setPosition(Math.round(pack[0]), Math.round(pack[1] + (tapY < -3 ? 2 : 0)));
+    // la pianta si accende mentre la cura: un alone che pulsa
+    const caring = t >= T3 && t < T4 && v === 1;
+    this.glow.setVisible(caring);
+    if (caring) {
+      this.glow.setPosition(this.packImg.x + 28, this.packImg.y + 26).setAlpha(0.18 + 0.12 * Math.sin(t / 160));
+      // ogni tanto un piccolo sbuffo di ossigeno
+      if (Math.floor(prev / 520) !== Math.floor(t / 520)) this.bubbles(3);
+    }
     // respiro: un leggerissimo su e giù quando è fermo
     op.setScale(2, 2 * (1 + 0.006 * Math.sin(time / 520)));
     // a metà della cura la pianta rilascia ossigeno
-    if ((prev < 3100 && t >= 3100) || (prev < 4300 && t >= 4300)) this.bubbles();
   }
 
   // bollicine di O₂ che salgono dallo zaino (pixel quadrati, nei colori del gioco)
-  bubbles() {
-    const op = this.opImg;
-    const px = op.x + (88 - 60) * 2;
-    const py = op.y - (200 - 76) * 2;
-    for (let i = 0; i < 9; i++) {
+  bubbles(n = 9) {
+    const px = this.packImg.x + 28;
+    const py = this.packImg.y + 14;
+    for (let i = 0; i < n; i++) {
       const size = 4 + (i % 3) * 2;
-      const b = this.add.rectangle(px + (Math.random() - 0.5) * 30, py, size, size, C.c4).setAlpha(0);
+      const b = this.add.rectangle(px + (Math.random() - 0.5) * 30, py, size, size, C.c4).setAlpha(0).setDepth(13);
       this.tweens.add({
         targets: b,
         y: py - 120 - Math.random() * 90,

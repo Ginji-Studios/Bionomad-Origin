@@ -1,5 +1,6 @@
 import Phaser from "../phaser.js";
 import { loadLogos } from "../ui/logo.js";
+import { loadPosters } from "../ui/posters.js";
 import { registerPeople } from "../art/people.js";
 import { FONT, HEX, txt } from "../ui/hud.js";
 
@@ -26,6 +27,7 @@ export class PreloadScene extends Phaser.Scene {
     await new Promise((r) => setTimeout(r, 30));
     registerPeople(this);
     await loadLogos(this);
+    await loadPosters(this);
     this.scene.start("MenuScene");
   }
 }

@@ -2,7 +2,8 @@ import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
 import { dayTime, failRun, getRun, nextDestination } from "../systems/RunManager.js";
-import { buildSkyline } from "../world/skyline.js";
+import { buildSkyline, paint } from "../world/skyline.js";
+import { posterArt } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
 import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
@@ -36,6 +37,9 @@ export class TravelScene extends Phaser.Scene {
     const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_ });
     this.worldW = sky.worldW;
     this.cameras.main.setBounds(0, 0, this.worldW, VIEW.h);
+
+    // manifesti BIODOM lungo la strada: pannelli su pali e cartelloni, nel retino della palette
+    this.addPosters();
 
     // qualche passante con il suo zaino, a passo lento
     this.passers = [0, 1, 2, 3, 4, 5].map((i) => {
@@ -82,6 +86,47 @@ export class TravelScene extends Phaser.Scene {
     }
     this.tweens.add({ targets: w.img, scaleY: 0.97, duration: 260, yoyo: true, repeat: 3 });
     this.time.delayedCall(1200, () => w.img.active && w.bubble(8));
+  }
+
+  addPosters() {
+    const kinds = [
+      { key: "poster_1", w: 64, h: 90, tall: true },
+      { key: "poster_4", w: 196, h: 108 },
+      { key: "poster_2", w: 64, h: 90, tall: true },
+      { key: "poster_5", w: 160, h: 108 },
+      { key: "poster_3", w: 64, h: 90, tall: true }
+    ];
+    const S = 1.25;
+    let i = (this.run.index * 2) % kinds.length;
+    for (let x = 820; x < this.worldW - 520; x += 760 + ((x * 7) % 5) * 60) {
+      const k = kinds[i++ % kinds.length];
+      const tex = `street_${k.key}`;
+      const legs = k.tall ? 70 : 96;
+      const W = Math.round((k.w + 16) * S);
+      const H = Math.round((k.h + 16 + legs) * S);
+      if (!this.textures.exists(tex))
+        this.textures.addCanvas(
+          tex,
+          paint(W, H, S, (T) => {
+            const { X, G } = T;
+            // pali
+            X.fillStyle = G(0.14);
+            if (k.tall) X.fillRect(k.w / 2 + 5, k.h + 8, 6, legs + 8);
+            else {
+              X.fillRect(18, k.h + 8, 6, legs + 8);
+              X.fillRect(k.w - 8, k.h + 8, 6, legs + 8);
+            }
+            // cornice del pannello
+            X.fillStyle = G(0.22);
+            X.fillRect(0, 0, k.w + 16, k.h + 16);
+            posterArt(T, k.key, 8, 8, k.w, k.h);
+            // lampadina che illumina il pannello
+            X.fillStyle = G(0.95);
+            X.fillRect((k.w + 16) / 2 - 6, 0, 12, 3);
+          }, { cell: 1, seedValue: 5 })
+        );
+      this.add.image(x, FEET + 4, tex).setOrigin(0.5, 1).setDepth(150);
+    }
   }
 
   update(time, delta) {
