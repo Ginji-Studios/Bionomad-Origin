@@ -68,12 +68,12 @@ Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** sc
 - `src/config/events.js`: eventi e task. Per aggiungere un evento basta una nuova voce con `location` e `steps` (tipi: pickup, use, useSelf, talk, confirm, hold, prune, sit, exit).
 - `src/config/origins.js`: città, PM2.5 e velocità di consumo dell'ossigeno.
 - `src/systems/RunManager.js`: stato della run (eventi estratti, ossigeno, risultati).
-- `src/world/locations.js`: location (ufficio, food truck, fermata bus, casa) con ostacoli per le collisioni e punti interattivi.
-- `src/scenes`: Boot, Preload, Menu, Selezione personaggio, Intro, Percorso, Evento, Fine, Tutorial, Crediti.
-- `src/world`: sfondi delle città (`cityscape.js`), luoghi (`locations.js`), segni dell'inquinamento (`pollution.js`).
+- `src/art/places.js`: luoghi degli eventi (casa, ufficio, bus, fermata, food truck), diversi per città, con i punti interattivi.
+- `src/scenes`: Boot, Preload, Menu, Selezione città e operatore, Intro, Percorso, Evento, Outro, Fine, Tutorial, Crediti, Pausa.
+- `src/world/skyline.js`: skyline retinate delle città, quartieri con i monumenti veri, giorno e notte.
 - `src/systems/Sfx.js`: effetti sonori e ambiente sintetizzati.
-- `src/ui/theme.js`: palette BIODOM, font pixel, HUD ossigeno, pannelli, transizioni.
-- `src/ui/pixelSprites.js`: sprite pixel-art generati da codice (personaggi, zaino, piante, oggetti).
+- `src/ui/hud.js`: palette BIODOM, HUD del respiro, pannello task, pulsanti, titoli retinati, transizioni.
+- `src/art/people.js`: operatori, passanti e ritratti del team disegnati da codice nello stile a retino.
 - `src/input/PlantSensors.js`: lettura della pianta via Web Serial e simulazione da tastiera.
 
-Font: VT323 (SIL Open Font License, vedi `public/fonts/OFL-VT323.txt`), incorporato in `src/ui/fontData.js`.
+Font: Roboto Mono (Google Fonts, caricato in `index.html`).
