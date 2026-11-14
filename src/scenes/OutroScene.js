@@ -6,6 +6,7 @@ import { buildSkyline } from "../world/skyline.js";
 import { buildPlace } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { holdFrames, operatorKey } from "../art/people.js";
+import { packGesture } from "../entities/packGesture.js";
 import { C, canvasImage, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
@@ -127,38 +128,15 @@ export class OutroScene extends Phaser.Scene {
     this.phase = "unpack";
     this.walker.frozen = true;
     this.walker.update(0, 16);
-    const img = this.walker.img;
-    // rivolto a sinistra lo sprite è specchiato: le x del disegno si invertono
-    const at = (cx, cy) => [img.x - (cx - 60) - 28, FEET - (200 - cy)];
-    const BACK = at(28, 57);
-    const FRONT = at(74, 70);
-    const HUB = [this.points.hub - 14, FEET - 250];
-    img.setTexture(`${this.bare}_idle`);
-    this.walker.key = this.bare;
-    this.walker.pack = false;
-    const pack = this.add.image(BACK[0], BACK[1], "pack_item").setOrigin(0).setFlipX(true).setScrollFactor(0).setDepth(img.depth - 1);
-    this.hubPack = pack;
-    const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
-    const lerp = (A, B, u, lift) => [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u - Math.sin(u * Math.PI) * lift];
+    const hub = [this.points.hub - 14, FEET - 250];
     this.caption("BIONOMAD SULL'HUB · IN RICARICA");
-    this.tweens.addCounter({
-      from: 0,
-      to: 1,
-      duration: 1500,
-      onUpdate: (tw) => {
-        const t = tw.getValue();
-        let p;
-        if (t < 0.45) p = lerp(BACK, FRONT, ease(t / 0.45), 60);
-        else {
-          pack.setDepth(img.depth + 1);
-          img.setTexture(`${this.bare}_h0`);
-          p = t < 0.6 ? FRONT : lerp(FRONT, HUB, ease((t - 0.6) / 0.4), 18);
-        }
-        pack.setPosition(Math.round(p[0]), Math.round(p[1]));
-      },
-      onComplete: () => {
-        img.setTexture(`${this.bare}_idle`);
-        pack.setDepth(img.depth - 1);
+    packGesture(this, this.walker, {
+      bareKey: this.bare,
+      packedKey: this.key,
+      hub,
+      mode: "unpack",
+      onDone: (pack) => {
+        this.hubPack = pack;
         Sfx.attach();
         // impulso di ricarica: un anello che si allarga dallo zaino
         const ring = this.add.rectangle(pack.x + 14, pack.y + 29, 40, 70).setStrokeStyle(2, C.c4, 1).setScrollFactor(0).setDepth(700);
@@ -167,7 +145,7 @@ export class OutroScene extends Phaser.Scene {
         this.chargeMs = 0;
         // controcampo: si allarga l'inquadratura e lui va verso il divano
         this.cameras.main.zoomTo(1, 1800, "Sine.easeInOut");
-        this.time.delayedCall(1300, () => {
+        this.time.delayedCall(1100, () => {
           this.walker.frozen = false;
           this.sofaX = Math.max(220, this.points.hub - 520);
           this.phase = "sofa";

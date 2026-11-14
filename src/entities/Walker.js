@@ -57,7 +57,7 @@ export class Walker {
 
   update(dir, delta) {
     // durante lo svenimento l'animazione la guida faint()
-    if (this.dying) return;
+    if (this.dying || this.posing) return;
     const dt = delta / 1000;
     this.bubbleMs -= delta;
     if (this.bubbleMs <= 0) {

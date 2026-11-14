@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { PlantSensors } from "../input/PlantSensors.js";
-import { paint, quant } from "../world/skyline.js";
+import { paint, quant, setDayMode } from "../world/skyline.js";
 import { K, operatorKey, careFrames, holdFrames } from "../art/people.js";
 import { brackets, button, C, canvasImage, fadeIn, goTo, HEX, toast, txt, VIEW } from "../ui/hud.js";
 
@@ -42,15 +42,42 @@ export function ensureMenuBg(scene) {
   if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop());
 }
 
+// versione di giorno dello stesso sfondo (finestre spente, cielo chiaro): serve al ciclo del menu
+export function ensureMenuDayBg(scene) {
+  if (!scene.textures.exists("menu_bg_day")) {
+    setDayMode(true);
+    scene.textures.addCanvas("menu_bg_day", menuBackdrop(true));
+    setDayMode(false);
+    // alba e tramonto: un passaggio intermedio tra notte e giorno
+    scene.textures.addCanvas("menu_bg_dusk", menuBackdrop("dusk"));
+  }
+}
+
 // sfondo del menu: una città qualunque, senza monumenti (le città si scoprono giocando)
-export function menuBackdrop() {
+export function menuBackdrop(day = false) {
   const LW = 2560 / K;
   return paint(2560, 800, K, (T) => {
     const { X, G, rnd, facade, skyG, ground, GY } = T;
-    skyG(LW, [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]]);
+    const dusk = day === "dusk";
+    if (dusk) day = false;
+    skyG(LW, dusk ? [[0, 0.1], [0.45, 0.26], [0.8, 0.6], [1, 0.84]] : day ? [[0, 0.32], [0.5, 0.48], [0.85, 0.64], [1, 0.74]] : [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]]);
+    if (dusk) {
+      // alba / tramonto: bagliore basso sull'orizzonte, dalla parte del sole
+      const r = X.createRadialGradient(LW * 0.62, GY, 20, LW * 0.62, GY, 520);
+      r.addColorStop(0, G(1, 0.55));
+      r.addColorStop(1, G(1, 0));
+      X.fillStyle = r;
+      X.fillRect(0, 0, LW, GY);
+    }
     for (let i = 0; i < 140; i++) {
-      X.fillStyle = G(0.9, 0.3 + rnd() * 0.6);
-      X.fillRect(rnd() * LW, rnd() * 300, 2, 2);
+      // stelle solo di notte; di giorno cielo pulito
+      const sx = rnd() * LW;
+      const sy = rnd() * 300;
+      const sa = 0.3 + rnd() * 0.6;
+      if (!day && !dusk) {
+        X.fillStyle = G(0.9, sa);
+        X.fillRect(sx, sy, 2, 2);
+      }
     }
     // due file di palazzi anonimi, la seconda più vicina e più scura
     for (let x = -10; x < LW; ) {
@@ -87,6 +114,61 @@ export class MenuScene extends Phaser.Scene {
     this.bg = bg;
     this.bgX = -(2560 - VIEW.w) / 2;
     bg.x = Math.round(this.bgX);
+    // ciclo giorno/notte: la versione di giorno sfuma sopra quella di notte,
+    // il sole e la luna attraversano il cielo sopra i tetti
+    ensureMenuDayBg(this);
+    bg.setDepth(-3);
+    this.bgDay = this.add.image(bg.x, 0, "menu_bg_day").setOrigin(0).setAlpha(0).setDepth(-2.5);
+    this.bgDusk = this.add.image(bg.x, 0, "menu_bg_dusk").setOrigin(0).setAlpha(0).setDepth(-2);
+    // sole e luna retinati come il resto della città (stesso retino a 5 colori)
+    if (!this.textures.exists("menu_sun")) {
+      // stesso sole del cielo di giorno in gioco: disco pieno e alone largo a retino.
+      // L'alone è fatto a mano con la matrice di Bayer (puntini chiari opachi, sempre più radi),
+      // così si vede su qualsiasi cielo senza trasparenze sfumate
+      const sunC = document.createElement("canvas");
+      sunC.width = sunC.height = 260;
+      const sx = sunC.getContext("2d");
+      const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+      for (let y = 0; y < 260; y += 2)
+        for (let x = 0; x < 260; x += 2) {
+          const d = Math.hypot(x - 130, y - 130);
+          if (d <= 46) {
+            sx.fillStyle = "#F1F0ED";
+            sx.fillRect(x, y, 2, 2);
+            continue;
+          }
+          const f = Math.max(0, 1 - (d - 46) / 84) * 0.75;
+          const t = (B4[((y >> 1) % 4) * 4 + ((x >> 1) % 4)] + 0.5) / 16;
+          if (t < f) {
+            sx.fillStyle = t < f * 0.45 ? "#F1F0ED" : "#5E6D88";
+            sx.fillRect(x, y, 2, 2);
+          }
+        }
+      this.textures.addCanvas("menu_sun", sunC);
+      this.textures.addCanvas("menu_moon", paint(110, 110, 1, ({ X, G }) => {
+        const h = X.createRadialGradient(55, 55, 22, 55, 55, 55);
+        h.addColorStop(0, G(0.9, 0.35));
+        h.addColorStop(1, G(0.9, 0));
+        X.fillStyle = h;
+        X.fillRect(0, 0, 110, 110);
+        const d = X.createRadialGradient(46, 46, 4, 55, 55, 28);
+        d.addColorStop(0, G(1));
+        d.addColorStop(1, G(0.78));
+        X.fillStyle = d;
+        X.beginPath();
+        X.arc(55, 55, 28, 0, 7);
+        X.fill();
+        X.fillStyle = G(0.55);
+        [[46, 48, 6], [64, 62, 4], [60, 44, 3], [48, 66, 3]].forEach(([x, y, r]) => {
+          X.beginPath();
+          X.arc(x, y, r, 0, 7);
+          X.fill();
+        });
+      }, { cell: 2, seedValue: 13 }));
+    }
+    this.sun = this.add.image(0, 0, "menu_sun").setDepth(-1);
+    this.moon = this.add.image(0, 0, "menu_moon").setDepth(-1);
+    this.dayT = 0.62; // si parte di notte
     // l'operatore con il suo BIONOMAD, in grande sulla strada
     // l'operatore cammina sul posto mentre la città gli scorre dietro
     this.opKey = operatorKey(this, "a", "milano");
@@ -125,6 +207,7 @@ export class MenuScene extends Phaser.Scene {
     // deriva di 4 px al secondo, avanti e indietro in 80 s
     this.bgX = -(2560 - VIEW.w) / 2 + Math.sin(time / 12700) * 160;
     this.bg.x = Math.round(this.bgX);
+    this.dayNight(delta);
     const CYCLE = 9200;
     const prev = this.cycle;
     this.cycle = (this.cycle + delta) % CYCLE;
@@ -176,6 +259,31 @@ export class MenuScene extends Phaser.Scene {
     // respiro: un leggerissimo su e giù quando è fermo
     op.setScale(2, 2 * (1 + 0.006 * Math.sin(time / 520)));
     // a metà della cura la pianta rilascia ossigeno
+  }
+
+  // ciclo di 24 s: metà giorno, metà notte, con alba e tramonto sfumati
+  dayNight(delta) {
+    this.dayT = (this.dayT + delta / 24000) % 1;
+    const p = this.dayT;
+    const smooth = (u) => u * u * (3 - 2 * u);
+    const edge = 0.1;
+    let day;
+    if (p < edge) day = smooth(0.5 + p / (2 * edge));
+    else if (p < 0.5 - edge) day = 1;
+    else if (p < 0.5 + edge) day = smooth(1 - (p - (0.5 - edge)) / (2 * edge));
+    else if (p < 1 - edge) day = 0;
+    else day = smooth((p - (1 - edge)) / (2 * edge) * 0.5);
+    // passaggio in tre tempi: la luce dell'alba/tramonto sale a metà della transizione e poi svanisce
+    this.bgDay.setAlpha(day).setX(this.bg.x);
+    this.bgDusk.setAlpha(Math.sin(Math.PI * day) * 0.9).setX(this.bg.x);
+    // arco solo sulla metà destra del cielo, lontano dal titolo
+    const arc = (u) => [740 + u * 440, 300 - Math.sin(Math.PI * u) * 190];
+    const su = (p + edge) / (0.5 + 2 * edge);
+    const mu = (p - 0.5 + edge + (p < 0.5 - edge ? 1 : 0)) / (0.5 + 2 * edge);
+    if (su >= 0 && su <= 1) this.sun.setVisible(true).setPosition(...arc(su).map(Math.round)).setAlpha(Math.min(1, Math.sin(Math.PI * su) * 3));
+    else this.sun.setVisible(false);
+    if (mu >= 0 && mu <= 1) this.moon.setVisible(true).setPosition(...arc(mu).map(Math.round)).setAlpha(Math.min(1, Math.sin(Math.PI * mu) * 3));
+    else this.moon.setVisible(false);
   }
 
   // bollicine di O₂ che salgono dallo zaino (pixel quadrati, nei colori del gioco)

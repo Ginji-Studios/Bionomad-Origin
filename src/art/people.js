@@ -786,6 +786,8 @@ export function holdFrames(scene, bareKey) {
     for (let i = 0; i < 8; i++) make(`h${i}`, { hold: 1, tap: -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2) });
     // m0-m4: dalla mano sulla spalla alla presa davanti (lo zaino segue la mano)
     [0, 0.25, 0.5, 0.75, 1].forEach((v, i) => make(`m${i}`, { blend: v, tap: 0 }));
+    // b1-b3: dalle braccia a riposo alla presa davanti (per prendere / posare lo zaino)
+    [0.25, 0.5, 0.75].forEach((v, i) => make(`b${i + 1}`, { hold: v, tap: 0 }));
   }
   if (!scene.textures.exists("pack_item")) scene.textures.addCanvas("pack_item", finish(paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9), { seedValue: 11, cell: 1 }), { rim: false, outline: false }));
   return bareKey;

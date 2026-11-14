@@ -1255,6 +1255,12 @@ export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night"
   return { layers, k, groundY: Math.round(GY * k), worldW: Math.round(W_L * k) };
 }
 
+// giorno/notte per i disegni fatti con paint() (es. lo sfondo del menu)
+export function setDayMode(day) {
+  DAY = Boolean(day);
+  DAY_LIFT = DAY ? 0.06 : 0;
+}
+
 // disegna una scena qualsiasi (interni, oggetti, personaggi) con gli stessi strumenti
 // del concept e la converte in palette. draw riceve gli strumenti e lavora in
 // coordinate logiche (alte 540): k scala alla risoluzione finale.

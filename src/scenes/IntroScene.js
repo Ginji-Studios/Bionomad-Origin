@@ -5,7 +5,8 @@ import { currentEvent, dayTime, getRun, cityZone } from "../systems/RunManager.j
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
-import { holdFrames, operatorKey } from "../art/people.js";
+import { operatorKey } from "../art/people.js";
+import { packGesture } from "../entities/packGesture.js";
 import { brackets, button, C, canvasImage, ditherBand, ditherTitle, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
@@ -70,47 +71,17 @@ export class IntroScene extends Phaser.Scene {
     this.skip.destroy();
     this.walker.frozen = true;
     this.walker.update(0, 16);
-    const bare = this.walker.key;
-    holdFrames(this, bare);
     const img = this.walker.img;
     const k = img.scaleX;
-    const at = (cx, cy) => [img.x + (cx - 60) * k, FEET - (200 - cy) * k];
-    // lo zaino parte dall'hub (dove era in carica)
-    const HUB = [this.points.hub - 14 * k, FEET - 250];
-    const FRONT = at(74, 70);
-    const BACK = at(28, 57);
-    const pack = this.add.image(HUB[0], HUB[1], "pack_item").setOrigin(0).setScale(k).setScrollFactor(0).setDepth(img.depth + 1);
-    const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
-    const lerp = (A, B, u, lift) => [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u - Math.sin(u * Math.PI) * lift];
-    img.setTexture(`${bare}_h0`);
-    this.tweens.addCounter({
-      from: 0,
-      to: 1,
-      duration: 1300,
-      onUpdate: (tw) => {
-        const t = tw.getValue();
-        let p;
-        if (t < 0.38) p = lerp(HUB, FRONT, ease(t / 0.38), 18);
-        else if (t < 0.5) p = FRONT;
-        else {
-          // sopra la spalla, dietro la schiena
-          img.setTexture(`${bare}_idle`);
-          pack.setDepth(img.depth - 1);
-          p = lerp(FRONT, BACK, ease((t - 0.5) / 0.5), 60);
-        }
-        pack.setPosition(Math.round(p[0]), Math.round(p[1]));
-      },
-      onComplete: () => {
-        pack.destroy();
-        Sfx.attach();
-        this.walker.key = operatorKey(this, this.op, this.city);
-        this.walker.pack = true;
-        img.setTexture(`${this.walker.key}_idle`);
-        // piccolo assestamento dello zaino sulle spalle (niente salto)
-        this.tweens.add({ targets: img, scaleY: 0.985, duration: 110, yoyo: true, ease: "Sine.easeInOut" });
-        this.walker.bubble?.(10);
-        this.time.delayedCall(700, () => this.showNotice());
-      }
+    // lo zaino è in carica in cima all'hub
+    const hub = [this.points.hub - 14 * k, FEET - 250];
+    packGesture(this, this.walker, {
+      bareKey: this.walker.key,
+      packedKey: operatorKey(this, this.op, this.city),
+      hub,
+      mode: "wear",
+      onAttach: () => this.walker.bubble?.(10),
+      onDone: () => this.time.delayedCall(600, () => this.showNotice())
     });
   }
 
