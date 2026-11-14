@@ -61,9 +61,15 @@ export function menuBackdrop({ evening = true } = {}) {
       X.arc(orbX, orbY, 32, 0, 7);
       X.fill();
     } else {
-      X.fillStyle = G(1, 0.75);
+      const halo = X.createRadialGradient(orbX, orbY, 34, orbX, orbY, 132);
+      halo.addColorStop(0, G(1, 0.8));
+      halo.addColorStop(0.55, G(0.95, 0.42));
+      halo.addColorStop(1, G(0.9, 0));
+      X.fillStyle = halo;
+      X.fillRect(orbX - 140, orbY - 140, 280, 280);
+      X.fillStyle = G(1);
       X.beginPath();
-      X.arc(orbX, orbY, 40, 0, 7);
+      X.arc(orbX, orbY, 48, 0, 7);
       X.fill();
     }
     // due file di palazzi anonimi, la seconda più vicina e più scura
