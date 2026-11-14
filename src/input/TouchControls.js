@@ -2,11 +2,6 @@
 // così tutte le scene funzionano senza modifiche.
 
 const KEYS = {
-  ArrowLeft: 37,
-  ArrowUp: 38,
-  ArrowRight: 39,
-  ArrowDown: 40,
-  " ": 32,
   Enter: 13,
   Escape: 27,
   c: 67,
@@ -62,15 +57,6 @@ export function setupTouchControls() {
   const root = document.createElement("div");
   root.className = "touch-controls";
 
-  const pad = document.createElement("div");
-  pad.className = "tc-pad";
-  pad.append(
-    button("▲", "ArrowUp", "up"),
-    button("◀", "ArrowLeft", "left"),
-    button("▶", "ArrowRight", "right"),
-    button("▼", "ArrowDown", "down")
-  );
-
   const actions = document.createElement("div");
   actions.className = "tc-actions";
   const plant = document.createElement("div");
@@ -86,7 +72,7 @@ export function setupTouchControls() {
     button("rossa", "3", "s-vials v3"),
     button("togli", "0", "s-vials")
   );
-  actions.append(plant, button("USA", " ", "big"));
+  actions.append(plant);
 
   const top = document.createElement("div");
   top.className = "tc-top";
@@ -116,6 +102,6 @@ export function setupTouchControls() {
   });
   top.append(button("ESC", "Escape", "small"), full, button("INVIO", "Enter", "small"));
 
-  root.append(pad, actions, top);
+  root.append(actions, top);
   document.body.append(root);
 }
