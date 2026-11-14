@@ -39,37 +39,51 @@ function titleCanvas() {
 }
 
 export function ensureMenuBg(scene) {
-  if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop());
+  if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop({ evening: true }));
+  if (!scene.textures.exists("menu_bg_day")) scene.textures.addCanvas("menu_bg_day", menuBackdrop({ evening: false }));
 }
 
 // sfondo del menu: una città qualunque, senza monumenti (le città si scoprono giocando)
-export function menuBackdrop() {
+export function menuBackdrop({ evening = true } = {}) {
   const LW = 2560 / K;
   return paint(2560, 800, K, (T) => {
     const { X, G, rnd, facade, skyG, ground, GY } = T;
-    skyG(LW, [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]]);
-    for (let i = 0; i < 140; i++) {
-      X.fillStyle = G(0.9, 0.3 + rnd() * 0.6);
-      X.fillRect(rnd() * LW, rnd() * 300, 2, 2);
+    skyG(LW, evening ? [[0, 0.03], [0.5, 0.14], [0.85, 0.34], [1, 0.5]] : [[0, 0.28], [0.5, 0.46], [0.85, 0.66], [1, 0.78]]);
+    const orbX = LW * 0.62;
+    const orbY = 110;
+    if (evening) {
+      for (let i = 0; i < 140; i++) {
+        X.fillStyle = G(0.9, 0.3 + rnd() * 0.6);
+        X.fillRect(rnd() * LW, rnd() * 300, 2, 2);
+      }
+      X.fillStyle = G(0.78, 0.9);
+      X.beginPath();
+      X.arc(orbX, orbY, 32, 0, 7);
+      X.fill();
+    } else {
+      X.fillStyle = G(1, 0.75);
+      X.beginPath();
+      X.arc(orbX, orbY, 40, 0, 7);
+      X.fill();
     }
     // due file di palazzi anonimi, la seconda più vicina e più scura
     for (let x = -10; x < LW; ) {
       const bw = (26 + rnd() * 40) | 0;
       const bh = (90 + rnd() * 150) | 0;
-      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], 0.4, 0.3, { gx: 6, gy: 8, lit: 0.04, glass: 0.85 });
+      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], evening ? 0.4 : 0.62, evening ? 0.3 : 0.48, { gx: 6, gy: 8, lit: evening ? 0.04 : 0.12, glass: 0.85 });
       x += bw + ((rnd() * 6) | 0);
     }
     for (let x = -20; x < LW; ) {
       const bw = (40 + rnd() * 50) | 0;
       const bh = (50 + rnd() * 90) | 0;
-      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], 0.26, 0.18, { gx: 7, gy: 9, lit: 0.07 });
+      facade([[x, GY], [x, GY - bh], [x + bw, GY - bh], [x + bw, GY]], evening ? 0.26 : 0.48, evening ? 0.18 : 0.36, { gx: 7, gy: 9, lit: evening ? 0.07 : 0.16 });
       x += bw + ((rnd() * 10) | 0);
     }
-    ground(LW, 0);
+    ground(LW, evening ? 0 : 0.18);
   }, { seedValue: 99 });
 }
 
-// menu: Milano di notte, il titolo e quattro pulsanti grandi
+// menu: alternanza lenta tra giorno e notte
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super("MenuScene");
@@ -81,10 +95,12 @@ export class MenuScene extends Phaser.Scene {
     setAmbient(null);
     ensureMenuBg(this);
     const bg = this.add.image(0, 0, "menu_bg").setOrigin(0);
+    this.bgDay = this.add.image(0, 0, "menu_bg_day").setOrigin(0).setAlpha(0);
     // la città scorre lentamente dietro al menu
     // la città scorre a velocità costante (1 pixel per fotogramma: niente scatti) e torna indietro dolcemente
     // la città resta quasi ferma: una deriva lentissima, appena percepibile
     this.bg = bg;
+    this.dayCycle = 0;
     this.bgX = -(2560 - VIEW.w) / 2;
     bg.x = Math.round(this.bgX);
     // l'operatore con il suo BIONOMAD, in grande sulla strada
@@ -123,6 +139,10 @@ export class MenuScene extends Phaser.Scene {
     // deriva di 4 px al secondo, avanti e indietro in 80 s
     this.bgX = -(2560 - VIEW.w) / 2 + Math.sin(time / 12700) * 160;
     this.bg.x = Math.round(this.bgX);
+    this.bgDay.x = Math.round(this.bgX);
+    const dayAlpha = (1 - Math.cos((this.dayCycle / 18000) * Math.PI * 2)) / 2;
+    this.bgDay.setAlpha(dayAlpha);
+    this.dayCycle = (this.dayCycle + delta) % 18000;
     const CYCLE = 7600;
     const prev = this.cycle;
     this.cycle = (this.cycle + delta) % CYCLE;
