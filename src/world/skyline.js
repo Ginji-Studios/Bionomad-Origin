@@ -9,6 +9,7 @@ const PR = PALETTE.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 1
 // coordinate logiche del concept: vista alta 540, strada a GY, mondo largo W
 export const VH_L = 540;
 export const GY = 480;
+let NEAR = null;
 export const W_L = 2880;
 // schiarita generale richiesta (in scala 0-1, prima del retino)
 const LIFT = 0.07;
@@ -39,7 +40,7 @@ let X;
 let VW = 864; // larghezza logica della vista, impostata da buildSkyline
 
 // scala di grigi -> palette con retino a celle CS x CS
-export function quant(c, CS = 2) {
+export function quant(c, CS = 2, dither = true) {
   const w = c.width;
   const h = c.height;
   const x = c.getContext("2d");
@@ -62,7 +63,8 @@ export function quant(c, CS = 2) {
       const v = Math.max(0, Math.min(1, s / a / 255 + LIFT + DAY_LIFT + (rnd() - 0.5) * 0.05));
       const p = v * 4;
       const lo = Math.min(3, p | 0);
-      const i = B8[((cy / CS) & 7) * 8 + ((cx / CS) & 7)] < p - lo ? lo + 1 : lo;
+      // senza retino: tinta piatta (stile pixel art a campiture), al livello più vicino
+      const i = dither ? (B8[((cy / CS) & 7) * 8 + ((cx / CS) & 7)] < p - lo ? lo + 1 : lo) : Math.min(4, Math.round(p));
       const col = PR[i];
       for (let j = 0; j < CS && cy + j < h; j++)
         for (let q = 0; q < CS && cx + q < w; q++) {
@@ -698,6 +700,38 @@ function mtnR(w) {
     X.fillRect(rnd() * w, GY - 48 + rnd() * 50, 6 + rnd() * 30, 1);
   }
 }
+// cappa di neve su un tetto a capanna: uno strato spesso e morbido che segue le falde,
+// sporge un poco dalla gronda e lascia cadere qualche ghiacciolo
+function snowCap([l, r, t], sc) {
+  const th = 3.2 * sc;
+  const over = 2 * sc;
+  const pts = [[l[0] - over, l[1] + 1], [t[0], t[1] - th * 0.6], [r[0] + over, r[1] + 1]];
+  // lato in ombra (sotto) e lato illuminato (sopra)
+  fillP([pts[0], pts[1], pts[2], [r[0] - 2, r[1] + th], [t[0], t[1] + th * 1.2], [l[0] + 2, l[1] + th]], G(0.62));
+  fillP([pts[0], pts[1], pts[2], [r[0], r[1] + th * 0.45], [t[0], t[1] + th * 0.6], [l[0], l[1] + th * 0.45]], G(0.97));
+  // grumi lungo la falda
+  for (let i = 0; i < 3; i++) {
+    const k = 0.15 + rnd() * 0.7;
+    const sideL = rnd() < 0.5;
+    const a = sideL ? l : r;
+    const px = a[0] + (t[0] - a[0]) * k;
+    const py = a[1] + (t[1] - a[1]) * k;
+    X.fillStyle = G(0.95);
+    X.beginPath();
+    X.ellipse(px, py - th * 0.3, 2.2 * sc, 1.3 * sc, 0, Math.PI, 0);
+    X.fill();
+  }
+  // ghiaccioli sotto la gronda
+  X.fillStyle = G(0.85, 0.9);
+  for (const e of [l, r]) {
+    const n = 1 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const gx = e[0] + (e === l ? 3 + i * 4 : -3 - i * 4) * sc * 0.6;
+      const len = (2 + rnd() * 3) * sc;
+      fillP([[gx - 1, e[1] + th * 0.4], [gx + 1, e[1] + th * 0.4], [gx, e[1] + th * 0.4 + len]], G(0.85, 0.9));
+    }
+  }
+}
 function houses(x0, x1, y, sc, l0) {
   for (let x = x0; x < x1; ) {
     const bw = (22 + rnd() * 18) * sc;
@@ -706,19 +740,13 @@ function houses(x0, x1, y, sc, l0) {
     const rf = [[x - 2, y - bh], [x + bw + 2, y - bh], [x + bw / 2, y - bh - bw * 0.35]];
     facade(rect(x, y - bh, bw, bh), l, l * 0.7, { gx: 6, gy: 8, lit: 0.3, glass: 0.7 });
     fillP(rf, G(l * 0.45));
-    X.strokeStyle = G(0.95, 0.9);
-    X.lineWidth = 2;
-    X.beginPath();
-    X.moveTo(rf[0][0], rf[0][1]);
-    X.lineTo(rf[2][0], rf[2][1]);
-    X.lineTo(rf[1][0], rf[1][1]);
-    X.stroke();
+    snowCap(rf, sc);
     x += bw + ((rnd() * 3) | 0);
   }
 }
 function perlan(c) {
   for (let i = 0; i < 5; i++) stone(rect(c - 62 + i * 26, GY - 95, 24, 95), 0.55, 0.3, { rib: 4 });
-  X.fillStyle = lgx(c - 80, c + 80, 0.9, 0.4);
+  X.fillStyle = lgx(c - 80, c + 80, 0.92, 0.58);
   X.beginPath();
   X.ellipse(c, GY - 95, 78, 46, 0, Math.PI, 0);
   X.fill();
@@ -753,7 +781,8 @@ function harpa(c) {
 }
 function midR(w) {
   houses(-10, w, GY, 1.5, 0.22);
-  perlan(700);
+  // nel quartiere di Öskjuhlíð Perlan è già in primo piano: niente doppione sullo sfondo
+  if (NEAR !== nearPerlan) perlan(700);
   harpa(1300);
 }
 function hall(c) {
@@ -781,11 +810,19 @@ function nearR(w) {
   houses(900, w, GY, 2.2, 0.25);
   hall(520);
   // neve ai bordi della strada
-  for (let x = 0; x < w; x += 120) {
-    X.fillStyle = G(0.8, 0.8);
-    X.beginPath();
-    X.ellipse(x + rnd() * 60, GY + 3, 50 + rnd() * 40, 6, 0, Math.PI, 0);
-    X.fill();
+  // cumuli irregolari: base in ombra, cresta chiara, qualche zolla sparsa
+  for (let x = -40; x < w; x += 90 + rnd() * 70) {
+    const len = 70 + rnd() * 90;
+    const hh = 7 + rnd() * 9;
+    const top = [];
+    for (let i = 0; i <= 8; i++) {
+      const u = i / 8;
+      top.push([x + u * len, GY + 2 - Math.sin(u * Math.PI) * hh * (0.8 + rnd() * 0.3)]);
+    }
+    fillP([...top, [x + len, GY + 4], [x, GY + 4]], G(0.66));
+    fillP([...top.map(([a, b]) => [a, b]), ...top.slice().reverse().map(([a, b]) => [a, b + hh * 0.4])], G(0.96));
+    X.fillStyle = G(0.9, 0.9);
+    for (let i = 0; i < 3; i++) X.fillRect(x + rnd() * len, GY + 4 + rnd() * 10, 3 + rnd() * 4, 2);
   }
   [300, 820, 1500, 2200].forEach((x) => lamp(x, 0.95));
 }
@@ -1138,27 +1175,32 @@ function nearLaugavegur(w) {
 // REYKJAVÍK · ÖSKJUHLÍÐ: la collina boscosa con Perlan in cima
 function nearPerlan(w) {
   ground(w, 1);
-  X.fillStyle = lgx(0, w, 0.26, 0.18);
-  X.beginPath();
-  X.moveTo(300, GY);
-  X.quadraticCurveTo(900, GY - 170, 1500, GY);
-  X.fill();
-  for (let x = 340; x < 1460; x += 34) {
-    const h = 60 + ((x * 7) % 40);
-    const y = GY - 170 * (1 - Math.pow((x - 900) / 600, 2)) + 6;
+  // la collina: una curva vera, e Perlan poggiato in cima (non sospeso nel cielo)
+  const top = 120;
+  const hillY = (x) => GY - top * Math.max(0, 1 - Math.pow((x - 900) / 620, 2));
+  X.save();
+  X.translate(0, -top + 6);
+  scaled(perlan, 900, 1.2);
+  X.restore();
+  const hill = [];
+  for (let x = 280; x <= 1520; x += 20) hill.push([x, hillY(x)]);
+  fillP([...hill, [1520, GY], [280, GY]], lgx(280, 1520, 0.26, 0.18));
+  // bosco di conifere sui fianchi: la base dei serbatoi resta nascosta tra gli alberi
+  for (let x = 330; x < 1480; x += 30) {
+    if (Math.abs(x - 900) < 60) continue;
+    const h = 46 + ((x * 7) % 34);
+    const y = hillY(x) + 10;
     X.fillStyle = G(0.12 + ((x * 3) % 10) * 0.012);
     X.beginPath();
     X.moveTo(x, y - h);
-    X.lineTo(x - 14, y);
-    X.lineTo(x + 14, y);
+    X.lineTo(x - 13, y);
+    X.lineTo(x + 13, y);
     X.fill();
   }
-  X.save();
-  X.translate(0, -150);
-  scaled(perlan, 900, 1.5);
-  X.restore();
   houses(1600, w, GY, 2.2, 0.28);
-  lampsAt([200, 1550, 2100, 2600], 0.95);
+  // niente cavo che attraversa la collina: il primo lampione resta isolato
+  lamp(200, 0.95);
+  lampsAt([1550, 2100, 2600], 0.95);
 }
 
 // zone per città: nome del quartiere, primo piano, etichette dei luoghi nel primo piano
@@ -1179,7 +1221,7 @@ export const ZONES = {
     { name: "MIÐBORG", near: (w) => nearR(w), labels: [["Hallgrímskirkja", 520, 80]] },
     { name: "HÖFNIN", near: nearHarbour, labels: [["Harpa", 620, 250], ["Sólfar", 1400, 330], ["Gamla Höfnin", 1900, 360]] },
     { name: "LAUGAVEGUR", near: nearLaugavegur, labels: [["Laugavegur", 500, 300], ["Skólavörðustígur", 1500, 400]] },
-    { name: "ÖSKJUHLÍÐ", near: nearPerlan, labels: [["Perlan", 900, 120], ["Öskjuhlíð", 1300, 330]] }
+    { name: "ÖSKJUHLÍÐ", near: nearPerlan, labels: [["Perlan", 905, 178], ["Öskjuhlíð", 1250, 392]] }
   ]
 };
 
@@ -1237,6 +1279,7 @@ export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night"
     // livello 0 = cielo: di giorno quello chiaro, di notte quello della città (Delhi di notte usa la luna)
     const zones = ZONES[cityId] ?? ZONES.milano;
     const last = li === defs.length - 1;
+    NEAR = zones[zone % zones.length].near;
     const fn = li === 0 ? (DAY ? daySky : cityId === "delhi" ? sky : draw) : last ? zones[zone % zones.length].near : draw;
     const wl = f ? VW + (W_L - VW) * f : VW;
     const c = document.createElement("canvas");
@@ -1264,7 +1307,7 @@ export function setDayMode(day) {
 // disegna una scena qualsiasi (interni, oggetti, personaggi) con gli stessi strumenti
 // del concept e la converte in palette. draw riceve gli strumenti e lavora in
 // coordinate logiche (alte 540): k scala alla risoluzione finale.
-export function paint(width, height, k, draw, { cell = 2, seedValue = 7 } = {}) {
+export function paint(width, height, k, draw, { cell = 2, seedValue = 7, raw = false, dither = true } = {}) {
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(width));
   c.height = Math.max(1, Math.round(height));
@@ -1274,6 +1317,7 @@ export function paint(width, height, k, draw, { cell = 2, seedValue = 7 } = {}) 
   X.scale(k, k);
   draw({ X, G, rnd, rect, path, fillP, lgx, facade, stone, spire, dome, tree, lamp, ground, houses, skyG, nz, GY });
   X.restore();
-  quant(c, cell);
+  // raw: niente retino (serve per le maschere dei colori d'accento)
+  if (!raw) quant(c, cell, dither);
   return c;
 }

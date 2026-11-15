@@ -6,6 +6,7 @@ import { completeEvent, currentEvent, dayTime, failRun, getRun, cityZone } from 
 import { PlantSensors } from "../input/PlantSensors.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace, OUTDOOR } from "../art/places.js";
+import { snowfall } from "../world/snow.js";
 import { Walker } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
 import { PlantPanel } from "../ui/PlantPanel.js";
@@ -51,6 +52,7 @@ export class EventScene extends Phaser.Scene {
     this.time_ = dayTime(this.run);
     setAmbient(outdoor ? (this.time_ === "night" ? "night" : "city") : null);
     this.events.once("shutdown", () => PlantSensors.send("E0"));
+    if (outdoor && this.origin.id === "reykjavik") snowfall(this, { intensity: 0.8 });
 
     // città sullo sfondo
     const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_, zone: cityZone(this.run) });

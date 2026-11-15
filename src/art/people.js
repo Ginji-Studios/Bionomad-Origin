@@ -19,48 +19,77 @@ function rng(seed) {
 
 
 // zaino-serra compatto con la pianta luminosa; (px, py) = angolo in alto a sinistra
-function drawPack(X, G, px, py, a = 0, walking = false) {
+function drawPack(X, G, px, py, a = 0, walking = false, accent = false) {
+  // capsula di vetro del BIONOMAD: base metallica con la terra, cupola trasparente con la
+  // piantina e la lampada di crescita sul tappo. Nel passaggio "accent" il vetro e le foglie
+  // si disegnano con colori-marcatore, poi diventano lilla e verde sopra il retino.
   const pw = 20;
-  const phh = 44;
+  const ph = 44;
+  const GLASS = accent ? "#ff0000" : G(0.6);
+  const LEAF = accent ? "#00ff00" : G(0.9);
+  const N = (v) => (accent ? "#000000" : G(v));
+  // tappo con la lampada
+  X.fillStyle = N(0.5);
   X.beginPath();
-  X.moveTo(px + 4, py);
-  X.lineTo(px + pw - 4, py);
-  X.lineTo(px + pw, py + 5);
-  X.lineTo(px + pw, py + phh - 5);
-  X.lineTo(px + pw - 4, py + phh);
-  X.lineTo(px + 4, py + phh);
-  X.lineTo(px, py + phh - 5);
-  X.lineTo(px, py + 5);
-  X.closePath();
-  X.fillStyle = G(0.24);
+  X.moveTo(px + 3, py + 6);
+  X.lineTo(px + 5, py);
+  X.lineTo(px + pw - 5, py);
+  X.lineTo(px + pw - 3, py + 6);
   X.fill();
-  X.save();
-  X.clip();
-  X.fillStyle = G(0.08);
-  X.fillRect(px, py + phh - 10, pw, 10);
-  for (let i = 0; i < 3; i++) {
-    const sx = px + 5 + i * 5;
-    const sway = walking ? Math.sin(a + i) * 1.2 : 0;
-    X.strokeStyle = G(0.5);
-    X.lineWidth = 1.2;
+  X.fillStyle = N(0.95);
+  X.fillRect(px + 6, py + 5, pw - 12, 2);
+  // cupola di vetro
+  X.fillStyle = GLASS;
+  X.beginPath();
+  X.moveTo(px + 1, py + 34);
+  X.lineTo(px + 1, py + 14);
+  X.quadraticCurveTo(px + 1, py + 7, px + pw / 2, py + 7);
+  X.quadraticCurveTo(px + pw - 1, py + 7, px + pw - 1, py + 14);
+  X.lineTo(px + pw - 1, py + 34);
+  X.fill();
+  // cono di luce della lampada dentro al vetro
+  if (!accent) {
+    X.fillStyle = G(0.85, 0.5);
     X.beginPath();
-    X.moveTo(sx, py + phh - 10);
-    X.quadraticCurveTo(sx + sway, py + 24, sx + sway * 2, py + 8 + (i % 2) * 6);
-    X.stroke();
-    for (let j = 0; j < 3; j++) {
-      X.fillStyle = G(0.82 + 0.06 * ((i + j) % 3));
-      X.beginPath();
-      X.ellipse(sx + sway + (j % 2 ? 3 : -3), py + 11 + (i % 2) * 6 + j * 9, 4, 2, j % 2 ? -0.6 : 0.6, 0, 7);
-      X.fill();
-    }
+    X.moveTo(px + 7, py + 8);
+    X.lineTo(px + pw - 7, py + 8);
+    X.lineTo(px + pw - 3, py + 22);
+    X.lineTo(px + 3, py + 22);
+    X.fill();
   }
-  X.fillStyle = G(1);
-  X.fillRect(px + 2, py + 5, 2, 14);
-  X.restore();
-  X.fillStyle = G(0.55);
-  X.fillRect(px + 4, py - 5, pw - 8, 6);
-  X.fillRect(px - 1, py + 16, pw + 2, 2);
-  }
+  // piantina: stelo e due foglie che ondeggiano col passo
+  const sway = walking ? Math.sin(a) * 1.2 : 0;
+  X.strokeStyle = N(0.3);
+  X.lineWidth = 1.4;
+  X.beginPath();
+  X.moveTo(px + pw / 2, py + 31);
+  X.quadraticCurveTo(px + pw / 2 + sway, py + 26, px + pw / 2 + sway, py + 21);
+  X.stroke();
+  X.fillStyle = LEAF;
+  [[-1, -0.5], [1, 0.5]].forEach(([d, r]) => {
+    X.beginPath();
+    X.ellipse(px + pw / 2 + sway + d * 4, py + 22 + (d > 0 ? 2 : 0), 4.5, 2.2, r, 0, 7);
+    X.fill();
+  });
+  // terra e base metallica con la fascia
+  X.fillStyle = N(0.12);
+  X.fillRect(px + 2, py + 30, pw - 4, 4);
+  X.fillStyle = N(0.4);
+  X.beginPath();
+  X.moveTo(px, py + 34);
+  X.lineTo(px + pw, py + 34);
+  X.lineTo(px + pw - 1, py + ph - 2);
+  X.quadraticCurveTo(px + pw / 2, py + ph + 1, px + 1, py + ph - 2);
+  X.fill();
+  X.fillStyle = N(0.62);
+  X.fillRect(px, py + 34, pw, 2);
+  X.fillStyle = N(0.25);
+  X.fillRect(px + 3, py + 39, pw - 6, 1);
+  // riflesso sul vetro
+  X.fillStyle = N(1);
+  X.fillRect(px + 3, py + 12, 2, 14);
+  X.fillRect(px + 6, py + 10, 3, 1);
+}
 
 function side(T, ph, o) {
   const { X, G } = T;
@@ -193,7 +222,7 @@ function side(T, ph, o) {
       // davanti al petto; il braccio dietro sale da riposo a sorreggere lo zaino
       const v = o.blend;
       const lerp4 = (A, B) => A.map((a, i) => a + (B[i] - a) * v);
-      if (s === 0) [ex, ey, hx, hy] = lerp4([74, 94, 44, 70], [80, 96, 89, 79]);
+      if (s === 0) [ex, ey, hx, hy] = lerp4([74, 94, 38, 68], [80, 96, 89, 79]);
       else [ex, ey, hx, hy] = lerp4([ex, ey, hx, hy], [70, 100, 84, 116]);
     } else if (o.hold) {
       // o.hold da 0 a 1: dalle braccia a riposo alla presa sullo zaino (per le transizioni)
@@ -285,7 +314,8 @@ function side(T, ph, o) {
   if (long > 0 && !crouch) leg(0, 1);
 
   // zaino-serra compatto con la pianta luminosa
-  if (o.pack !== false) drawPack(X, G, 32, 66 - bob, a, walking);
+  // capsula ben visibile dietro la schiena (sporge oltre il busto)
+  if (o.pack !== false) drawPack(X, G, 24, 64 - bob, a, walking, o.accentPass);
   // abito
   const cy = 66 - bob;
   if (style === "reykjavik") {
@@ -347,9 +377,13 @@ function side(T, ph, o) {
   if (long === 0 && !crouch) leg(0, 1);
   arm(0, 1);
 
-  // testa di profilo
+  // testa di profilo, un po' più grande (proporzioni più simpatiche, come nel riferimento)
   const hx = 64;
   const hy = 38 - bob;
+  X.save();
+  X.translate(hx, hy + 22);
+  X.scale(1.18, 1.18);
+  X.translate(-hx, -(hy + 22));
   X.fillStyle = G(skin * 0.7);
   X.fillRect(hx - 6, hy + 12, 10, 12);
   X.beginPath();
@@ -476,13 +510,24 @@ function side(T, ph, o) {
   X.fillRect(hx + 17, hy + 13, 4, 1);
   if (o.pack !== false) {
     // tubo sottile dal tappo al filtro, sopra la spalla
-    X.strokeStyle = G(0.55);
-    X.lineWidth = 3;
-    X.beginPath();
-    X.moveTo(42, 60 - bob);
-    X.bezierCurveTo(42, 44 - bob, 54, 70 - bob, hx + 10, hy + 17);
+    // tubo corrugato dal tappo della capsula alla maschera, sopra la spalla
+    const hose = () => {
+      X.beginPath();
+      X.moveTo(34, 65 - bob);
+      X.bezierCurveTo(30, 40 - bob, 56, 50 - bob, hx + 10, hy + 17);
+    };
+    X.strokeStyle = G(0.4);
+    X.lineWidth = 4.5;
+    hose();
     X.stroke();
+    X.strokeStyle = G(0.75);
+    X.lineWidth = 1.2;
+    X.setLineDash([1.5, 2]);
+    hose();
+    X.stroke();
+    X.setLineDash([]);
   }
+  X.restore();
 }
 
 // ---------------------------------------------------------------- vista frontale (crediti)
@@ -711,6 +756,56 @@ function front(T, o) {
 // ---------------------------------------------------------------- rifinitura
 
 // luce della luna sul bordo in alto a sinistra e contorno navy di un pixel
+// colori d'accento (unica eccezione alla palette): vetro della capsula azzurrino e foglie verdi
+const ACC = { glass: ["#A9D6EC", "#78B3D3"], leaf: ["#8FD07F", "#57A35E"] };
+function accentize(c, m) {
+  const x = c.getContext("2d", { willReadFrequently: true });
+  const a = x.getImageData(0, 0, c.width, c.height);
+  const b = m.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, m.width, m.height).data;
+  const d = a.data;
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const G1 = hex(ACC.glass[0]), G2 = hex(ACC.glass[1]), L1 = hex(ACC.leaf[0]), L2 = hex(ACC.leaf[1]);
+  // finish() allarga la tela di qualche pixel per il contorno: la maschera va spostata uguale
+  const ox = Math.round((c.width - m.width) / 2);
+  const oy = Math.round((c.height - m.height) / 2);
+  for (let i = 0; i < d.length; i += 4) {
+    const px = (i / 4) % c.width;
+    const py = Math.floor(i / 4 / c.width);
+    const mx = px - ox;
+    const my = py - oy;
+    if (mx < 0 || my < 0 || mx >= m.width || my >= m.height) continue;
+    const j = (my * m.width + mx) * 4;
+    if (d[i + 3] < 128 || b[j + 3] < 128) continue;
+    const r = b[j], g = b[j + 1], bl = b[j + 2];
+    // solo i pixel "puri" del marcatore: i bordi sfumati con altri oggetti non contano
+    const glass = r > 235 && g < 20 && bl < 20;
+    const leaf = g > 235 && r < 20 && bl < 20;
+    if (!glass && !leaf) continue;
+    // dove il retino è chiaro (luce, riflessi) resta chiaro; sul resto il colore pieno a due toni
+    const lum = d[i] + d[i + 1] + d[i + 2];
+    const p = i / 4;
+    const chk = ((p % c.width) + Math.floor(p / c.width)) % 2;
+    // dove il retino è chiaro (luce della lampada) il tono chiaro, altrove i due toni a scacchiera
+    const col = glass ? (lum > 500 ? G1 : G2) : lum > 400 ? L1 : L2;
+    d[i] = col[0];
+    d[i + 1] = col[1];
+    d[i + 2] = col[2];
+  }
+  x.putImageData(a, 0, 0);
+  return c;
+}
+
+// un fotogramma di profilo: disegno retinato + contorno + accenti di colore sulla capsula
+// curva dei toni dei personaggi: più contrasto, così usano tutta la palette BIODOM
+// (dal Dusk blue al Mineral white) invece di restare sui blu intermedi
+const TONE = (v) => Math.max(0, Math.min(1, (v - 0.45) * 1.4 + 0.55));
+function sideFrame(w, h, k, ph, o) {
+  const c = finish(paint(w, h, k, (T) => side({ ...T, G: (v, a) => T.G(TONE(v), a) }, ph, o), { seedValue: 11, cell: 1 }));
+  if (o.pack === false) return c;
+  const m = paint(w, h, k, (T) => side(T, ph, { ...o, accentPass: true }), { seedValue: 11, cell: 1, raw: true });
+  return accentize(c, m);
+}
+
 function finish(c, { rim = true, outline = true } = {}) {
   const pad = 3;
   const out = document.createElement("canvas");
@@ -751,6 +846,18 @@ function finish(c, { rim = true, outline = true } = {}) {
 
 const SIDE_OPTS = new Map();
 
+// versione "senza zaino" (con la maschera) di qualunque personaggio di profilo, con i fotogrammi
+// per tenere la capsula in mano: serve a far curare la pianta ai passanti come al protagonista
+export function bareOf(scene, key) {
+  const opts = SIDE_OPTS.get(key);
+  if (!opts) return null;
+  const bare = `${key}_bareM`;
+  makeSide(scene, bare, { ...opts, pack: false });
+  holdFrames(scene, bare);
+  careFrames(scene, key);
+  return bare;
+}
+
 // fotogrammi "cura dello zaino": c0-c1 il braccio va indietro, c2-c5 picchietta la pianta
 export function careFrames(scene, key) {
   const opts = SIDE_OPTS.get(key);
@@ -759,7 +866,7 @@ export function careFrames(scene, key) {
   const w = Math.round(BW * k);
   const h = Math.round(BH * k);
   const poses = [[0.35, 0], [0.7, 0], [1, 0], [1, -3], [1, -5], [1, -2]];
-  poses.forEach(([reach, tap], i) => scene.textures.addCanvas(`${key}_c${i}`, finish(paint(w, h, k, (T) => side(T, 0, { ...opts, walking: false, reach, tap }), { seedValue: 11, cell: 1 }))));
+  poses.forEach(([reach, tap], i) => scene.textures.addCanvas(`${key}_c${i}`, sideFrame(w, h, k, 0, { ...opts, walking: false, reach, tap })));
   return key;
 }
 
@@ -769,7 +876,7 @@ export function dieFrames(scene, key) {
   if (!opts || scene.textures.exists(`${key}_d0`)) return key;
   const k = opts.scale ?? 1;
   [[1, 0], [1, 0.35], [1, 0.7], [0.6, 1]].forEach(([clutch, crouch], i) =>
-    scene.textures.addCanvas(`${key}_d${i}`, finish(paint(Math.round(BW * k), Math.round(BH * k), k, (T) => side(T, 0, { ...opts, walking: false, clutch, crouch }), { seedValue: 11, cell: 1 })))
+    scene.textures.addCanvas(`${key}_d${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, clutch, crouch }))
   );
   return key;
 }
@@ -781,7 +888,7 @@ export function holdFrames(scene, bareKey) {
   if (!opts) return bareKey;
   if (!scene.textures.exists(`${bareKey}_h0`)) {
     const k = opts.scale ?? 1;
-    const make = (name, o) => scene.textures.addCanvas(`${bareKey}_${name}`, finish(paint(Math.round(BW * k), Math.round(BH * k), k, (T) => side(T, 0, { ...opts, walking: false, pack: false, ...o }), { seedValue: 11, cell: 1 })));
+    const make = (name, o) => scene.textures.addCanvas(`${bareKey}_${name}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, pack: false, ...o }));
     // h0-h7: la mano picchietta la pianta con un ritmo morbido (seno)
     for (let i = 0; i < 8; i++) make(`h${i}`, { hold: 1, tap: -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2) });
     // m0-m4: dalla mano sulla spalla alla presa davanti (lo zaino segue la mano)
@@ -789,7 +896,10 @@ export function holdFrames(scene, bareKey) {
     // b1-b3: dalle braccia a riposo alla presa davanti (per prendere / posare lo zaino)
     [0.25, 0.5, 0.75].forEach((v, i) => make(`b${i + 1}`, { hold: v, tap: 0 }));
   }
-  if (!scene.textures.exists("pack_item")) scene.textures.addCanvas("pack_item", finish(paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9), { seedValue: 11, cell: 1 }), { rim: false, outline: false }));
+  if (!scene.textures.exists("pack_item")) scene.textures.addCanvas(
+      "pack_item",
+      accentize(finish(paint(28, 58, 1, (T) => drawPack(T.X, (v, a) => T.G(TONE(v), a), 4, 9), { seedValue: 11, cell: 1 }), { rim: false }), paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9, 0, false, true), { seedValue: 11, cell: 1, raw: true }))
+    );
   return bareKey;
 }
 
@@ -799,7 +909,7 @@ function makeSide(scene, key, opts) {
   const k = opts.scale ?? 1;
   const w = Math.round(BW * k);
   const h = Math.round(BH * k);
-  const make = (ph, walking) => finish(paint(w, h, k, (T) => side(T, ph, { ...opts, walking }), { seedValue: 11, cell: 1 }));
+  const make = (ph, walking) => sideFrame(w, h, k, ph, { ...opts, walking });
   for (let i = 0; i < 8; i++) scene.textures.addCanvas(`${key}_${i}`, make(i / 8, true));
   scene.textures.addCanvas(`${key}_idle`, make(0, false));
   return key;

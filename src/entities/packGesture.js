@@ -1,4 +1,4 @@
-import { careFrames, holdFrames } from "../art/people.js";
+import { bareOf, careFrames, holdFrames } from "../art/people.js";
 import { Sfx } from "../systems/Sfx.js";
 
 // gesto continuo con lo zaino BIONOMAD, usato nella scena iniziale (lo prende dall'hub e lo indossa)
@@ -14,7 +14,7 @@ export function packGesture(scene, walker, { bareKey, packedKey, hub, mode = "we
   // posizione a schermo dell'angolo dello zaino, dato il punto del disegno (120x200)
   const at = (cx, cy) => [f > 0 ? img.x + (cx - 60) * k : img.x - (cx - 60) * k - 28 * k, img.y - (200 - cy) * k];
   // lo zaino attaccato alla mano: v = 0 mano alla spalla (zaino sulla schiena), v = 1 mano davanti
-  const inHand = (v) => at(28 + 46 * v, 57 + 13 * v);
+  const inHand = (v) => at(20 + 54 * v, 55 + 15 * v);
   const pack = scene.add.image(0, 0, "pack_item").setOrigin(0).setScale(k).setFlipX(f < 0).setScrollFactor(img.scrollFactorX).setVisible(false);
   const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
   const lerp = (A, B, u, lift = 0) => [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u - Math.sin(u * Math.PI) * lift];
@@ -93,4 +93,57 @@ export function packGesture(scene, walker, { bareKey, packedKey, hub, mode = "we
     }
   });
   return pack;
+}
+
+// cura della capsula come il protagonista nel menu: la mano va alla spalla, sfila lo zaino e lo
+// porta davanti (lo zaino segue la mano), picchietta la pianta, poi lo rimette. Dura ~4 s.
+export function careWithPack(scene, walker, { onDone } = {}) {
+  const packedKey = walker.key;
+  const bareKey = bareOf(scene, packedKey);
+  if (!bareKey) return onDone?.();
+  const img = walker.img;
+  const k = img.scaleX;
+  const f = walker.facing >= 0 ? 1 : -1;
+  const at = (cx, cy) => [f > 0 ? img.x + (cx - 60) * k : img.x - (cx - 60) * k - 28 * k, img.y - (200 - cy) * k];
+  const inHand = (v) => at(20 + 54 * v, 55 + 15 * v);
+  const pack = scene.add.image(0, 0, "pack_item").setOrigin(0).setScale(k).setFlipX(f < 0).setScrollFactor(img.scrollFactorX).setVisible(false);
+  const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
+  const T1 = 450, T2 = 1350, T3 = 3150, T4 = 4050, T5 = 4500;
+  walker.posing = true;
+  walker.vx = 0;
+  let puffed = false;
+  scene.tweens.addCounter({
+    from: 0,
+    to: T5,
+    duration: T5,
+    onUpdate: (tw) => {
+      const t = tw.getValue();
+      let v = -1;
+      if (t < T1) img.setTexture(`${packedKey}_${["c0", "c1", "c2"][Math.min(2, Math.floor((t / T1) * 3))]}`);
+      else if (t >= T4) img.setTexture(`${packedKey}_${["c2", "c1", "c0"][Math.min(2, Math.floor(((t - T4) / (T5 - T4)) * 3))]}`);
+      else {
+        if (t < T2) v = Math.round(ease((t - T1) / (T2 - T1)) * 4) / 4;
+        else if (t >= T3) v = Math.round((1 - ease((t - T3) / (T4 - T3))) * 4) / 4;
+        else v = 1;
+        if (v === 1 && t >= T2 && t < T3) {
+          const i = Math.floor((t - T2) / 110) % 8;
+          img.setTexture(`${bareKey}_h${i}`);
+          if (!puffed && t > (T2 + T3) / 2) {
+            puffed = true;
+            walker.bubble?.(8);
+          }
+        } else img.setTexture(`${bareKey}_m${Math.round(v * 4)}`);
+      }
+      if (v >= 0) {
+        const p = inHand(v);
+        pack.setVisible(true).setPosition(Math.round(p[0]), Math.round(p[1])).setDepth(v > 0.4 ? walker.depth + 1 : walker.depth - 1);
+      } else pack.setVisible(false);
+    },
+    onComplete: () => {
+      pack.destroy();
+      walker.posing = false;
+      if (img.active) img.setTexture(`${packedKey}_idle`);
+      onDone?.();
+    }
+  });
 }

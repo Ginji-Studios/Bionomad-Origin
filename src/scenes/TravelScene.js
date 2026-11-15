@@ -6,6 +6,8 @@ import { buildSkyline, paint } from "../world/skyline.js";
 import { posterArt } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
+import { snowfall } from "../world/snow.js";
+import { careWithPack } from "../entities/packGesture.js";
 import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
@@ -40,10 +42,12 @@ export class TravelScene extends Phaser.Scene {
 
     // manifesti BIODOM lungo la strada: pannelli su pali e cartelloni, nel retino della palette
     this.addPosters();
+    // a Reykjavík nevica
+    if (this.origin.id === "reykjavik") snowfall(this);
 
     // qualche passante con il suo zaino, a passo lento
     this.passers = [0, 1, 2, 3, 4, 5].map((i) => {
-      const w = new Walker(this, npcKey(this, this.origin.id, i + (this.run.index % 2) * 6), 500 + i * 620 + Math.random() * 200, FEET - (i % 2) * 6, { speed: 70 + Math.random() * 40, depth: 300 + i });
+      const w = new Walker(this, npcKey(this, this.origin.id, i + (this.run.index % 2) * 6), 500 + i * 620 + Math.random() * 200, FEET - (i % 2) * 6, { speed: 130 + Math.random() * 30, depth: 300 + i });
       w.dir = Math.random() < 0.5 ? -1 : 1;
       w.scale = (i % 4 === 3) ? 0.68 : 1;
       w.careIn = 3000 + Math.random() * 6000;
@@ -72,21 +76,13 @@ export class TravelScene extends Phaser.Scene {
 
   // il passante si ferma, si gira verso lo zaino, lo annaffia e la pianta rilascia ossigeno
   care(w) {
-    w.caring = 2600;
+    // si ferma e cura la capsula esattamente come il protagonista nel menu
+    w.caring = 4600;
     w.update(0, 16);
-    w.facing = -w.dir;
-    w.img.setFlipX(w.facing < 0);
-    const s = w.scale;
-    const px = w.x + w.dir * 22 * s;
-    const top = w.img.y - 150 * s;
-    // gocce d'acqua sulla pianta
-    for (let i = 0; i < 6; i++) {
-      const d = this.add.rectangle(px + (Math.random() - 0.5) * 14, top - 20, 2, 5, 0x5e6d88).setDepth(w.depth + 2);
-      this.tweens.add({ targets: d, y: top + 10, alpha: 0, duration: 500, delay: 300 + i * 150, onComplete: () => d.destroy() });
-    }
-    this.tweens.add({ targets: w.img, scaleY: 0.97, duration: 260, yoyo: true, repeat: 3 });
-    this.time.delayedCall(1200, () => w.img.active && w.bubble(8));
+    w.vx = 0;
+    careWithPack(this, w);
   }
+
 
   addPosters() {
     const kinds = [

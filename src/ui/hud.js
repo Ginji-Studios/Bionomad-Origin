@@ -383,8 +383,6 @@ export function taskPanel(scene, { x = 40, y = 112, w = 330 } = {}) {
       bg.lineStyle(1, C.c3, 1);
       bg.lineBetween(0, headH, w, headH);
       bg.strokeRect(0.5, 0.5, w - 1, hgt - 1);
-      bg.fillStyle(C.c4, 1);
-      [[0, 0], [w, 0], [0, hgt], [w, hgt]].forEach(([nx, ny]) => bg.fillRect(nx - 3, ny - 3, 6, 6));
       this.height = hgt;
     }
   };

@@ -240,9 +240,8 @@ export class MenuScene extends Phaser.Scene {
     // lo zaino segue la mano: angolo in alto a sinistra = mano + scostamento
     let pack = null;
     if (v >= 0) {
-      const hx = 44 + (89 - 44) * v;
-      const hy = 70 + (79 - 70) * v;
-      pack = at(hx - 16 + v, hy - 13 + 4 * v);
+      // zaino in mano: da sulla schiena (20,55) a davanti al petto (74,70)
+      pack = at(20 + 54 * v, 55 + 15 * v);
     }
     const front = v > 0.4;
     op.setTexture(`${key}_${frame}`);

@@ -25,24 +25,21 @@ export class Walker {
   }
 
   // bollicine di ossigeno che escono dal tappo dello zaino-serra
+  // bollicine di ossigeno che escono dalla capsula: partono dal tappo con la lampada,
+  // salgono ondeggiando e svaniscono (quadratini nei colori della palette)
   bubble(count = 1) {
-    if (!this.pack) return;
+    if (!this.pack || !this.img.active) return;
     const sf = this.img.scrollFactorX;
+    const s = this.scale;
     for (let i = 0; i < count; i++) {
-      const bx = this.img.x - this.facing * 22 * this.scale + (Math.random() - 0.5) * 8;
-      const by = this.img.y - 150 * this.scale;
-      const size = Math.random() < 0.3 ? 4 : 3;
-      const b = this.scene.add.rectangle(bx, by, size, size, 0xf1f0ed, 0.9).setDepth(this.depth + 1).setScrollFactor(sf);
-      this.scene.tweens.add({
-        targets: b,
-        y: by - 50 - Math.random() * 50,
-        x: bx + (Math.random() - 0.5) * 24,
-        alpha: 0,
-        duration: 1100 + Math.random() * 700,
-        delay: i * 90,
-        ease: "Sine.easeOut",
-        onComplete: () => b.destroy()
-      });
+      const bx = this.img.x - this.facing * 26 * s + (Math.random() - 0.5) * 10 * s;
+      const by = this.img.y - 138 * s;
+      const size = Math.random() < 0.35 ? 5 : Math.random() < 0.6 ? 4 : 3;
+      const col = Math.random() < 0.7 ? 0xf1f0ed : 0x5e6d88;
+      const b = this.scene.add.rectangle(bx, by, size, size, col, 0.95).setDepth(this.depth + 1).setScrollFactor(sf);
+      const drift = (Math.random() - 0.5) * 30;
+      this.scene.tweens.add({ targets: b, y: by - 60 - Math.random() * 60, alpha: 0, duration: 1400 + Math.random() * 800, delay: i * 110, ease: "Sine.easeOut", onComplete: () => b.destroy() });
+      this.scene.tweens.add({ targets: b, x: bx + drift, duration: 700, delay: i * 110, yoyo: true, repeat: 1, ease: "Sine.easeInOut" });
     }
   }
 
@@ -61,8 +58,8 @@ export class Walker {
     const dt = delta / 1000;
     this.bubbleMs -= delta;
     if (this.bubbleMs <= 0) {
-      this.bubble(1);
-      this.bubbleMs = 700 + Math.random() * 900;
+      this.bubble(Math.random() < 0.4 ? 2 : 1);
+      this.bubbleMs = 450 + Math.random() * 650;
     }
     const target = this.frozen ? 0 : dir * this.speed;
     this.vx += (target - this.vx) * Math.min(1, dt * 10);
@@ -77,6 +74,19 @@ export class Walker {
       const f = Math.floor(this.phase * 8);
       this.img.setTexture(`${this.key}_${f}`);
       if (this.sound && f !== before && f % 4 === 0) Sfx.step(this.indoor);
+      this.moving = true;
+    } else if (this.moving) {
+      // fermata morbida: chiude il passo fino a riportare i piedi insieme (fase 0 o 0,5),
+      // poi un piccolo assestamento del corpo, invece di scattare subito in posa ferma
+      const goal = this.phase < 0.5 ? 0.5 : 1;
+      this.phase = Math.min(goal, this.phase + dt * 1.6);
+      if (this.phase >= goal - 0.001) {
+        this.phase = goal % 1;
+        this.moving = false;
+        this.img.setTexture(`${this.key}_idle`);
+        const sy = this.img.scaleY;
+        this.scene.tweens.add({ targets: this.img, scaleY: sy * 0.975, duration: 110, yoyo: true, ease: "Sine.easeOut" });
+      } else this.img.setTexture(`${this.key}_${Math.floor(this.phase * 8) % 8}`);
     } else {
       this.img.setTexture(`${this.key}_idle`);
     }

@@ -7,6 +7,7 @@ let audioPaused = false;
 let master = null;
 let fxBus = null;
 let ambBus = null;
+let echoBus = null;
 let noiseBuffer = null;
 let ambient = null;
 let ambientKind = null;
@@ -28,6 +29,22 @@ function audio() {
     fxBus = ctx.createGain();
     fxBus.gain.value = 0.7;
     fxBus.connect(master);
+    // eco breve da "sala": dà ai comunicati il suono di un annuncio pubblico
+    echoBus = ctx.createGain();
+    echoBus.gain.value = 0.7;
+    const dl = ctx.createDelay(1);
+    dl.delayTime.value = 0.19;
+    const fb = ctx.createGain();
+    fb.gain.value = 0.32;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 2400;
+    echoBus.connect(master);
+    echoBus.connect(dl);
+    dl.connect(lp);
+    lp.connect(fb);
+    fb.connect(dl);
+    lp.connect(master);
     ambBus = ctx.createGain();
     ambBus.gain.value = 0.35;
     ambBus.connect(master);
@@ -106,61 +123,83 @@ function noise(dur, { vol = 0.1, freq = 1200, q = 1, type = "bandpass", delay = 
   src.stop(t + dur + 0.05);
 }
 
-// effetti
+// effetti: linguaggio sonoro "istituzionale" da strumento di monitoraggio — toni puri (sinusoidi),
+// brevi e bassi di volume, intervalli di quinta, clic da terminale; niente arpeggi da videogioco
+const click = (vol = 0.05, delay = 0) => noise(0.012, { vol, freq: 5200, q: 0.9, type: "highpass", delay });
+const ping = (f, dur, vol, delay = 0, bus) => tone(f, dur, { type: "sine", vol, delay, attack: 0.004, bus });
 export const Sfx = {
-  blip: () => tone(740, 0.05, { vol: 0.06 }),
-  confirm: () => {
-    tone(523, 0.07, { vol: 0.07 });
-    tone(784, 0.12, { vol: 0.07, delay: 0.07 });
+  // tocco sull'interfaccia: clic secco + puntino di tono
+  blip: () => {
+    click(0.035);
+    ping(1320, 0.04, 0.025);
   },
-  back: () => tone(392, 0.08, { vol: 0.06, slide: -80 }),
-  whoosh: () => noise(0.32, { vol: 0.07, freq: 500, sweep: 1600, q: 0.8 }),
+  // conferma: due toni a distanza di quinta, in salita
+  confirm: () => {
+    click(0.03);
+    ping(660, 0.07, 0.045);
+    ping(990, 0.11, 0.045, 0.07);
+  },
+  back: () => {
+    click(0.03);
+    ping(990, 0.06, 0.04);
+    ping(660, 0.1, 0.04, 0.06);
+  },
+  // cambio schermata: fruscio di dati, breve e scuro
+  whoosh: () => noise(0.22, { vol: 0.035, freq: 2600, sweep: -2000, q: 0.7, type: "bandpass" }),
   // passi: all'aperto un fruscio sul marciapiede, al chiuso un "toc" leggero sul pavimento
   step: (indoor = false) => {
     if (indoor) {
-      noise(0.06, { vol: 0.15, freq: 380, q: 1.4, type: "lowpass" });
-      tone(110 + Math.random() * 20, 0.06, { type: "sine", vol: 0.09 });
-    } else noise(0.04, { vol: 0.035, freq: 700, q: 2 });
+      noise(0.06, { vol: 0.12, freq: 380, q: 1.4, type: "lowpass" });
+      tone(110 + Math.random() * 20, 0.05, { type: "sine", vol: 0.07 });
+    } else noise(0.04, { vol: 0.03, freq: 700, q: 2 });
   },
-  // ossigeno guadagnato: due note limpide che salgono
+  // ossigeno guadagnato: "ping" chiaro da monitor, con la sua armonica
   o2Gain: (soft = false) => {
-    const v = soft ? 0.025 : 0.07;
-    tone(880, 0.09, { type: "triangle", vol: v });
-    tone(1318, 0.16, { type: "triangle", vol: v, delay: 0.08 });
+    const v = soft ? 0.02 : 0.055;
+    ping(1046, 0.18, v);
+    ping(2093, 0.1, v * 0.35);
   },
-  // ossigeno perso: nota che scende
-  o2Loss: (soft = false) => tone(330, 0.22, { type: "sawtooth", vol: soft ? 0.018 : 0.05, slide: -140 }),
-  // task completata: arpeggio
-  task: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.14, { type: "triangle", vol: 0.08, delay: i * 0.09 })),
-  // negligenza: doppio ronzio basso
+  // ossigeno perso: tono basso che si abbassa appena
+  o2Loss: (soft = false) => tone(247, 0.24, { type: "sine", vol: soft ? 0.02 : 0.055, slide: -50 }),
+  // task registrata: clic + quinta pulita, come una conferma di sistema
+  task: () => {
+    click(0.04);
+    ping(784, 0.14, 0.06, 0.02);
+    ping(1175, 0.26, 0.05, 0.12);
+  },
+  // negligenza: doppio segnale basso, smorzato
   negligence: () => {
-    tone(140, 0.16, { type: "square", vol: 0.06 });
-    tone(120, 0.22, { type: "square", vol: 0.06, delay: 0.18 });
+    ping(196, 0.16, 0.07);
+    ping(196, 0.2, 0.07, 0.22);
   },
-  // allarme ossigeno basso
-  alarm: () => {
-    tone(880, 0.12, { vol: 0.05 });
-    tone(660, 0.12, { vol: 0.05, delay: 0.14 });
-  },
-  // sirena del picco di smog
+  // allarme ossigeno basso: tre bip regolari da apparecchiatura medica
+  alarm: () => [0, 0.16, 0.32].forEach((d) => ping(988, 0.09, 0.045, d)),
+  // allerta smog: sirena lenta da protezione civile, morbida
   siren: () => {
-    tone(520, 0.6, { type: "triangle", vol: 0.04, slide: 260 });
-    tone(780, 0.6, { type: "triangle", vol: 0.04, slide: -260, delay: 0.6 });
+    tone(440, 0.7, { type: "sine", vol: 0.04, slide: 110 });
+    tone(550, 0.7, { type: "sine", vol: 0.04, slide: -110, delay: 0.7 });
   },
   cough: () => {
-    noise(0.12, { vol: 0.08, freq: 600, q: 0.7 });
-    noise(0.1, { vol: 0.06, freq: 500, q: 0.7, delay: 0.2 });
+    noise(0.12, { vol: 0.07, freq: 600, q: 0.7 });
+    noise(0.1, { vol: 0.05, freq: 500, q: 0.7, delay: 0.2 });
   },
-  // lo zaino si aggancia: soffio d'aria e nota che sale
+  // lo zaino si aggancia: sfiato pneumatico, scatto del raccordo, tono di conferma
   attach: () => {
-    noise(0.5, { vol: 0.08, freq: 300, sweep: 2400, q: 0.6 });
-    tone(440, 0.4, { type: "triangle", vol: 0.05, slide: 440, delay: 0.1 });
+    noise(0.35, { vol: 0.06, freq: 1800, sweep: -1400, q: 0.6, type: "highpass" });
+    click(0.06, 0.32);
+    ping(523, 0.22, 0.045, 0.36);
   },
-  // comunicato ufficiale: tre note da annuncio pubblico
-  tick: () => tone(1800, 0.02, { type: "square", vol: 0.012 }),
-  announce: () => [659, 523, 784].forEach((f, i) => tone(f, 0.22, { type: "sine", vol: 0.07, delay: i * 0.2 })),
-  win: () => [523, 659, 784, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, { type: "triangle", vol: 0.08, delay: i * 0.12 })),
-  gameOver: () => [392, 330, 262, 196].forEach((f, i) => tone(f, 0.4, { type: "sawtooth", vol: 0.04, delay: i * 0.28, slide: -20 }))
+  // battitura del testo: tic da telescrivente
+  tick: () => noise(0.008, { vol: 0.02, freq: 4200, q: 1, type: "highpass" }),
+  // comunicato ufficiale: segnale d'annuncio pubblico a tre toni discendenti, con eco di sala
+  announce: () => [784, 659, 523].forEach((f, i) => ping(f, 0.45, 0.06, i * 0.34, echoBus)),
+  // fine giornata: accordo calmo che si apre, con eco
+  win: () => [523, 659, 784, 1046].forEach((f, i) => ping(f, 1.1, 0.035, i * 0.05, echoBus)),
+  // ossigeno esaurito: due toni bassi discendenti, lunghi
+  gameOver: () => {
+    ping(330, 0.7, 0.06, 0, echoBus);
+    ping(220, 1.2, 0.06, 0.55, echoBus);
+  }
 };
 
 // sottofondo d'ambiente: "city" (traffico lontano e vento filtrato), "night", "indoor" (ronzio del purificatore)
