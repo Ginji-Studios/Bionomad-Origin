@@ -878,14 +878,46 @@ const SIDE_OPTS = new Map();
 
 // versione "senza zaino" (con la maschera) di qualunque personaggio di profilo, con i fotogrammi
 // per tenere la capsula in mano: serve a far curare la pianta ai passanti come al protagonista
-export function bareOf(scene, key) {
+// fotogrammi per la cura dello zaino dei passanti: generati uno alla volta (generatore), così la
+// scena può prepararli in sottofondo un fotogramma per volta invece di bloccarsi al primo uso.
+// Servono solo: h0-h7 (picchietta), m0-m4 (zaino dalla spalla alla mano) e c0-c5 (braccio indietro).
+function* bareGen(scene, key) {
   const opts = SIDE_OPTS.get(key);
   if (!opts) return null;
   const bare = `${key}_bareM`;
-  makeSide(scene, bare, { ...opts, pack: false });
-  holdFrames(scene, bare);
-  careFrames(scene, key);
+  const bopts = { ...opts, pack: false };
+  SIDE_OPTS.set(bare, bopts);
+  const k = opts.scale ?? 1;
+  const w = Math.round(BW * k);
+  const h = Math.round(BH * k);
+  const add = function* (name, o) {
+    if (scene.textures.exists(name)) return;
+    scene.textures.addCanvas(name, sideFrame(w, h, k, 0, o));
+    yield name;
+  };
+  for (let i = 0; i < 8; i++) yield* add(`${bare}_h${i}`, { ...bopts, walking: false, pack: false, hold: 1, tap: -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2) });
+  const blends = [0, 0.25, 0.5, 0.75, 1];
+  for (let i = 0; i < 5; i++) yield* add(`${bare}_m${i}`, { ...bopts, walking: false, pack: false, blend: blends[i], tap: 0 });
+  const poses = [[0.35, 0], [0.7, 0], [1, 0], [1, -3], [1, -5], [1, -2]];
+  for (let i = 0; i < 6; i++) yield* add(`${key}_c${i}`, { ...opts, walking: false, reach: poses[i][0], tap: poses[i][1] });
+  if (!scene.textures.exists("pack_item")) {
+    scene.textures.addCanvas(
+      "pack_item",
+      accentize(finish(paint(28, 58, 1, (T) => drawPack(T.X, (v, a) => T.G(TONE(v), a), 4, 9), { seedValue: 11, cell: 1 }), { rim: false }), paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9, 0, false, true), { seedValue: 11, cell: 1, raw: true }))
+    );
+    yield "pack_item";
+  }
   return bare;
+}
+export function bareOf(scene, key) {
+  const g = bareGen(scene, key);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+// preparazione in sottofondo: ogni next() crea al massimo un fotogramma
+export function warmBare(scene, key) {
+  return bareGen(scene, key);
 }
 
 // fotogrammi "cura dello zaino": c0-c1 il braccio va indietro, c2-c5 picchietta la pianta

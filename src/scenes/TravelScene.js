@@ -5,7 +5,7 @@ import { dayTime, failRun, getRun, nextDestination, cityZone } from "../systems/
 import { buildSkyline, paint } from "../world/skyline.js";
 import { posterArt } from "../art/places.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
-import { npcKey, operatorKey } from "../art/people.js";
+import { npcKey, operatorKey, warmBare } from "../art/people.js";
 import { snowfall } from "../world/snow.js";
 import { careWithPack } from "../entities/packGesture.js";
 import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
@@ -57,6 +57,9 @@ export class TravelScene extends Phaser.Scene {
       return w;
     });
 
+    // fotogrammi della cura dello zaino dei passanti: preparati in sottofondo, uno per fotogramma,
+    // così la prima volta che un passante si ferma il gioco non ha un piccolo scatto
+    this.warm = this.passers.map((w) => warmBare(this, w.key));
     const opKey = operatorKey(this, this.registry.get("operator") ?? "a", this.origin.id);
     // a fine giornata si torna a casa: all'andata si esce verso destra, al ritorno si cammina
     // verso sinistra (e in casa si rientra dalla porta camminando ancora verso sinistra)
@@ -141,6 +144,11 @@ export class TravelScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.player) return;
+    // un fotogramma di preparazione per volta
+    if (this.warm?.length) {
+      const g = this.warm[0];
+      if (g.next().done) this.warm.shift();
+    }
     this.passers.forEach((w) => {
       if (w.x <= w.minX + 5) w.dir = 1;
       if (w.x >= w.maxX - 5) w.dir = -1;
