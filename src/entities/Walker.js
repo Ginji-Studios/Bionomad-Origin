@@ -96,6 +96,20 @@ export class Walker {
     }
   }
 
+  // etichetta "O₂+" / "O₂−" che sale sopra la testa e svanisce (al posto del saltello)
+  o2Pop(sign = 1) {
+    const sc = this.scene;
+    const img = this.img;
+    const x = Math.round(img.x);
+    const y = Math.round(img.y - img.displayHeight - 18);
+    const label = sign >= 0 ? "O₂+" : "O₂−";
+    const t = sc.add.text(0, 0, label, { fontFamily: '"Roboto Mono", monospace', fontSize: "22px", fontStyle: "500", color: sign >= 0 ? "#1C2839" : "#F1F0ED" }).setOrigin(0.5);
+    const bg = sc.add.rectangle(0, 0, t.width + 16, t.height + 6, sign >= 0 ? 0xf1f0ed : 0x1c2839, 1).setStrokeStyle(2, 0xf1f0ed);
+    const c = sc.add.container(x, y, [bg, t]).setDepth(1550).setScrollFactor(img.scrollFactorX).setAlpha(0);
+    sc.tweens.add({ targets: c, alpha: 1, y: y - 10, duration: 220, ease: "Sine.easeOut" });
+    sc.tweens.add({ targets: c, alpha: 0, y: y - 46, duration: 700, delay: 900, ease: "Sine.easeIn", onComplete: () => c.destroy() });
+  }
+
   // piccolo saltello di soddisfazione
   cheer() {
     this.scene.tweens.add({ targets: this.img, y: this.img.y - 14, duration: 140, yoyo: true, repeat: 1, ease: "Quad.easeOut" });

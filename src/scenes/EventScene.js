@@ -184,12 +184,13 @@ export class EventScene extends Phaser.Scene {
         const left = this.step.cures - this.cures;
         const bonus = left > 0 ? 0.14 : 0.34;
         this.addOxygen(bonus, true);
-        this.player.cheer();
+        this.player.o2Pop(1);
         this.player.bubble?.(10);
         Sfx.o2Gain();
         toast(this, left > 0 ? `CURA RIUSCITA · +${Math.round(bonus * 100)}% O₂ · NE MANCANO ${left}` : `PIANTA STABILE · +${Math.round(bonus * 100)}% O₂ · VAI A CASA`, { duration: 1600 });
       } else {
         this.addOxygen(-0.15, true);
+        this.player.o2Pop(-1);
         Sfx.negligence();
         this.cameras.main.shake(200, 0.006);
         toast(this, "TROPPO TARDI · IL PARASSITA AVANZA", { duration: 1600 });
@@ -207,6 +208,7 @@ export class EventScene extends Phaser.Scene {
     const messages = { forgot: "NEGLIGENZA · NON L'HAI CURATA IN TEMPO", overheat: "NEGLIGENZA · TROPPO CALORE", flood: "NEGLIGENZA · LEVA DELL'ACQUA APERTA", wrongVial: "NEGLIGENZA · FIALA SBAGLIATA" };
     const cost = { forgot: 0.18, overheat: 0.12, flood: 0.2, wrongVial: 0.12 }[type] ?? 0.1;
     Sfx.negligence();
+    this.player.o2Pop(-1);
     this.addOxygen(-cost, true);
     this.cameras.main.shake(220, 0.006);
     toast(this, messages[type] ?? "NEGLIGENZA", { y: 620, duration: 2200 });
@@ -337,7 +339,7 @@ export class EventScene extends Phaser.Scene {
   completeStep() {
     Sfx.o2Gain();
     this.addOxygen(STEP_BONUS);
-    this.player.cheer();
+    this.player.o2Pop(1);
     this.stepIndex += 1;
     if (this.stepIndex >= this.event.steps.length) this.finishEvent();
     else this.startStep();
