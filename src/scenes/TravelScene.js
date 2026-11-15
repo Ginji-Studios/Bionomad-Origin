@@ -58,11 +58,21 @@ export class TravelScene extends Phaser.Scene {
     });
 
     const opKey = operatorKey(this, this.registry.get("operator") ?? "a", this.origin.id);
-    this.player = new Walker(this, opKey, 420, FEET, { sound: true, depth: 500, speed: 255 });
+    // a fine giornata si torna a casa: all'andata si esce verso destra, al ritorno si cammina
+    // verso sinistra (e in casa si rientra dalla porta camminando ancora verso sinistra)
+    this.back = this.finished;
+    const startX = this.back ? this.worldW - 420 : 420;
+    this.player = new Walker(this, opKey, startX, FEET, { sound: true, depth: 500, speed: 255 });
     this.player.maxX = this.worldW - 60;
-    smoothFollow(this, this.player, 460);
+    if (this.back) {
+      this.player.facing = -1;
+      this.player.img.setFlipX(true);
+    }
+    const screenX = this.back ? VIEW.w - 460 : 460;
+    this.cameras.main.setScroll(Phaser.Math.Clamp(startX - screenX, 0, this.worldW - VIEW.w), 0);
+    smoothFollow(this, this.player, screenX);
 
-    this.goalX = this.worldW - 170;
+    this.goalX = this.back ? 170 : this.worldW - 170;
     this.mark = marker(this, this.goalX, PLACE_NAME[this.dest.location] ?? "ARRIVO", { y: FEET - 230, h: 230, icon: this.dest.location ?? "flag" });
 
     brackets(this);
@@ -167,7 +177,7 @@ export class TravelScene extends Phaser.Scene {
       this.player.faint(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose" })));
       return;
     }
-    if (this.player.x >= this.goalX - 20) {
+    if (this.back ? this.player.x <= this.goalX + 20 : this.player.x >= this.goalX - 20) {
       this.done = true;
       this.run.oxygen = this.oxygen;
       this.run.lastLocation = this.dest.location;

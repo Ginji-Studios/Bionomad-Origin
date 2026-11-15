@@ -153,13 +153,13 @@ export class OutroScene extends Phaser.Scene {
     // mentre è in carica, la pianta sull'hub rilascia ossigeno
     if (this.charging && (this.chargeMs -= delta) <= 0) {
       this.chargeMs = 380;
-      const b = this.add.rectangle(this.hubPack.x + 8 + Math.random() * 12, this.hubPack.y + 10, 3 + (Math.random() < 0.3 ? 1 : 0), 3, Math.random() < 0.7 ? 0xf1f0ed : C.c4).setScrollFactor(0).setDepth(820);
+      const b = this.add.rectangle(this.hubAt.x + 8 + Math.random() * 12, this.hubAt.y + 10, 3 + (Math.random() < 0.3 ? 1 : 0), 3, Math.random() < 0.7 ? 0xf1f0ed : C.c4).setScrollFactor(0).setDepth(820);
       const drift = (Math.random() - 0.5) * 24;
       this.tweens.add({ targets: b, y: b.y - 70 - Math.random() * 50, x: b.x + drift, alpha: 0, duration: 1600, ease: "Sine.easeOut", onComplete: () => b.destroy() });
     }
     if (this.charging && this.glow) {
       // l'alone respira lentamente
-      this.glow.setPosition(this.hubPack.x + 14, this.hubPack.y + 26).setScale(1 + Math.sin(time / 520) * 0.05);
+      this.glow.setPosition(this.hubAt.x + 14, this.hubAt.y + 26).setScale(1 + Math.sin(time / 520) * 0.05);
     }
   }
 
@@ -177,6 +177,10 @@ export class OutroScene extends Phaser.Scene {
       mode: "unpack",
       onDone: (pack) => {
         this.hubPack = pack;
+        // punto fisso dell'hub per alone e bollicine (lo zaino sparisce dentro l'hub)
+        this.hubAt = { x: pack.x, y: pack.y };
+        // il Bionomad si aggancia e scompare nell'hub: scende di poco e si dissolve
+        this.tweens.add({ targets: pack, y: pack.y + 14, alpha: 0, duration: 520, delay: 180, ease: "Sine.easeIn", onComplete: () => pack.setVisible(false) });
         Sfx.attach();
         // impulso di ricarica: un anello che si allarga dallo zaino
         const ring = this.add.rectangle(pack.x + 14, pack.y + 29, 40, 70).setStrokeStyle(2, C.c4, 1).setScrollFactor(0).setDepth(700);
