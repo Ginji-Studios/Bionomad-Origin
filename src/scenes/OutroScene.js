@@ -101,7 +101,6 @@ export class OutroScene extends Phaser.Scene {
       callback: () => {
         i++;
         this.cap.setText(text.slice(0, i));
-        if (i % 3 === 0) Sfx.tick?.();
       }
     });
   }

@@ -23,6 +23,10 @@ export function packGesture(scene, walker, { bareKey, packedKey, hub, mode = "we
   const tex = (key, frame) => img.setTexture(`${key}_${frame}`);
   let attached = false;
   walker.posing = true; // l'animazione la guida questo gesto, non il passo
+  // passo azzerato: finito il gesto il personaggio non deve "chiudere" un passo rimasto a metà
+  // (sembrava ripartire a camminare per poi bloccarsi quando compare il protocollo)
+  walker.moving = false;
+  walker.phase = 0;
   // fermo davvero: senza azzerare la velocità, finito il gesto il personaggio "scivolava" qualche passo
   walker.vx = 0;
   const total = mode === "wear" ? 2100 : 2000;
@@ -110,6 +114,8 @@ export function careWithPack(scene, walker, { onDone } = {}) {
   const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
   const T1 = 450, T2 = 1350, T3 = 3150, T4 = 4050, T5 = 4500;
   walker.posing = true;
+  walker.moving = false;
+  walker.phase = 0;
   walker.vx = 0;
   let puffed = false;
   scene.tweens.addCounter({

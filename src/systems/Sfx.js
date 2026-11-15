@@ -183,11 +183,10 @@ export const Sfx = {
     noise(0.12, { vol: 0.07, freq: 600, q: 0.7 });
     noise(0.1, { vol: 0.05, freq: 500, q: 0.7, delay: 0.2 });
   },
-  // lo zaino si aggancia: sfiato pneumatico, scatto del raccordo, tono di conferma
+  // lo zaino si aggancia: scatto del raccordo e tono di conferma (niente sfiato)
   attach: () => {
-    noise(0.35, { vol: 0.06, freq: 1800, sweep: -1400, q: 0.6, type: "highpass" });
-    click(0.06, 0.32);
-    ping(523, 0.22, 0.045, 0.36);
+    click(0.06);
+    ping(523, 0.22, 0.045, 0.04);
   },
   // battitura del testo: tic da telescrivente
   tick: () => noise(0.008, { vol: 0.02, freq: 4200, q: 1, type: "highpass" }),

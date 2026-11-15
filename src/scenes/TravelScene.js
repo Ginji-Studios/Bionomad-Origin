@@ -4,7 +4,7 @@ import { getOrigin } from "../config/origins.js";
 import { dayTime, failRun, getRun, nextDestination, cityZone } from "../systems/RunManager.js";
 import { buildSkyline, paint } from "../world/skyline.js";
 import { posterArt } from "../art/places.js";
-import { Walker } from "../entities/Walker.js";
+import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
 import { snowfall } from "../world/snow.js";
 import { careWithPack } from "../entities/packGesture.js";
@@ -58,9 +58,9 @@ export class TravelScene extends Phaser.Scene {
     });
 
     const opKey = operatorKey(this, this.registry.get("operator") ?? "a", this.origin.id);
-    this.player = new Walker(this, opKey, 420, FEET, { sound: true, depth: 500 });
+    this.player = new Walker(this, opKey, 420, FEET, { sound: true, depth: 500, speed: 255 });
     this.player.maxX = this.worldW - 60;
-    this.cameras.main.startFollow(this.player.img, true, 0.08, 0.08, -180, 0);
+    smoothFollow(this, this.player, 460);
 
     this.goalX = this.worldW - 170;
     this.mark = marker(this, this.goalX, PLACE_NAME[this.dest.location] ?? "ARRIVO", { y: FEET - 230, h: 230, icon: this.dest.location ?? "flag" });

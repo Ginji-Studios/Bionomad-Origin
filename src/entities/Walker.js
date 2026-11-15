@@ -1,6 +1,6 @@
 import Phaser from "../phaser.js";
 import { Sfx } from "../systems/Sfx.js";
-import { dieFrames } from "../art/people.js";
+import { dieFrames, WALK_FRAMES } from "../art/people.js";
 
 // personaggio retinato che cammina a sinistra / destra sulla strada
 export class Walker {
@@ -55,7 +55,9 @@ export class Walker {
   update(dir, delta) {
     // durante lo svenimento l'animazione la guida faint()
     if (this.dying || this.posing) return;
-    const dt = delta / 1000;
+    // delta livellato: un fotogramma lento non fa saltare avanti il personaggio
+    this.dtS = this.dtS ? this.dtS + (Math.min(delta, 50) - this.dtS) * 0.25 : Math.min(delta, 50);
+    const dt = this.dtS / 1000;
     this.bubbleMs -= delta;
     if (this.bubbleMs <= 0) {
       this.bubble(Math.random() < 0.4 ? 2 : 1);
@@ -68,12 +70,14 @@ export class Walker {
     if (this.x <= this.minX || this.x >= this.maxX) this.vx = 0;
     if (dir && !this.frozen) this.facing = dir;
     this.img.setFlipX(this.facing < 0);
+    const N = WALK_FRAMES;
     if (Math.abs(this.vx) > 10) {
-      const before = Math.floor(this.phase * 8);
+      const before = Math.floor(this.phase * N);
       this.phase = (this.phase + Math.abs(this.vx) * dt * 0.0042) % 1;
-      const f = Math.floor(this.phase * 8);
-      this.img.setTexture(`${this.key}_${f}`);
-      if (this.sound && f !== before && f % 4 === 0) Sfx.step(this.indoor);
+      const f = Math.floor(this.phase * N);
+      if (f !== before) this.img.setTexture(`${this.key}_${f}`);
+      // un passo ogni mezzo ciclo (piede a terra)
+      if (this.sound && f !== before && f % (N / 2) === 0) Sfx.step(this.indoor);
       this.moving = true;
     } else if (this.moving) {
       // fermata morbida: chiude il passo fino a riportare i piedi insieme (fase 0 o 0,5),
@@ -86,7 +90,7 @@ export class Walker {
         this.img.setTexture(`${this.key}_idle`);
         const sy = this.img.scaleY;
         this.scene.tweens.add({ targets: this.img, scaleY: sy * 0.975, duration: 110, yoyo: true, ease: "Sine.easeOut" });
-      } else this.img.setTexture(`${this.key}_${Math.floor(this.phase * 8) % 8}`);
+      } else this.img.setTexture(`${this.key}_${Math.floor(this.phase * N) % N}`);
     } else {
       this.img.setTexture(`${this.key}_idle`);
     }
@@ -151,4 +155,28 @@ export class Walker {
     this.img.destroy();
     this.shadow.destroy();
   }
+}
+
+// camera che segue il personaggio senza tremolii: invece di arrotondare separatamente
+// la posizione del personaggio e quella della camera (che a turno saltano di un pixel),
+// si fa scorrere in modo morbido la posizione del personaggio SULLO SCHERMO e la si
+// arrotonda una volta sola; lo scorrimento della città ne deriva.
+export function smoothFollow(scene, walker, screenX = 460) {
+  const cam = scene.cameras.main;
+  cam.stopFollow();
+  let off = walker.x - cam.scrollX;
+  const step = () => {
+    if (!walker.img.active) return;
+    const dt = Math.min(scene.game.loop.delta, 50) / 1000;
+    const b = cam.getBounds();
+    const maxS = Math.max(0, b.width - cam.width);
+    // posizione sullo schermo desiderata, tenendo conto dei bordi del mondo
+    const want = walker.x - Phaser.Math.Clamp(walker.x - screenX, b.x, b.x + maxS);
+    off += (want - off) * (1 - Math.exp(-dt * 4));
+    const px = Math.round(walker.x);
+    cam.scrollX = Phaser.Math.Clamp(px - Math.round(off), b.x, b.x + maxS);
+  };
+  step();
+  scene.events.on("postupdate", step);
+  scene.events.once("shutdown", () => scene.events.off("postupdate", step));
 }

@@ -153,7 +153,6 @@ export class IntroScene extends Phaser.Scene {
         callback: () => {
           i++;
           t.setText(full.slice(0, i));
-          if (i % 3 === 0) Sfx.tick?.();
           if (i >= full.length) done?.();
         }
       });

@@ -7,7 +7,7 @@ import { PlantSensors } from "../input/PlantSensors.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace, OUTDOOR } from "../art/places.js";
 import { snowfall } from "../world/snow.js";
-import { Walker } from "../entities/Walker.js";
+import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
 import { PlantPanel } from "../ui/PlantPanel.js";
 import { box, brackets, cityHud, button, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, skylineLayers, taskPanel, toast, txt, VIEW } from "../ui/hud.js";
@@ -83,11 +83,11 @@ export class EventScene extends Phaser.Scene {
       if (at === "man") this.man = npc;
     });
 
-    this.player = new Walker(this, opKey, 420, FEET, { sound: true, indoor: this.indoor });
+    this.player = new Walker(this, opKey, 420, FEET, { sound: true, indoor: this.indoor, speed: 255 });
     this.player.img.setScrollFactor(sf);
     this.player.shadow.setScrollFactor(sf);
     this.player.maxX = this.worldW - 60;
-    if (this.wide) this.cameras.main.startFollow(this.player.img, true, 0.08, 0.08, -160, 0);
+    if (this.wide) smoothFollow(this, this.player, 480);
 
     // interfaccia
     brackets(this);

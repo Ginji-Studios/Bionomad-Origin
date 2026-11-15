@@ -2,7 +2,7 @@ import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/PlantPanel.js";
-import { dieFrames, operatorKey } from "../art/people.js";
+import { dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 
 // tutorial senza testo: quattro "schermate video" animate che scorrono da sole,
@@ -247,7 +247,7 @@ export class TutorialScene extends Phaser.Scene {
     if (Math.abs(this.walkV) < 0.02 && !touching) this.walkV = 0;
     this.city.tilePositionX += this.walkV * 260 * dt;
     this.walkPhase = (this.walkPhase + Math.abs(this.walkV) * 1.1 * dt) % 1;
-    if (Math.abs(this.walkV) > 0.08) this.walker.setTexture(`${this.op}_${Math.floor(this.walkPhase * 8)}`);
+    if (Math.abs(this.walkV) > 0.08) this.walker.setTexture(`${this.op}_${Math.floor(this.walkPhase * WALK_FRAMES)}`);
     else this.walker.setTexture(`${this.op}_idle`);
     if (target) this.walker.setFlipX(!right);
     // strisce della strada che scorrono, per sentire il movimento

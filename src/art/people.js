@@ -757,7 +757,8 @@ function front(T, o) {
 
 // luce della luna sul bordo in alto a sinistra e contorno navy di un pixel
 // colori d'accento (unica eccezione alla palette): vetro della capsula azzurrino e foglie verdi
-const ACC = { glass: ["#A9D6EC", "#78B3D3"], leaf: ["#8FD07F", "#57A35E"] };
+// vetro della capsula: azzurro che vira all'indaco, per legarsi ai blu della palette BIODOM
+const ACC = { glass: ["#A3BDF0", "#7FA6E3"], leaf: ["#8FD07F", "#57A35E"] };
 function accentize(c, m) {
   const x = c.getContext("2d", { willReadFrequently: true });
   const a = x.getImageData(0, 0, c.width, c.height);
@@ -903,6 +904,8 @@ export function holdFrames(scene, bareKey) {
   return bareKey;
 }
 
+// fotogrammi del ciclo di camminata: 12 invece di 8 per un passo più fluido
+export const WALK_FRAMES = 12;
 function makeSide(scene, key, opts) {
   SIDE_OPTS.set(key, opts);
   if (scene.textures.exists(`${key}_idle`)) return key;
@@ -910,7 +913,7 @@ function makeSide(scene, key, opts) {
   const w = Math.round(BW * k);
   const h = Math.round(BH * k);
   const make = (ph, walking) => sideFrame(w, h, k, ph, { ...opts, walking });
-  for (let i = 0; i < 8; i++) scene.textures.addCanvas(`${key}_${i}`, make(i / 8, true));
+  for (let i = 0; i < WALK_FRAMES; i++) scene.textures.addCanvas(`${key}_${i}`, make(i / WALK_FRAMES, true));
   scene.textures.addCanvas(`${key}_idle`, make(0, false));
   return key;
 }
