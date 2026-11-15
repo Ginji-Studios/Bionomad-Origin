@@ -5,7 +5,7 @@ import { EMERGENCY_ACTIONS } from "../config/events.js";
 import { completeEvent, currentEvent, dayTime, failRun, getRun, cityZone } from "../systems/RunManager.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { buildSkyline } from "../world/skyline.js";
-import { buildPlace, OUTDOOR } from "../art/places.js";
+import { buildPlace, busSprite, OUTDOOR } from "../art/places.js";
 import { snowfall } from "../world/snow.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey } from "../art/people.js";
@@ -91,7 +91,8 @@ export class EventScene extends Phaser.Scene {
 
     // interfaccia
     brackets(this);
-    cityHud(this, this.origin.id, { labels: outdoor || this.wide, zone: cityZone(this.run) });
+    // al food truck niente etichette dei monumenti: finirebbero sopra il furgone
+    cityHud(this, this.origin.id, { labels: (outdoor || this.wide) && loc !== "foodtruck", zone: cityZone(this.run) });
     this.o2 = o2Hud(this);
     this.tasks = taskPanel(this);
     this.pad = controls(this);
@@ -196,6 +197,9 @@ export class EventScene extends Phaser.Scene {
       this.refreshTasks();
       return;
     }
+    // chiuso il pannello si torna a giocare: senza questo il personaggio restava bloccato
+    // ("freeze") sulla task successiva, ad esempio "ESCI DALL'UFFICIO"
+    this.mode = "play";
     this.completeStep();
   }
 
@@ -252,26 +256,35 @@ export class EventScene extends Phaser.Scene {
 
   // ---------- bus che parte ----------
 
+  // il bus arriva da sinistra, rallenta davanti alla fermata e riparte senza di te
   busLeaves() {
     this.mode = "busy";
-    const g = this.add.graphics().setScrollFactor(0).setDepth(450);
-    const bus = this.add.container(-420, 0).setScrollFactor(0).setDepth(450);
-    g.fillStyle(C.c3, 1);
-    g.fillRect(0, FEET - 250, 400, 220);
-    g.fillStyle(C.c0, 1);
-    for (let i = 0; i < 5; i += 1) g.fillRect(18 + i * 76, FEET - 230, 62, 70);
-    g.fillStyle(C.c4, 1);
-    g.fillRect(0, FEET - 140, 400, 6);
-    g.fillStyle(C.c0, 1);
-    g.fillCircle(80, FEET - 30, 28);
-    g.fillCircle(320, FEET - 30, 28);
-    bus.add(g);
-    this.tweens.add({
+    const key = busSprite(this, this.origin.id);
+    const img = this.add.image(0, 0, key).setOrigin(0, 1);
+    const w = img.width;
+    const bus = this.add.container(-w - 40, FEET - 4, [img]).setScrollFactor(0).setDepth(450);
+    // la carrozzeria vibra appena sulle sospensioni
+    this.tweens.add({ targets: img, y: -2, duration: 180, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    // fumo dello scarico: quadratini retinati che restano indietro e svaniscono
+    const puff = this.time.addEvent({
+      delay: 110,
+      loop: true,
+      callback: () => {
+        const p = this.add.rectangle(bus.x + 8, FEET + 8 - Math.random() * 6, 6, 6, Math.random() < 0.5 ? C.c3 : C.c2, 0.8).setScrollFactor(0).setDepth(449);
+        this.tweens.add({ targets: p, x: p.x - 30 - Math.random() * 30, y: p.y - 14 - Math.random() * 14, alpha: 0, scale: 1.8, duration: 700, onComplete: () => p.destroy() });
+      }
+    });
+    Sfx.whoosh?.();
+    // entra, frena davanti alla pensilina, sbuffa e riparte accelerando
+    this.tweens.chain({
       targets: bus,
-      x: 1400,
-      duration: 3200,
-      ease: "Quad.easeIn",
+      tweens: [
+        { x: 300, duration: 1700, ease: "Quad.easeOut" },
+        { x: 306, duration: 700, ease: "Sine.easeInOut" },
+        { x: VIEW.w + 60, duration: 2200, ease: "Quad.easeIn" }
+      ],
       onComplete: () => {
+        puff.remove();
         bus.destroy();
         toast(this, "IL BUS È PARTITO · SI TORNA A PIEDI", { duration: 1800 });
         this.time.delayedCall(800, () => {

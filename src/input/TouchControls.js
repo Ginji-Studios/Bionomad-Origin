@@ -49,9 +49,18 @@ function button(label, key, className) {
   return el;
 }
 
+// solo telefoni e tablet: un PC con schermo touch, mouse o trackpad non li mostra.
+// - user agent mobile (Android, iPhone, iPad...) oppure iPadOS che si presenta come Mac
+// - in alternativa: dispositivo senza hover e con puntatore "grossolano" (il dito) come unico input
+function isMobileDevice() {
+  const ua = navigator.userAgent || "";
+  if (/Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle/i.test(ua)) return true;
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+  return window.matchMedia("(hover: none) and (pointer: coarse)").matches && !window.matchMedia("(any-pointer: fine)").matches;
+}
+
 export function setupTouchControls() {
-  const touch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
-  if (!touch) return;
+  if (!isMobileDevice()) return;
   document.body.classList.add("has-touch");
 
   const root = document.createElement("div");

@@ -9,6 +9,8 @@ import { POSTER_IMG } from "../ui/posters.js";
 // contrastata, così le scritte restano leggibili) e poi il retino della palette la ridisegna.
 // Dentro i luoghi il manifesto viene messo in coda e retinato a parte a grana fine (cell 1).
 let QUEUE = null;
+// la cutscene finale disegna il divano a parte (sprite nel piano del personaggio)
+let NO_SOFA = false;
 export function posterArt(T, key, x, y, w, h, { frame = true } = {}) {
   if (QUEUE && !T.direct) {
     QUEUE.push([key, x, y, w, h, frame]);
@@ -146,10 +148,11 @@ function door(T, x, { lit = true } = {}) {
 
 function sofa(T, x, w) {
   const { stone } = T;
-  stone([[x, GY], [x, GY - 60], [x + w, GY - 60], [x + w, GY]], 0.45, 0.3, { rib: 30 });
-  stone([[x - 10, GY], [x - 10, GY - 80], [x + 14, GY - 80], [x + 14, GY]], 0.5, 0.34, { rib: 30 });
-  stone([[x + w - 14, GY], [x + w - 14, GY - 80], [x + w + 10, GY - 80], [x + w + 10, GY]], 0.5, 0.34, { rib: 30 });
-  stone([[x + 10, GY - 60], [x + 10, GY - 110], [x + w - 10, GY - 110], [x + w - 10, GY - 60]], 0.4, 0.26, { rib: 40 });
+  // seduta all'altezza giusta per i personaggi (ci si siede sopra nella cutscene finale)
+  stone([[x, GY], [x, GY - 42], [x + w, GY - 42], [x + w, GY]], 0.45, 0.3, { rib: 30 });
+  stone([[x - 10, GY], [x - 10, GY - 64], [x + 14, GY - 64], [x + 14, GY]], 0.5, 0.34, { rib: 30 });
+  stone([[x + w - 14, GY], [x + w - 14, GY - 64], [x + w + 10, GY - 64], [x + w + 10, GY]], 0.5, 0.34, { rib: 30 });
+  stone([[x + 10, GY - 42], [x + 10, GY - 100], [x + w - 10, GY - 100], [x + w - 10, GY - 42]], 0.4, 0.26, { rib: 40 });
 }
 
 function table(T, x, w, h = 70) {
@@ -419,7 +422,7 @@ function home(T, city) {
     X.beginPath();
     X.arc(232, GY - 222, 16, Math.PI, 0);
     X.fill();
-    sofa(T, 60, 170);
+    if (!NO_SOFA) sofa(T, 60, 170);
     table(T, 300, 110, 50);
   } else if (city === "delhi") {
     floor(T, LW);
@@ -429,8 +432,10 @@ function home(T, city) {
     rug(T, 40, 360, 0.5);
     // divano basso con cuscini e rulli
     const { stone } = T;
-    stone([[60, GY], [60, GY - 40], [250, GY - 40], [250, GY]], 0.45, 0.3, { rib: 30 });
-    for (let i = 0; i < 4; i++) stone([[70 + i * 44, GY - 40], [70 + i * 44, GY - 78], [108 + i * 44, GY - 78], [108 + i * 44, GY - 40]], 0.7, 0.5, { rib: 10 });
+    if (!NO_SOFA) {
+      stone([[60, GY], [60, GY - 40], [250, GY - 40], [250, GY]], 0.45, 0.3, { rib: 30 });
+      for (let i = 0; i < 4; i++) stone([[70 + i * 44, GY - 40], [70 + i * 44, GY - 78], [108 + i * 44, GY - 78], [108 + i * 44, GY - 40]], 0.7, 0.5, { rib: 10 });
+    }
     // lanterna d'ottone appesa
     X.fillStyle = G(0.2);
     X.fillRect(318, 0, 2, 120);
@@ -459,7 +464,7 @@ function home(T, city) {
     rug(T, 60, 240, 0.62);
     stove(T, 760);
     shelf(T, 364, 200, 116, 2);
-    sofa(T, 60, 170);
+    if (!NO_SOFA) sofa(T, 60, 170);
     table(T, 300, 110, 50);
   }
   plantPot(T, 440);
@@ -472,7 +477,8 @@ function home(T, city) {
     X.fillStyle = G(0.9);
     X.fillRect(16, GY - 214, 32, 16);
   }
-  return { hub: 590, door: LW - 85 };
+  // seduta del divano e finestre (per la luce della luna nella cutscene finale)
+  return { hub: 590, door: LW - 85, sofa: 150, seat: GY - (city === "delhi" ? 40 : 42), w0x: wins[0][0], w0y: wins[0][1], w0w: wins[0][2], w0h: wins[0][3], w1x: wins[1][0], w1y: wins[1][1], w1w: wins[1][2], w1h: wins[1][3] };
 }
 
 function office(T, city) {
@@ -708,9 +714,10 @@ const PLACES = { home, office, bus, busstop, foodtruck };
 export const OUTDOOR = new Set(["busstop", "foodtruck", "street"]);
 
 // disegna un luogo: canvas a schermo intero + punti (in pixel) dei bersagli
-export function buildPlace(id, city = "milano") {
+export function buildPlace(id, city = "milano", { sofa: withSofa = true } = {}) {
   let pts = {};
   QUEUE = [];
+  NO_SOFA = !withSofa;
   const canvas = paint(1280, 800, K, (T) => {
     pts = (PLACES[id] ?? home)(T, city) ?? {};
   }, { seedValue: 21 });
@@ -722,6 +729,175 @@ export function buildPlace(id, city = "milano") {
     ctx.drawImage(c, Math.round((x - pad) * K), Math.round((y - pad) * K));
   });
   QUEUE = null;
+  NO_SOFA = false;
   const points = Object.fromEntries(Object.entries(pts).map(([k, v]) => [k, px(v)]));
   return { canvas, points, floorY: px(GY) };
+}
+
+
+// divano come sprite a parte, nel piano dove cammina il personaggio: la seduta è all'altezza
+// del bacino della posa seduta, così ci si siede SOPRA (gambe davanti alla seduta, piedi a terra).
+// seatPx = altezza della seduta in px a schermo. Origine in basso al centro.
+export function sofaSprite(scene, city, seatPx) {
+  const key = `sofa_${city}_${seatPx}`;
+  if (scene.textures.exists(key)) return key;
+  const s = seatPx / K; // seduta in unità logiche
+  const W = 210;
+  const H = s + 54;
+  scene.textures.addCanvas(key, paint(Math.round(W * K), Math.round(H * K), K, (T) => {
+    const { X, G, stone } = T;
+    const b = H - 1;
+    const x0 = 14;
+    const x1 = W - 14;
+    if (city === "delhi") {
+      // divano basso con cuscini colorati e rulli
+      stone([[x0, b], [x0, b - s], [x1, b - s], [x1, b]], 0.45, 0.3, { rib: 30 });
+      for (let i = 0; i < 4; i++) {
+        const cx = x0 + 8 + i * ((x1 - x0 - 16) / 4);
+        stone([[cx, b - s], [cx, b - s - 40], [cx + 38, b - s - 40], [cx + 38, b - s]], 0.72, 0.5, { rib: 10 });
+      }
+      X.fillStyle = G(0.6);
+      X.beginPath();
+      X.ellipse(x0 + 2, b - s - 6, 9, 9, 0, 0, 7);
+      X.ellipse(x1 - 2, b - s - 6, 9, 9, 0, 0, 7);
+      X.fill();
+    } else {
+      // schienale, seduta con due cuscini, braccioli, piedini
+      stone([[x0 + 8, b - s], [x0 + 8, b - s - 46], [x1 - 8, b - s - 46], [x1 - 8, b - s]], 0.5, 0.34, { rib: 40 });
+      // cuscini dello schienale
+      const half = (x1 - x0 - 16) / 2;
+      [0, 1].forEach((i) => stone([[x0 + 12 + i * half, b - s - 4], [x0 + 12 + i * half, b - s - 40], [x0 + 8 + (i + 1) * half, b - s - 40], [x0 + 8 + (i + 1) * half, b - s - 4]], 0.64, 0.44, { rib: 60 }));
+      // seduta: il bordo davanti
+      stone([[x0, b - 6], [x0, b - s], [x1, b - s], [x1, b - 6]], 0.6, 0.4, { rib: 30 });
+      // la superficie dei cuscini, appena più chiara
+      X.fillStyle = G(0.82);
+      X.fillRect(x0 + 2, b - s, x1 - x0 - 4, 3);
+      X.fillStyle = G(0.2);
+      X.fillRect((x0 + x1) / 2 - 1, b - s, 2, s - 6);
+      // braccioli
+      [x0 - 8, x1 - 16].forEach((ax) => {
+        stone([[ax, b - 6], [ax, b - s - 20], [ax + 24, b - s - 20], [ax + 24, b - 6]], 0.68, 0.46, { rib: 30 });
+        X.fillStyle = G(0.88);
+        X.fillRect(ax + 1, b - s - 20, 22, 2);
+      });
+      // ombra sotto la seduta
+      X.fillStyle = G(0.08);
+      X.fillRect(x0, b - 7, x1 - x0, 2);
+      // piedini
+      X.fillStyle = G(0.12);
+      [x0 - 4, x1 - 2].forEach((fx) => X.fillRect(fx, b - 6, 4, 6));
+    }
+  }, { seedValue: 31 }));
+  return key;
+}
+
+// autobus urbano di profilo, retinato come il resto del gioco (verso destra).
+// Origine in basso a sinistra; altezza in px a schermo.
+export function busSprite(scene, city) {
+  const key = `bus_side_${city}`;
+  if (scene.textures.exists(key)) return key;
+  const W = 420;
+  const H = 214;
+  scene.textures.addCanvas(key, paint(Math.round(W * K), Math.round(H * K), K, (T) => {
+    const { X, G, lgx, fillP } = T;
+    const g0 = 186; // linea delle ruote
+    const top = 12;
+    // ombra a terra
+    X.fillStyle = G(0.05, 0.6);
+    X.fillRect(20, g0 + 18, W - 40, 6);
+    // carrozzeria: fianco con il muso arrotondato a destra
+    const body = [[6, g0], [6, top + 14], [16, top], [W - 40, top], [W - 14, top + 10], [W - 6, top + 40], [W - 4, g0 - 20], [W - 8, g0]];
+    const g = X.createLinearGradient(0, top, 0, g0);
+    g.addColorStop(0, G(0.78));
+    g.addColorStop(0.55, G(0.62));
+    g.addColorStop(1, G(0.42));
+    fillP(body, g);
+    // tetto: climatizzatore e bordo chiaro
+    X.fillStyle = G(0.5);
+    X.fillRect(70, top - 8, 110, 9);
+    X.fillRect(230, top - 6, 70, 7);
+    X.fillStyle = G(0.92);
+    X.fillRect(16, top, W - 56, 2);
+    // fascia scura dei finestrini e parabrezza inclinato
+    const wy = top + 22;
+    const wh = 62;
+    X.fillStyle = G(0.12);
+    X.fillRect(14, wy, W - 70, wh);
+    fillP([[W - 52, wy], [W - 30, wy], [W - 12, wy + 30], [W - 10, wy + wh + 10], [W - 52, wy + wh + 10]], G(0.14));
+    // montanti e riflessi diagonali sul vetro
+    for (let x = 14; x < W - 60; x += 64) {
+      X.fillStyle = G(0.62);
+      X.fillRect(x + 60, wy, 5, wh);
+    }
+    X.save();
+    X.beginPath();
+    X.rect(14, wy, W - 26, wh + 10);
+    X.clip();
+    X.strokeStyle = G(0.85, 0.45);
+    X.lineWidth = 5;
+    for (let x = 0; x < W; x += 90) {
+      X.beginPath();
+      X.moveTo(x, wy + wh);
+      X.lineTo(x + 40, wy);
+      X.stroke();
+    }
+    X.restore();
+    // qualche passeggero in controluce
+    X.fillStyle = G(0.3);
+    [[40, 0.9], [128, 1], [204, 0.85], [286, 1]].forEach(([px, sc]) => {
+      X.beginPath();
+      X.arc(px, wy + wh - 30 * sc, 9 * sc, 0, 7);
+      X.fill();
+      X.fillRect(px - 13 * sc, wy + wh - 20 * sc, 26 * sc, 20 * sc);
+    });
+    // insegna di linea luminosa sopra il parabrezza
+    X.fillStyle = G(0.08);
+    X.fillRect(W - 92, top + 4, 66, 14);
+    X.fillStyle = G(0.95);
+    X.font = "bold 10px monospace";
+    X.fillText("O2 · 42", W - 86, top + 15);
+    // fascia della livrea BIODOM sotto i finestrini
+    X.fillStyle = G(0.95);
+    X.fillRect(6, wy + wh + 14, W - 14, 5);
+    X.fillStyle = G(0.25);
+    X.fillRect(6, wy + wh + 19, W - 14, 2);
+    // porte a soffietto (anteriore e centrale) con vetri
+    [[W - 110, 40], [168, 46]].forEach(([dx, dw]) => {
+      X.fillStyle = G(0.3);
+      X.fillRect(dx, wy - 4, dw, g0 - wy - 4);
+      X.fillStyle = G(0.14);
+      X.fillRect(dx + 4, wy, dw / 2 - 6, 90);
+      X.fillRect(dx + dw / 2 + 2, wy, dw / 2 - 6, 90);
+      X.fillStyle = G(0.8);
+      X.fillRect(dx + dw / 2 - 1, wy - 4, 2, g0 - wy - 4);
+    });
+    // fari e luci
+    X.fillStyle = G(1);
+    X.fillRect(W - 12, g0 - 34, 6, 10);
+    X.fillStyle = G(0.6);
+    X.fillRect(6, g0 - 40, 5, 14);
+    // paraurti
+    X.fillStyle = G(0.18);
+    X.fillRect(4, g0 - 8, W - 10, 8);
+    // passaruota e ruote
+    [70, W - 120].forEach((cx) => {
+      X.fillStyle = G(0.1);
+      X.beginPath();
+      X.arc(cx, g0, 30, Math.PI, 0);
+      X.fill();
+      X.fillStyle = G(0.06);
+      X.beginPath();
+      X.arc(cx, g0 + 4, 24, 0, 7);
+      X.fill();
+      X.fillStyle = lgx(cx - 12, cx + 12, 0.8, 0.45);
+      X.beginPath();
+      X.arc(cx, g0 + 4, 11, 0, 7);
+      X.fill();
+      X.fillStyle = G(0.2);
+      X.beginPath();
+      X.arc(cx, g0 + 4, 3, 0, 7);
+      X.fill();
+    });
+  }, { seedValue: 41 }));
+  return key;
 }

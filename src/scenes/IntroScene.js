@@ -7,6 +7,7 @@ import { buildPlace } from "../art/places.js";
 import { Walker } from "../entities/Walker.js";
 import { K, operatorKey } from "../art/people.js";
 import { packGesture } from "../entities/packGesture.js";
+import { doorway } from "../ui/door.js";
 import { brackets, button, C, canvasImage, ditherBand, ditherTitle, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
@@ -245,86 +246,16 @@ export class IntroScene extends Phaser.Scene {
   exitDoor() {
     if (this.phase === "exit") return;
     this.phase = "exit";
-    const k = K;
-    const dx = Math.round(this.points.door - 41 * k); // bordo sinistro del vano (vedi door() in places.js)
-    const dy = Math.round((480 - 190) * k);
-    const dw = Math.round(82 * k);
-    const dh = Math.round(190 * k);
-    const depth = this.walker.img.depth;
-    // vano aperto: si vede la strada fuori, disegnata e retinata come il resto del gioco
     const night = dayTime(getRun(this.registry)) === "night";
-    const key = `door_view_${night ? "n" : "d"}`;
-    if (!this.textures.exists(key)) {
-      setDayMode(!night);
-      this.textures.addCanvas(key, paint(dw, dh, k, (T) => {
-        const { X, G, rnd, facade, skyG } = T;
-        const W = dw / k;
-        const H = dh / k;
-        skyG(W, night ? [[0, 0.1], [0.6, 0.3], [1, 0.45]] : [[0, 0.5], [0.6, 0.68], [1, 0.8]]);
-        for (let x = -6; x < W; ) {
-          const bw = 18 + rnd() * 22;
-          const bh = 60 + rnd() * 70;
-          facade([[x, H - 24], [x, H - 24 - bh], [x + bw, H - 24 - bh], [x + bw, H - 24]], night ? 0.34 : 0.3, night ? 0.22 : 0.2, { gx: 5, gy: 7, lit: 0.22, glass: 0.9 });
-          x += bw + 2;
-        }
-        X.fillStyle = G(0.3);
-        X.fillRect(0, H - 24, W, 24);
-        X.fillStyle = G(0.8);
-        X.fillRect(0, H - 24, W, 1.5);
-        X.fillStyle = G(0.12);
-        X.fillRect(W * 0.6, H - 120, 3, 96);
-        X.fillStyle = G(0.95);
-        X.fillRect(W * 0.6 - 6, H - 124, 15, 4);
-      }, { cell: 2, seedValue: 77 }));
-      // fascio di luce che entra sul pavimento, a retino
-      this.textures.addCanvas(`${key}_spill`, paint(dw * 2, 70, 1, (T) => {
-        const { X, G } = T;
-        const g = X.createLinearGradient(0, 0, 0, 70);
-        g.addColorStop(0, G(0.62));
-        g.addColorStop(1, G(0.3));
-        X.fillStyle = g;
-        X.beginPath();
-        X.moveTo(dw * 0.5, 0);
-        X.lineTo(dw * 1.5, 0);
-        X.lineTo(dw * 2, 70);
-        X.lineTo(0, 70);
-        X.fill();
-      }, { cell: 2, seedValue: 78 }));
-      setDayMode(false);
-    }
-    const light = this.add.image(dx, dy, key).setOrigin(0).setScrollFactor(0).setDepth(depth - 2).setAlpha(0);
-    const spill = this.add.image(dx + dw / 2, dy + dh, `${key}_spill`).setOrigin(0.5, 0).setScrollFactor(0).setDepth(depth - 3).setAlpha(0);
-    this.tweens.add({ targets: spill, alpha: 1, duration: 380 });
-    // anta della porta che ruota verso l'esterno (si stringe di lato)
-    // anta retinata come la porta disegnata nella casa: due specchiature e la maniglia
-    if (!this.textures.exists("door_leaf")) {
-      this.textures.addCanvas("door_leaf", paint(dw, dh, k, (T) => {
-        const { X, G, stone } = T;
-        const W = dw / k;
-        const H = dh / k;
-        stone([[0, 0], [W, 0], [W, H], [0, H]], 0.26, 0.14, { rib: 41 });
-        stone([[8, 10], [W - 8, 10], [W - 8, 80], [8, 80]], 0.34, 0.2, { rib: 12 });
-        stone([[8, 90], [W - 8, 90], [W - 8, H - 8], [8, H - 8]], 0.34, 0.2, { rib: 12 });
-        X.fillStyle = G(0.9);
-        X.fillRect(W - 16, 90, 8, 4);
-        X.fillStyle = G(0.08);
-        X.fillRect(0, 0, 2, H);
-      }, { cell: 2, seedValue: 79 }));
-    }
-    const leaf = this.add.image(dx, dy, "door_leaf").setOrigin(0).setScrollFactor(0).setDepth(depth - 1);
-    Sfx.blip?.();
-    this.tweens.add({ targets: light, alpha: 1, duration: 260 });
-    this.tweens.add({ targets: leaf, scaleX: 0.12, duration: 380, ease: "Quad.easeOut" });
+    const door = doorway(this, this.points.door, { night, depth: this.walker.img.depth });
+    door.open();
     // il personaggio attraversa il vano e si perde nella luce
     this.walker.minX = 0;
     // si ferma al centro del vano e "entra" nella luce: si rimpicciolisce appena e svanisce
     this.walker.maxX = this.points.door;
     this.tweens.add({ targets: this.walker.img, scaleX: 0.92, scaleY: 0.92, delay: 420, duration: 520, ease: "Sine.easeIn" });
     this.tweens.add({ targets: [this.walker.img, this.walker.shadow], alpha: 0, delay: 520, duration: 420 });
-    this.time.delayedCall(1000, () => {
-      this.tweens.add({ targets: leaf, scaleX: 1, duration: 300, ease: "Quad.easeIn" });
-      this.tweens.add({ targets: [light, spill], alpha: 0, duration: 300 });
-    });
+    this.time.delayedCall(1000, () => door.close());
     this.time.delayedCall(1350, () => {
       if (this._leaving) return;
       const ev = currentEvent(this.registry);

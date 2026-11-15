@@ -75,7 +75,7 @@ export class Walker {
       const before = Math.floor(this.phase * N);
       this.phase = (this.phase + Math.abs(this.vx) * dt * 0.0042) % 1;
       const f = Math.floor(this.phase * N);
-      if (f !== before) this.img.setTexture(`${this.key}_${f}`);
+      this.img.setTexture(`${this.key}_${f}`);
       // un passo ogni mezzo ciclo (piede a terra)
       if (this.sound && f !== before && f % (N / 2) === 0) Sfx.step(this.indoor);
       this.moving = true;

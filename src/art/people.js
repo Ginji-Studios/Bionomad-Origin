@@ -122,6 +122,7 @@ function side(T, ph, o) {
 
   // gamba: la parte che avanza è quella sollevata (niente passo all'indietro)
   const crouch = o.crouch ?? 0;
+  const sit = o.sit ?? 0;
   const hip0 = [...hip];
   const leg = (s, k) => {
     hip = [...hip0];
@@ -148,6 +149,29 @@ function side(T, ph, o) {
         kx = hpx + dx / 2 + (dy / Math.hypot(dx, dy)) * h;
         ky = hpy + dy / 2 - (dx / Math.hypot(dx, dy)) * h;
       }
+      hip[0] = hpx;
+      hip[1] = hpy;
+      th = Math.atan2(kx - hpx, ky - hpy);
+      t2 = Math.atan2(fx - kx, fy - ky);
+    }
+    if (sit) {
+      // seduto: l'anca scende fino alla seduta, i piedi restano a terra un po' più avanti
+      // e il ginocchio si piega in alto e in avanti (cinematica a due segmenti)
+      // seduta vera: l'anca scende di una coscia, così a fine movimento la coscia è
+      // orizzontale sulla seduta e lo stinco scende dritto fino al piede a terra
+      const hpx = hip0[0] - 4 * sit;
+      const hpy = hip0[1] + 36 * sit;
+      fx = hip0[0] + (s ? 30 : 36) * sit + (1 - sit) * (s ? -2 : 4);
+      fy = 191;
+      const dx = fx - hpx;
+      const dy = fy - hpy;
+      const d = Math.min(72, Math.hypot(dx, dy));
+      const h = Math.sqrt(Math.max(0, 36.5 * 36.5 - (d / 2) * (d / 2)));
+      const nx = -dy / Math.hypot(dx, dy);
+      const ny = dx / Math.hypot(dx, dy);
+      const c1 = [hpx + dx / 2 + nx * h, hpy + dy / 2 + ny * h];
+      const c2 = [hpx + dx / 2 - nx * h, hpy + dy / 2 - ny * h];
+      [kx, ky] = c1[0] > c2[0] ? c1 : c2;
       hip[0] = hpx;
       hip[1] = hpy;
       th = Math.atan2(kx - hpx, ky - hpy);
@@ -308,10 +332,15 @@ function side(T, ph, o) {
     X.rotate(0.22 * crouch);
     X.translate(-60, -118);
     dupatta();
+  } else if (sit) {
+    // seduto: prima le gambe, poi il busto scende dritto sulla seduta
+    leg(Math.PI, 0);
+    leg(0, 1);
+    X.translate(-4 * sit, 36 * sit);
   } else leg(Math.PI, 0);
   arm(Math.PI, 0.6);
   // con trench e kurta lunghi la gamba davanti sta sotto l'abito, non sopra
-  if (long > 0 && !crouch) leg(0, 1);
+  if (long > 0 && !crouch && !sit) leg(0, 1);
 
   // zaino-serra compatto con la pianta luminosa
   // capsula ben visibile dietro la schiena (sporge oltre il busto)
@@ -374,7 +403,7 @@ function side(T, ph, o) {
     X.fillRect(55, cy + 16, 3, 2);
   }
 
-  if (long === 0 && !crouch) leg(0, 1);
+  if (long === 0 && !crouch && !sit) leg(0, 1);
   arm(0, 1);
 
   // testa di profilo, un po' più grande (proporzioni più simpatiche, come nel riferimento)
@@ -878,6 +907,19 @@ export function dieFrames(scene, key) {
   const k = opts.scale ?? 1;
   [[1, 0], [1, 0.35], [1, 0.7], [0.6, 1]].forEach(([clutch, crouch], i) =>
     scene.textures.addCanvas(`${key}_d${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, clutch, crouch }))
+  );
+  return key;
+}
+
+// seduto sul divano (cutscene finale): s0-s3 = da in piedi a seduto
+export const SIT_STEPS = [0.06, 0.17, 0.32, 0.5, 0.67, 0.81, 0.92, 1];
+export function sitFrames(scene, key) {
+  const opts = SIDE_OPTS.get(key);
+  if (!opts || scene.textures.exists(`${key}_s0`)) return key;
+  const k = opts.scale ?? 1;
+  // 8 pose intermedie con andamento morbido (lento all'inizio e all'arrivo sulla seduta)
+  SIT_STEPS.forEach((sit, i) =>
+    scene.textures.addCanvas(`${key}_s${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, sit }))
   );
   return key;
 }
