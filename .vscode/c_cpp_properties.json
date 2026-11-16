@@ -3,8 +3,6 @@
     {
       "name": "Arduino UNO (AVR)",
       "includePath": [
-        "${workspaceFolder}/arduino/o2rigin_plant",
-        "${workspaceFolder}/arduino/o2rigin_plant/src/**",
         "${workspaceFolder}/arduino/intellisense/gcc",
         "${workspaceFolder}/arduino/intellisense/core/arduino",
         "${workspaceFolder}/arduino/intellisense/core/variants-standard",
