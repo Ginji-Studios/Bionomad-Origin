@@ -2,6 +2,7 @@
 // semitrasparenti con bordo sottile, staffe agli angoli, pulsanti grandi per il tablet.
 import Phaser from "../phaser.js";
 import { Sfx } from "../systems/Sfx.js";
+import { PlantSensors } from "../input/PlantSensors.js";
 import { paint, quant, ZONES } from "../world/skyline.js";
 import { iconKey } from "./icons.js";
 
@@ -433,9 +434,11 @@ export function controls(scene, { action = true } = {}) {
     poll() {
       const l = st.left || keys.A.isDown || keys.LEFT.isDown;
       const r = st.right || keys.D.isDown || keys.RIGHT.isDown;
+      const serial = PlantSensors.direction;
       const pressed = st.actionPressed;
       st.actionPressed = false;
-      return { dir: st.enabled ? (r ? 1 : 0) - (l ? 1 : 0) : 0, action: st.enabled && pressed, holding: st.action || keys.SPACE.isDown || keys.E.isDown };
+      const dir = (r ? 1 : 0) - (l ? 1 : 0);
+      return { dir: st.enabled ? (dir || serial) : 0, action: st.enabled && pressed, holding: st.action || keys.SPACE.isDown || keys.E.isDown };
     },
     // il pulsante azione si accende quando c'è qualcosa da fare
     highlight(on) {
@@ -625,7 +628,7 @@ export function ditherTitle(scene, x, y, text, { size = 44, origin = 0, depth } 
   if (!scene.textures.exists(key)) {
     const lines = text.split("\n");
     const c = document.createElement("canvas");
-    const m = c.getContext("2d");
+    const m = c.getContext("2d", { willReadFrequently: true });
     m.font = `bold ${size}px "Roboto Mono", ui-monospace, monospace`;
     const w = Math.ceil(Math.max(...lines.map((l) => m.measureText(l).width))) + 12;
     const lh = Math.round(size * 1.25);

@@ -4,7 +4,8 @@
 //   leva acqua, foglia sx/dx
 // comandi verso l'arduino: E1 / E0 led emergenza, G lampeggio verde
 
-const BAUD = 115200;
+const BAUD = 9600;
+const SERIAL_COMMAND_MS = 150;
 
 export const VIAL_COLORS = {
   1: { name: "VERDE", color: 0x5c9a6b },
@@ -19,13 +20,31 @@ const state = {
   slots: [0, 0],
   irrigation: false,
   touchLeft: false,
-  touchRight: false
+  touchRight: false,
+  serialDirection: 0,
+  serialDirectionUntil: 0
 };
 
 let port = null;
 let writer = null;
+let lastArduinoCommand = null;
 
 function parseLine(line) {
+  const command = line.trim().toUpperCase();
+  if (command === "SINISTRA" || command === "DESTRA" || command === "STOP") {
+    if (command !== lastArduinoCommand) {
+      console.log("Da Arduino:", command);
+      lastArduinoCommand = command;
+    }
+    if (command === "STOP") {
+      state.serialDirection = 0;
+      state.serialDirectionUntil = 0;
+      return;
+    }
+    state.serialDirection = command === "SINISTRA" ? -1 : 1;
+    state.serialDirectionUntil = Date.now() + SERIAL_COMMAND_MS;
+    return;
+  }
   // le righe con '#' sono messaggi dell'arduino (es. UID di una fiala NFC non registrata)
   if (line.trim().startsWith("#")) {
     console.info("[pianta]", line.trim());
@@ -76,7 +95,13 @@ export const PlantSensors = {
   async connect() {
     if (!this.supported) throw new Error("Web Serial non disponibile: usa Chrome o Edge su localhost");
     port = await navigator.serial.requestPort();
-    await port.open({ baudRate: BAUD });
+    try {
+      await port.open({ baudRate: BAUD });
+    } catch (error) {
+      port = null;
+      const detail = error?.message ? ` (${error.message})` : "";
+      throw new Error(`Impossibile aprire la porta seriale. Chiudi il Monitor seriale o altri programmi che la stanno usando${detail}`);
+    }
     const encoder = new TextEncoderStream();
     encoder.readable.pipeTo(port.writable).catch(() => {});
     writer = encoder.writable.getWriter();
@@ -86,6 +111,10 @@ export const PlantSensors = {
 
   send(command) {
     if (writer) writer.write(`${command}\n`).catch(() => {});
+  },
+
+  get direction() {
+    return Date.now() < state.serialDirectionUntil ? state.serialDirection : 0;
   },
 
   // simulazione da tastiera: C copri, I torcia, H scalda, F raffredda

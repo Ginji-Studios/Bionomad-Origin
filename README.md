@@ -44,7 +44,9 @@ Ogni negligenza costa ossigeno e viene contata nel recap finale:
 
 ## Pianta vera (Elegoo UNO R3)
 
-Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial API.
+Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial API a 9600 baud. Per il movimento,
+il firmware può inviare una riga `DESTRA` o `SINISTRA` ogni 50 ms: il gioco la mantiene attiva per 150 ms.
+La riga `STOP` arresta immediatamente il movimento.
 
 1. Carica `arduino/o2rigin_plant/o2rigin_plant.ino` sull'Elegoo. Serve solo la libreria **Adafruit PN532** (con la dipendenza **Adafruit BusIO**, che l'IDE propone da sola): DHT11 e foglie capacitive sono letti direttamente dallo sketch. Lo schema dei collegamenti è in cima allo sketch.
    - **Fiale NFC**: ogni fiala ha un adesivo NFC nel tappo. Apri il Monitor seriale, avvicina una fiala al PN532 e copia l'UID stampato (`# NFC sconosciuto, UID: {...}`) nella tabella `VIAL_TAGS` dello sketch, accanto al colore giusto.

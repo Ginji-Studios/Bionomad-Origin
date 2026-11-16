@@ -127,7 +127,7 @@ export class MenuScene extends Phaser.Scene {
       // così si vede su qualsiasi cielo senza trasparenze sfumate
       const sunC = document.createElement("canvas");
       sunC.width = sunC.height = 260;
-      const sx = sunC.getContext("2d");
+      const sx = sunC.getContext("2d", { willReadFrequently: true });
       const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
       for (let y = 0; y < 260; y += 2)
         for (let x = 0; x < 260; x += 2) {

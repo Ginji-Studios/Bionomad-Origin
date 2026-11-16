@@ -5,6 +5,7 @@ import { startRun } from "../systems/RunManager.js";
 import { OPERATORS, operatorKey } from "../art/people.js";
 import { buildSkyline, paint } from "../world/skyline.js";
 import { ensureMenuBg } from "./MenuScene.js";
+import { PlantSensors } from "../input/PlantSensors.js";
 import { brackets, button, C, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 
 // scelta in due passi, impaginata come il fascicolo BIONOMAD SYSTEM:
@@ -30,7 +31,7 @@ function cityThumb(scene, id) {
   const full = document.createElement("canvas");
   full.width = VIEW.w;
   full.height = VIEW.h;
-  const g = full.getContext("2d");
+  const g = full.getContext("2d", { willReadFrequently: true });
   s.layers.forEach(({ canvas }) => g.drawImage(canvas, 0, 0));
   const w = CW - 32;
   const h = IMG_H;
@@ -38,7 +39,7 @@ function cityThumb(scene, id) {
   c.width = w;
   c.height = h;
   const cx = Math.round(FOCUS[id] * s.k);
-  const cg = c.getContext("2d");
+  const cg = c.getContext("2d", { willReadFrequently: true });
   cg.imageSmoothingEnabled = false;
   cg.drawImage(full, cx - w, s.groundY + 60 - h * 2, w * 2, h * 2, 0, 0, w, h);
   scene.textures.addCanvas(key, c);
@@ -82,6 +83,7 @@ export class SetupScene extends Phaser.Scene {
     brackets(this);
     this.city = this.registry.get("origin") ?? "milano";
     this.op = this.registry.get("operator") ?? "a";
+    this.plantDirection = 0;
     this.layer = this.add.container(0, 0);
     this.back = button(this, 40, 716, 200, 56, "◀ INDIETRO", () => this.goBack(), { size: 22 });
     this.next = button(this, VIEW.w - 300, 716, 260, 56, "AVANTI ▶", () => this.confirm(), { primary: true, size: 24 });
@@ -93,6 +95,12 @@ export class SetupScene extends Phaser.Scene {
     kb.on("keydown-ENTER", () => this.confirm());
     kb.on("keydown-ESC", () => this.goBack());
     this.showCities();
+  }
+
+  update() {
+    const direction = PlantSensors.direction;
+    if (direction && direction !== this.plantDirection) this.move(direction);
+    this.plantDirection = direction;
   }
 
   // ---- elementi del fascicolo

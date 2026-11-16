@@ -1053,7 +1053,7 @@ export function crewKey(scene, i) {
   const c = finish(paint(BW, BH, 1, (T) => front(T, o), { seedValue: 31 + i, cell: 1 }));
   if (o.tuft) {
     // ciuffo rosso che esce dal cappellino: l'unico accento di colore
-    const x = c.getContext("2d");
+    const x = c.getContext("2d", { willReadFrequently: true });
     x.fillStyle = RUST;
     const px = [[44, 28, 18, 3], [45, 31, 12, 3], [46, 34, 6, 2]];
     px.forEach(([a, b, w, h]) => x.fillRect(a + 3, b + 3, w, h));
@@ -1072,7 +1072,7 @@ export function crewBust(scene, i) {
     front(T, o);
   }, { seedValue: 41 + i, cell: 1 });
   if (o.tuft) {
-    const x = c.getContext("2d");
+    const x = c.getContext("2d", { willReadFrequently: true });
     x.fillStyle = RUST;
     [[44, 28, 18, 3], [45, 31, 12, 3], [46, 34, 6, 2]].forEach(([a, b, w, h]) => x.fillRect((a - 22) * 2, (b - 4) * 2, w * 2, h * 2));
   }

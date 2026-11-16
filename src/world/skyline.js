@@ -43,7 +43,7 @@ let VW = 864; // larghezza logica della vista, impostata da buildSkyline
 export function quant(c, CS = 2, dither = true) {
   const w = c.width;
   const h = c.height;
-  const x = c.getContext("2d");
+  const x = c.getContext("2d", { willReadFrequently: true });
   const d = x.getImageData(0, 0, w, h).data;
   const out = x.createImageData(w, h);
   const o = out.data;

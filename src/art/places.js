@@ -722,7 +722,7 @@ export function buildPlace(id, city = "milano", { sofa: withSofa = true } = {}) 
     pts = (PLACES[id] ?? home)(T, city) ?? {};
   }, { seedValue: 21 });
   // manifesti retinati a grana fine e incollati sopra
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   QUEUE.forEach(([key, x, y, w, h, frame]) => {
     const pad = 4;
     const c = paint((w + pad * 2) * K, (h + pad * 2) * K, K, (T) => posterArt({ ...T, direct: true }, key, pad, pad, w, h, { frame }), { cell: 1, seedValue: 9 });
