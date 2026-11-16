@@ -4,6 +4,7 @@ import { paint } from "../world/skyline.js";
 import { crewBust, TEAM_LOOK } from "../art/people.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { brackets, button, C, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
+import { plantNav } from "../input/plantNav.js";
 
 // crediti come un fascicolo BIODOM: riquadri con i nodi agli incroci, immagini retinate,
 // righe dati etichetta / valore e il grafico dell'ossigeno
@@ -223,6 +224,7 @@ export class CreditsScene extends Phaser.Scene {
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
     this.input.keyboard.on("keydown-LEFT", () => this.show(0));
     this.input.keyboard.on("keydown-RIGHT", () => this.show(1));
+    plantNav(this, { left: () => this.show(0), right: () => this.show(1) });
     this.show(0);
   }
 

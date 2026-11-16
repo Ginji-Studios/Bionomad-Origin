@@ -5,7 +5,7 @@ import { startRun } from "../systems/RunManager.js";
 import { OPERATORS, operatorKey } from "../art/people.js";
 import { buildSkyline, paint } from "../world/skyline.js";
 import { ensureMenuBg } from "./MenuScene.js";
-import { PlantSensors } from "../input/PlantSensors.js";
+import { plantNav } from "../input/plantNav.js";
 import { brackets, button, C, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 
 // scelta in due passi, impaginata come il fascicolo BIONOMAD SYSTEM:
@@ -83,7 +83,8 @@ export class SetupScene extends Phaser.Scene {
     brackets(this);
     this.city = this.registry.get("origin") ?? "milano";
     this.op = this.registry.get("operator") ?? "a";
-    this.plantDirection = 0;
+    // pianta: destra / sinistra scorre le scelte, tenendola inclinata si conferma
+    plantNav(this, { left: () => this.move(-1), right: () => this.move(1), hold: () => this.confirm() });
     this.layer = this.add.container(0, 0);
     this.back = button(this, 40, 716, 200, 56, "◀ INDIETRO", () => this.goBack(), { size: 22 });
     this.next = button(this, VIEW.w - 300, 716, 260, 56, "AVANTI ▶", () => this.confirm(), { primary: true, size: 24 });
@@ -97,11 +98,7 @@ export class SetupScene extends Phaser.Scene {
     this.showCities();
   }
 
-  update() {
-    const direction = PlantSensors.direction;
-    if (direction && direction !== this.plantDirection) this.move(direction);
-    this.plantDirection = direction;
-  }
+
 
   // ---- elementi del fascicolo
 

@@ -6,6 +6,7 @@ import { buildSkyline } from "../world/skyline.js";
 import { buildPlace } from "../art/places.js";
 import { operatorKey } from "../art/people.js";
 import { box, brackets, button, C, canvasImage, ditherBand, ditherTitle, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../ui/hud.js";
+import { plantNav } from "../input/plantNav.js";
 
 // fine giornata: esito, ossigeno finale, due pulsanti
 export class EndScene extends Phaser.Scene {
@@ -63,6 +64,8 @@ export class EndScene extends Phaser.Scene {
     button(this, x + 410, y + 360, 220, 76, "MENU", () => goTo(this, "MenuScene"), { size: 26 });
     this.input.keyboard.on("keydown-ENTER", () => goTo(this, "SetupScene"));
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
+    // pianta: destra = rigioca, sinistra = menu
+    plantNav(this, { right: () => goTo(this, "SetupScene"), left: () => goTo(this, "MenuScene") });
     win ? Sfx.win() : Sfx.gameOver();
   }
 }

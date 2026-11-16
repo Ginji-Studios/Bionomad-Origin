@@ -4,6 +4,7 @@ import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/PlantPanel.js";
 import { dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
+import { plantNav } from "../input/plantNav.js";
 
 // tutorial senza testo: quattro "schermate video" animate che scorrono da sole,
 // come le storie sul telefono. Si capisce tutto dalle immagini:
@@ -45,6 +46,8 @@ export class TutorialScene extends Phaser.Scene {
     });
     this.input.keyboard.on("keydown-LEFT", () => this.back());
     this.input.keyboard.on("keydown-RIGHT", () => this.advance());
+    // pianta: sinistra = video precedente, destra = avanti
+    plantNav(this, { left: () => this.back(), right: () => this.advance() });
     // frecce ai lati: suggeriscono che si può tornare indietro o andare avanti
     this.navL = txt(this, 14, 400, "‹", { size: 54, color: HEX.c3, origin: [0, 0.5] }).setDepth(30);
     this.navR = txt(this, VIEW.w - 14, 400, "›", { size: 54, color: HEX.c3, origin: [1, 0.5] }).setDepth(30);

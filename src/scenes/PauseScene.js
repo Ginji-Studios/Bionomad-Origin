@@ -1,6 +1,7 @@
 import Phaser from "../phaser.js";
 import { setAudioPaused } from "../systems/Sfx.js";
 import { box, button, C, ditherTitle, VIEW } from "../ui/hud.js";
+import { plantNav } from "../input/plantNav.js";
 
 // pausa per il team (tasto P o doppio tocco con due dita): congela tutto, audio compreso
 const SKIP = ["BootScene", "PreloadScene", "PauseScene"];
@@ -34,6 +35,7 @@ export class PauseScene extends Phaser.Scene {
     box(this, VIEW.w / 2 - 260, VIEW.h / 2 - 140, 520, 280, { alpha: 0.96, border: C.c4 });
     ditherTitle(this, VIEW.w / 2, VIEW.h / 2 - 70, "PAUSA", { size: 52, origin: 0.5 });
     button(this, VIEW.w / 2 - 150, VIEW.h / 2 + 10, 300, 76, "RIPRENDI ▶", () => this.resumeGame(), { primary: true, size: 28 });
+    plantNav(this, { right: () => this.resumeGame() });
   }
 
   resumeGame() {

@@ -4,6 +4,7 @@ import { PlantSensors } from "../input/PlantSensors.js";
 import { paint, quant, setDayMode } from "../world/skyline.js";
 import { K, operatorKey, careFrames, holdFrames } from "../art/people.js";
 import { brackets, button, C, canvasImage, fadeIn, goTo, HEX, toast, txt, VIEW } from "../ui/hud.js";
+import { plantNav } from "../input/plantNav.js";
 
 // titolo retinato: lettere grandi con sfumatura dall'alto e ombra, poi il retino del gioco
 function titleCanvas() {
@@ -200,6 +201,8 @@ export class MenuScene extends Phaser.Scene {
     this.add.image(VIEW.w - 64, VIEW.h - 34, "logo_biodom").setOrigin(1, 1).setScale(2).setTint(C.c4).setDepth(1500);
 
     this.input.keyboard.on("keydown-ENTER", () => this.buttons[0].press());
+    // pianta: destra = GIOCA
+    plantNav(this, { right: () => this.buttons[0].press() });
   }
 
   update(time, delta) {
