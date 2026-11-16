@@ -123,9 +123,10 @@ export class PlantPanel {
     c.add([panelBg, bg, title, hint, plant, this.fx, this.value, this.gauge, this.doneLabel, this.timer]);
     this.plantImg = plant;
     this.box = { plantX: X0 + 40, plantW: plant.displayWidth, plantTop: Y0 + H - 30 - plant.displayHeight };
-    // pulsanti per simulare la pianta (solo se non è collegata)
+    // pulsanti per simulare la pianta: solo per i sensori che l'Arduino non manda
     this.simButtons = [];
-    if (!PlantSensors.state.connected) this.makeSimButtons(c, step);
+    const KEY = { light: "L", temperature: "T", vials: "P", irrigation: "W", touch: "TOUCH" }[step.sensor];
+    if (!KEY || PlantSensors.simulated(KEY)) this.makeSimButtons(c, step);
     c.setAlpha(0);
     scene.tweens.add({ targets: c, alpha: 1, duration: 160 });
     this.c = c;
@@ -155,7 +156,7 @@ export class PlantPanel {
   }
 
   toggleLever() {
-    if (PlantSensors.state.connected) return;
+    if (!PlantSensors.simulated("W")) return;
     PlantSensors.state.irrigation = !PlantSensors.state.irrigation;
   }
 

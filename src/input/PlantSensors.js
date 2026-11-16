@@ -5,7 +5,6 @@
 // comandi verso l'arduino: E1 / E0 led emergenza, G lampeggio verde
 
 const BAUD = 9600;
-const SERIAL_COMMAND_MS = 150;
 
 export const VIAL_COLORS = {
   1: { name: "VERDE", color: 0x5c9a6b },
@@ -21,46 +20,78 @@ const state = {
   irrigation: false,
   touchLeft: false,
   touchRight: false,
-  serialDirection: 0,
-  serialDirectionUntil: 0
+  serialDirection: 0
 };
 
 let port = null;
 let writer = null;
 let lastArduinoCommand = null;
+// sensori che l'Arduino ha davvero mandato almeno una volta (L, T, P, W, TOUCH):
+// solo quelli comandano il gioco, tutti gli altri restano simulati da tastiera / pulsanti
+const reported = new Set();
 
 function parseLine(line) {
   const command = line.trim().toUpperCase();
   if (command === "SINISTRA" || command === "DESTRA" || command === "STOP") {
+    reported.add("TOUCH");
     if (command !== lastArduinoCommand) {
       console.log("Da Arduino:", command);
       lastArduinoCommand = command;
     }
     if (command === "STOP") {
       state.serialDirection = 0;
-      state.serialDirectionUntil = 0;
-      return;
+      state.touchLeft = false;
+      state.touchRight = false;
+    } else if (command === "SINISTRA") {
+      state.serialDirection = -1;
+      state.touchLeft = true;
+      state.touchRight = false;
+    } else if (command === "DESTRA") {
+      state.serialDirection = 1;
+      state.touchLeft = false;
+      state.touchRight = true;
     }
-    state.serialDirection = command === "SINISTRA" ? -1 : 1;
-    state.serialDirectionUntil = Date.now() + SERIAL_COMMAND_MS;
     return;
   }
+
   // le righe con '#' sono messaggi dell'arduino (es. UID di una fiala NFC non registrata)
   if (line.trim().startsWith("#")) {
     console.info("[pianta]", line.trim());
     return;
   }
+
   for (const part of line.trim().split(",")) {
     const [key, raw] = part.split(":");
     const value = Number(raw);
     if (Number.isNaN(value)) continue;
-    if (key === "L") state.light = Math.max(0, Math.min(1, value / 1023));
-    if (key === "T") state.temperature = value;
-    if (key === "P1") state.slots[0] = value;
-    if (key === "P2") state.slots[1] = value;
-    if (key === "W") state.irrigation = value === 1;
-    if (key === "TL") state.touchLeft = value === 1;
-    if (key === "TR") state.touchRight = value === 1;
+    if (key === "L") {
+      reported.add("L");
+      state.light = Math.max(0, Math.min(1, value / 1023));
+    }
+    if (key === "T") {
+      reported.add("T");
+      state.temperature = value;
+    }
+    if (key === "P1") {
+      reported.add("P");
+      state.slots[0] = value;
+    }
+    if (key === "P2") {
+      reported.add("P");
+      state.slots[1] = value;
+    }
+    if (key === "W") {
+      reported.add("W");
+      state.irrigation = value === 1;
+    }
+    if (key === "TL") {
+      reported.add("TOUCH");
+      state.touchLeft = value === 1;
+    }
+    if (key === "TR") {
+      reported.add("TOUCH");
+      state.touchRight = value === 1;
+    }
   }
 }
 
@@ -82,6 +113,10 @@ async function readLoop() {
     console.warn("Pianta scollegata", error);
   }
   state.connected = false;
+  reported.clear();
+  state.serialDirection = 0;
+  state.touchLeft = false;
+  state.touchRight = false;
 }
 
 export const PlantSensors = {
@@ -113,28 +148,37 @@ export const PlantSensors = {
     if (writer) writer.write(`${command}\n`).catch(() => {});
   },
 
+  // true se quel sensore va simulato (pianta scollegata o sensore che l'Arduino non manda)
+  // chiavi: "L" luce, "T" temperatura, "P" fiale, "W" leva acqua, "TOUCH" foglie
+  simulated(key) {
+    return !(state.connected && reported.has(key));
+  },
+
   get direction() {
-    return Date.now() < state.serialDirectionUntil ? state.serialDirection : 0;
+    return state.serialDirection;
   },
 
   // simulazione da tastiera: C copri, I torcia, H scalda, F raffredda
   simulate(keys, delta, baseTemperature = 22) {
-    if (state.connected) return;
     const seconds = delta / 1000;
-    const targetLight = keys.C.isDown ? 0.04 : keys.I.isDown ? 0.95 : this.ambientLight;
-    state.light += (targetLight - state.light) * Math.min(1, seconds * 8);
-    const targetTemp = keys.H.isDown ? baseTemperature + 12 : keys.F.isDown ? baseTemperature - 10 : baseTemperature;
-    const rate = keys.H.isDown || keys.F.isDown ? 2.2 : 1.2;
-    state.temperature += Math.sign(targetTemp - state.temperature) * Math.min(Math.abs(targetTemp - state.temperature), rate * seconds);
-    state.touchLeft = keys.Q.isDown;
-    state.touchRight = keys.E.isDown;
+    if (this.simulated("L")) {
+      const targetLight = keys.C.isDown ? 0.04 : keys.I.isDown ? 0.95 : this.ambientLight;
+      state.light += (targetLight - state.light) * Math.min(1, seconds * 8);
+    }
+    if (this.simulated("T")) {
+      const targetTemp = keys.H.isDown ? baseTemperature + 12 : keys.F.isDown ? baseTemperature - 10 : baseTemperature;
+      const rate = keys.H.isDown || keys.F.isDown ? 2.2 : 1.2;
+      state.temperature += Math.sign(targetTemp - state.temperature) * Math.min(Math.abs(targetTemp - state.temperature), rate * seconds);
+    }
+    if (this.simulated("TOUCH")) {
+      state.touchLeft = keys.Q.isDown;
+      state.touchRight = keys.E.isDown;
+    }
   },
 
   // fiale simulate: 1/2/3 inseriscono una fiala colorata, 0 toglie l'ultima
-  // se il pozzetto è pieno, la nuova fiala prende il posto di quella non richiesta (o di troppo):
-  // così basta premere il colore giusto anche dopo un errore
   insertVial(color, required = null) {
-    if (state.connected) return;
+    if (!this.simulated("P")) return;
     let free = state.slots.indexOf(0);
     if (free === -1 && required) {
       const remaining = [...required];
@@ -150,19 +194,17 @@ export const PlantSensors = {
   },
 
   removeVial() {
-    if (state.connected) return;
+    if (!this.simulated("P")) return;
     const last = state.slots[1] ? 1 : state.slots[0] ? 0 : -1;
     if (last !== -1) state.slots[last] = 0;
   },
 
-  // luce "a riposo" della simulazione (bassa se il vaso è rimasto coperto)
   ambientLight: 0.6,
 
   resetSimulation(baseTemperature = 22, { ambientLight = 0.6 } = {}) {
     this.ambientLight = ambientLight;
-    if (state.connected) return;
-    state.light = ambientLight;
-    state.temperature = baseTemperature;
-    state.slots = [0, 0];
+    if (this.simulated("L")) state.light = ambientLight;
+    if (this.simulated("T")) state.temperature = baseTemperature;
+    if (this.simulated("P")) state.slots = [0, 0];
   }
 };

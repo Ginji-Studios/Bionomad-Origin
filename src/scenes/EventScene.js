@@ -162,9 +162,9 @@ export class EventScene extends Phaser.Scene {
     if (step.sensor === "vials") {
       const colors = Phaser.Utils.Array.Shuffle([1, 2, 3]);
       step = { ...step, required: colors.slice(0, 2) };
-      if (step.setup === "wrongVial" && !PlantSensors.state.connected) PlantSensors.state.slots = [colors[2], 0];
+      if (step.setup === "wrongVial" && PlantSensors.simulated("P")) PlantSensors.state.slots = [colors[2], 0];
     }
-    if (step.setup === "leverOpen" && !PlantSensors.state.connected) PlantSensors.state.irrigation = true;
+    if (step.setup === "leverOpen" && PlantSensors.simulated("W")) PlantSensors.state.irrigation = true;
     this.plantPanel.show(step, { timeoutMs: step.timeoutMs ?? 0, emergency });
     this.pad.setVisible(false);
   }
