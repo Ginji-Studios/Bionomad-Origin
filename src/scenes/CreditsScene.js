@@ -236,7 +236,7 @@ export class CreditsScene extends Phaser.Scene {
     g.lineStyle(2, C.c3, 1);
     g.strokeRect(x, y, w, h);
     g.fillStyle(C.c4, 1);
-    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([nx, ny]) => g.fillRect(nx - 3, ny - 3, 6, 6));
+    // (angoli a quadratino rimossi: stile vettoriale pulito)
     this.page.add(g);
     return g;
   }
@@ -325,7 +325,7 @@ export class CreditsScene extends Phaser.Scene {
     g.strokeRect(x + 1, y + 1, cw - 2, 218);
     g.lineBetween(x, y + 188, x + cw, y + 188);
     g.fillStyle(C.c4, 1);
-    [[x, y], [x + cw, y], [x, y + 220], [x + cw, y + 220]].forEach(([nx, ny]) => g.fillRect(nx - 3, ny - 3, 6, 6));
+    // (angoli a quadratino rimossi: stile vettoriale pulito)
     label.setColor(HEX.c4);
   }
 }

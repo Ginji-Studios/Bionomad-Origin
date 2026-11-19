@@ -1,3 +1,5 @@
+import { addHiRes } from "../art/hires.js";
+import { drawBiodomLogo, LOGO_H, LOGO_W } from "../art/logoPath.js";
 // logotipo biodom+ in pixel art (bianco su trasparente: si colora con setTint)
 const LOGOS = {
   // versione grande per i titoli: lettere alte quanto le maiuscole del titolo (25 px)
@@ -7,21 +9,24 @@ const LOGOS = {
   logo_biodom: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFwAAAAUCAYAAAAA5FpZAAABVUlEQVR4Xu2W6w7CIAxGndn7v7KGKQuSXg4UpjGcnxul7dcWuN0WU3i8qTe/T/G2UNlTIdLfbdu2Vp2yba99L9/yO4LV4RezR/ylqUjd1jMd/0Y5dSX193CHL7FfUB1CHb74pBRduxtPwaWRIFVbR0obZod7r4H8XxNdKiIZP82OYNl6DUTiJWssjkuPJCIJpRWE7ikJQG0z0hh71H5bfWp4BU2cHW4t9jrZupWt5OrJqBPXYpIE8mypqKSAWk7keEWvFBKEhCQY6QJy7Fhd5vktxdemVIvB29sDCd4jgCWsd5TQomR6upcyOhYsOIEmbh1BV+EdQbMYKvjC5xS8pztrWscvSsRfxDYC7vARBZHIiUcEoLazcmjhTl4g1k2uYSVn/UvMsv0Fjnd4Er18a0cCa9mr7szRtuV+JXQiZnAeKSQIsiYX0AtW24v4oLbSpJD9Z/IEPEkIY8kHmTcAAAAASUVORK5CYII="
 };
 
+// logotipo biodom+ vettoriale (bianco su trasparente: si colora con setTint), disegnato a
+// risoluzione 4x così resta nitido anche ingrandito. Stesse dimensioni logiche di prima.
+function drawLogo(w, h) {
+  const S = 4;
+  const c = document.createElement("canvas");
+  c.width = w * S;
+  c.height = h * S;
+  const X = c.getContext("2d");
+  X.scale(S, S);
+  // logo ufficiale, adattato al riquadro mantenendo le proporzioni
+  const lh = Math.min(h, (w * LOGO_H) / LOGO_W);
+  drawBiodomLogo(X, 0, (h - lh) / 2, lh, "#FFFFFF");
+  return c;
+}
+
 export function loadLogos(scene) {
-  const entries = Object.entries(LOGOS).filter(([key]) => !scene.textures.exists(key));
-  return Promise.all(
-    entries.map(
-      ([key, data]) =>
-        new Promise((resolve) => {
-          const done = (added) => {
-            if (added === key) {
-              scene.textures.off("addtexture", done);
-              resolve();
-            }
-          };
-          scene.textures.on("addtexture", done);
-          scene.textures.addBase64(key, data);
-        })
-    )
-  );
+  [["logo_biodom", 92, 20], ["logo_biodom_l", 126, 28]].forEach(([key, w, h]) => {
+    if (!scene.textures.exists(key)) addHiRes(scene, key, drawLogo(w, h), 4);
+  });
+  return Promise.resolve();
 }

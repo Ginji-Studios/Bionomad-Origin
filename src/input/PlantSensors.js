@@ -1,8 +1,12 @@
-// sensori della pianta (Elegoo UNO R3) letti via Web Serial.
-// riga dall'arduino: L:612,T:23.4,P1:1,P2:0,W:0,TL:0,TR:1
-//   luce, °C (DHT11), fiala nel pozzetto 1 e 2 letta dal PN532 (0 vuoto, 1 verde, 2 blu, 3 rossa),
-//   leva acqua, foglia sx/dx
-// comandi verso l'arduino: E1 / E0 led emergenza, G lampeggio verde
+// controlli del BIONOMAD (Elegoo UNO R3) letti via Web Serial, 9600 baud.
+// Dall'Arduino:
+//   SINISTRA / DESTRA / STOP          foglie capacitive (movimento)
+//   START                             pulsante di avvio (una riga a ogni pressione)
+//   LU:1,TK:512,IR:0,AR:0             interruttore luce, manopola temperatura (0-1023),
+//                                     pulsante irrigazione, pulsante arieggiamento
+// Verso l'Arduino:
+//   E1 / E0  emergenza (LED rosso lampeggiante + buzzer)   G  lampeggio verde (task riuscita)
+//   N        notifica (bip breve)                           O:0-100  livello di ossigeno (LED RGB)
 
 const BAUD = 9600;
 
@@ -20,7 +24,16 @@ const state = {
   irrigation: false,
   touchLeft: false,
   touchRight: false,
-  serialDirection: 0
+  serialDirection: 0,
+  // nuovi controlli
+  lightSwitch: false,
+  knob: 0.5, // 0..1
+  irrigate: false,
+  vent: false,
+  // pressioni contate (anche se rapidissime, tra un fotogramma e l'altro)
+  irrCount: 0,
+  airCount: 0,
+  startPresses: 0
 };
 
 let port = null;
@@ -54,6 +67,11 @@ function parseLine(line) {
     return;
   }
 
+  if (command === "START") {
+    reported.add("START");
+    state.startPresses += 1;
+    return;
+  }
   // le righe con '#' sono messaggi dell'arduino (es. UID di una fiala NFC non registrata)
   if (line.trim().startsWith("#")) {
     console.info("[pianta]", line.trim());
@@ -83,6 +101,24 @@ function parseLine(line) {
     if (key === "W") {
       reported.add("W");
       state.irrigation = value === 1;
+    }
+    if (key === "LU") {
+      reported.add("LU");
+      state.lightSwitch = value === 1;
+    }
+    if (key === "TK") {
+      reported.add("TK");
+      state.knob = Math.max(0, Math.min(1, value / 1023));
+    }
+    if (key === "IR") {
+      reported.add("IR");
+      if (value === 1 && !state.irrigate) state.irrCount++;
+      state.irrigate = value === 1;
+    }
+    if (key === "AR") {
+      reported.add("AR");
+      if (value === 1 && !state.vent) state.airCount++;
+      state.vent = value === 1;
     }
     if (key === "TL") {
       reported.add("TOUCH");
@@ -149,9 +185,16 @@ export const PlantSensors = {
   },
 
   // true se quel sensore va simulato (pianta scollegata o sensore che l'Arduino non manda)
-  // chiavi: "L" luce, "T" temperatura, "P" fiale, "W" leva acqua, "TOUCH" foglie
+  // chiavi: "TOUCH" foglie, "LU" interruttore luce, "TK" manopola, "IR" irrigazione, "AR" aria, "START"
   simulated(key) {
     return !(state.connected && reported.has(key));
+  },
+
+  // pressioni del pulsante di avvio arrivate dall'ultima lettura
+  takeStart() {
+    const n = state.startPresses;
+    state.startPresses = 0;
+    return n > 0;
   },
 
   get direction() {

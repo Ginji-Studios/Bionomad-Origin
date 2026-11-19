@@ -1,289 +1,156 @@
-// eventi della run (ne escono 3 a caso, in ordine di orario).
-// tipi di step: pickup, use, useSelf, talk, confirm, hold, prune, sit, exit, reach,
-// plant (sensore: light / temperature / vials / irrigation), busLeaves, emergency
+// eventi della giornata con i nuovi controlli del BIONOMAD:
+//   luce (interruttore), temperatura (manopola + display zaino/esterno),
+//   irrigazione (pulsante: né troppo né troppo poco), arieggiamento (pulsante da tenere premuto).
 //
-// negligenze sulla pianta (costano ossigeno):
-//  - timeoutMs: se non la scaldi / raffreddi in tempo te ne sei dimenticato
-//  - maxOver: scaldarla troppo la scotta
-//  - floodMs: leva dell'acqua lasciata aperta, la pianta si allaga
-//  - fiale: il colore deve corrispondere, quella sbagliata va tolta
+// tipi di step:
+//   notify    arriva una notifica sul telefono / dal BIONOMAD (si completa da sola)
+//   bio       pannello del BIONOMAD con un obiettivo: goal = light | temp | water | air
+//             light: qteMs = tempo per accenderla (quick time event)
+//             temp:  out = °C fuori, holdMs = quanto restare nella fascia giusta
+//             water: portare l'acqua nella fascia giusta senza esagerare
+//             air:   tenere premuto finché l'aria è pulita
+//   place     appoggiare il BIONOMAD sul tavolo (in ufficio si usa l'hub dell'ufficio)
+//   take      riprendere il BIONOMAD dal tavolo
+//   reach     raggiungere un punto      exit  uscire      talk  parlare con qualcuno
+//   sleep     andare a dormire (tenere premuto vicino al divano)
+//   busLeaves il bus parte senza di te
+//   emergency corsa verso casa con tre cure a sorpresa
 export const EVENTS = {
-  ufficio_mattina: {
-    level: 1,
-    title: "UFFICIO · MATTINA",
-    time: "09:00",
-    location: "office",
-    description: "Devi annaffiare l'hub dell'ufficio. Raccogli l'annaffiatoio, raggiungi l'hub e annaffia.",
-    steps: [
-      { type: "pickup", target: "can", item: "can", text: "RACCOGLI L'ANNAFFIATOIO" },
-      { type: "use", target: "hub", item: "can", effect: "water", text: "ANNAFFIA L'HUB" }
-    ]
-  },
-  food_truck_acqua: {
-    level: 2,
-    title: "FOOD TRUCK · ACQUA",
-    time: "13:00",
-    location: "foodtruck",
-    description: "Non annaffi la tua pianta da un po'. Compra l'acqua al food truck, versala nel serbatoio e attiva l'irrigazione.",
-    steps: [
-      { type: "pickup", target: "counter", item: "bottle", text: "COMPRA L'ACQUA", line: "Ecco la tua acqua, 1 credito!" },
-      {
-        type: "plant",
-        sensor: "irrigation",
-        on: true,
-        holdMs: 2500,
-        text: "ATTIVA L'IRRIGAZIONE",
-        hint: "Premi il pulsante dell'irrigazione sul vaso e lascia scorrere l'acqua.",
-        key: "R"
-      },
-      {
-        type: "plant",
-        sensor: "irrigation",
-        on: false,
-        holdMs: 400,
-        floodMs: 3500,
-        text: "SPEGNI L'IRRIGAZIONE",
-        hint: "Basta così: ripremi il pulsante per non allagare la pianta.",
-        key: "R"
-      }
-    ]
-  },
-  ufficio_sera: {
-    level: 1,
-    title: "UFFICIO · SERA",
-    time: "18:30",
-    location: "office",
-    evening: true,
-    description: "Fine giornata di lavoro: imposta l'hub in modalità notturna, aspetta il caricamento ed esci.",
-    steps: [
-      { type: "confirm", target: "hub", question: "Attivare la modalità notturna?", text: "RAGGIUNGI L'HUB" },
-      { type: "hold", target: "hub", duration: 3500, text: "ATTENDI IL CARICAMENTO" },
-      { type: "exit", target: "door", text: "ESCI DALL'UFFICIO" }
-    ]
-  },
-  bus_sera: {
-    level: 1,
-    title: "FERMATA BUS · SERA",
-    time: "19:15",
-    location: "busstop",
-    evening: true,
-    description: "Mentre aspetti il bus, un signore ti fa notare che alcune foglie sono rovinate: potale.",
-    steps: [
-      { type: "talk", target: "man", line: "Ehi! Quelle foglie marroni la fanno soffrire...", text: "PARLA CON IL SIGNORE" },
-      { type: "prune", text: "POTA LE FOGLIE ROVINATE" }
-    ]
-  },
-  food_truck_ricarica: {
-    level: 1,
-    title: "FOOD TRUCK · RICARICA",
-    time: "12:30",
-    location: "foodtruck",
-    description: "Ricarica l'Active Pack con il BIONOMAD alla colonnina del food truck, poi mangia con il pack.",
-    steps: [
-      { type: "hold", target: "charger", duration: 4000, text: "RICARICA L'ACTIVE PACK" },
-      { type: "sit", target: "bench", duration: 2600, text: "SIEDITI E MANGIA" }
-    ]
-  }
-};
-
-// eventi sulla pianta vera
-Object.assign(EVENTS, {
-  bus_mattina: {
-    level: 2,
-    title: "BUS · MATTINA",
-    time: "08:10",
+  // ---------------------------------------------------------------- BUS (mattina)
+  bus_affollato: {
+    slot: "bus",
+    title: "BUS · AFFOLLATO",
+    time: "08:15",
     location: "bus",
-    plant: true,
-    description: "Sulla via per il lavoro il bus è affollatissimo: copri il BIONOMAD per proteggerlo finché non si libera spazio.",
+    description: "Il bus è pieno e le persone coprono il tuo BIONOMAD: accendi la luce in tempo.",
     steps: [
-      {
-        type: "plant",
-        sensor: "light",
-        below: 0.2,
-        holdMs: 5000,
-        malus: true,
-        drainBoost: 2,
-        text: "COPRI IL BIONOMAD",
-        hint: "Copri la pianta con la mano (buio sul sensore di luce) finché la barra non si riempie. Coprirla costa ossigeno!",
-        key: "C"
-      }
-    ]
-  },
-  ufficio_freddo: {
-    level: 3,
-    title: "UFFICIO · CONDIZIONATORE",
-    time: "10:30",
-    location: "office",
-    ac: true,
-    noPack: true,
-    plant: true,
-    description: "Hai lasciato il BIONOMAD vicino al condizionatore e la pianta si è raffreddata: recuperalo e riscaldala.",
-    steps: [
-      { type: "pickup", target: "ac", item: "pack", text: "RECUPERA IL BIONOMAD", line: "Brr... è gelido!" },
-      {
-        type: "plant",
-        sensor: "temperature",
-        riseBy: 3,
-        maxOver: 6,
-        holdMs: 1500,
-        timeoutMs: 16000,
-        baseTemperature: 16,
-        text: "RISCALDA LA PIANTA",
-        hint: "Scalda con la torcia termica di 3 °C, senza esagerare: troppo calore la scotta.",
-        key: "H"
-      }
-    ]
-  },
-  casa_fertilizzante: {
-    level: 2,
-    title: "CASA · SERA",
-    time: "20:00",
-    location: "home",
-    evening: true,
-    plant: true,
-    endsAt: "home",
-    description: "Alla pianta serve il fertilizzante: raggiungi l'Home Hub e inserisci le fiale nel pozzetto apposito.",
-    steps: [
-      { type: "reach", target: "hub", text: "RAGGIUNGI L'HOME HUB" },
-      {
-        type: "plant",
-        sensor: "vials",
-        holdMs: 1200,
-        text: "INSERISCI LE FIALE GIUSTE",
-        hint: "Metti nel pozzetto le 2 fiale del colore indicato. Se sbagli, toglila e rimettila.",
-        key: "1/2/3"
-      }
+      { type: "notify", ms: 1600, text: "SALI SUL BUS", line: "Il bus è pieno: le persone coprono il BIONOMAD, la pianta è al buio!" },
+      { type: "bio", goal: "light", qteMs: 6000, text: "ACCENDI LA LUCE IN TEMPO", hint: "Gira l'interruttore della luce prima che scada il tempo." }
     ]
   },
   bus_perso: {
-    level: 3,
-    title: "BUS PERSO · A PIEDI",
-    time: "19:30",
+    slot: "bus",
+    title: "FERMATA · BUS PERSO",
+    time: "08:30",
     location: "busstop",
-    evening: true,
-    plant: true,
-    description: "Hai perso il bus: si torna a casa a piedi e fa freddo. Scalda la pianta prima di incamminarti.",
+    description: "Perdi il bus e fuori fa freddo: porta la temperatura dello zaino al valore giusto.",
     steps: [
-      { type: "busLeaves", text: "IL BUS È PARTITO..." },
-      {
-        type: "plant",
-        sensor: "temperature",
-        riseBy: 3,
-        maxOver: 6,
-        holdMs: 2000,
-        timeoutMs: 16000,
-        baseTemperature: 8,
-        text: "SCALDA LA PIANTA",
-        hint: "Fa freddo: scalda la pianta con le mani o la torcia termica.",
-        key: "H"
-      }
+      { type: "busLeaves", text: "ASPETTA IL BUS" },
+      { type: "bio", goal: "temp", out: 3, holdMs: 3000, text: "FA FREDDO: ALZA LA TEMPERATURA", hint: "Gira la manopola finché lo zaino resta tra 18 e 24 °C." }
     ]
   },
-  ondata_caldo: {
-    level: 3,
-    title: "PARCO · ONDATA DI CALORE",
-    time: "14:30",
-    location: "foodtruck",
-    plant: true,
-    description: "Il sole picchia sul parco e il BIONOMAD si sta surriscaldando: raffreddalo prima che la pianta appassisca.",
+  // ---------------------------------------------------------------- UFFICIO
+  // in ufficio il BIONOMAD resta sul tavolo, collegato all'hub dell'ufficio: si va da lui
+  ufficio_riscaldamento: {
+    slot: "office",
+    title: "UFFICIO · RISCALDAMENTO SPENTO",
+    time: "10:30",
+    location: "office",
+    out: 21,
+    description: "Si spegne il riscaldamento dell'ufficio: alza la temperatura del BIONOMAD.",
     steps: [
-      { type: "reach", target: "bench", text: "METTITI ALL'OMBRA" },
-      {
-        type: "plant",
-        sensor: "temperature",
-        dropBy: 3,
-        holdMs: 1800,
-        timeoutMs: 16000,
-        baseTemperature: 34,
-        text: "RAFFREDDA LA PIANTA",
-        hint: "Fa troppo caldo: abbassa la temperatura di 3 °C prima che sia tardi.",
-        key: "F"
-      }
+      { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
+      { type: "notify", ms: 2600, text: "AL LAVORO", line: "NOTIFICA · Riscaldamento dell'ufficio spento: il BIONOMAD ha freddo", out: 12 },
+      { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
+      { type: "bio", goal: "temp", out: 12, holdMs: 3000, text: "ALZA LA TEMPERATURA", hint: "Gira la manopola: lo zaino deve restare tra 18 e 24 °C." },
+      { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
+      { type: "exit", target: "door", text: "ESCI DALL'UFFICIO" }
     ]
   },
-  emergenza: {
-    title: "EMERGENZA · PARASSITA",
-    time: "17:45",
-    location: "street",
+  ufficio_capo: {
+    slot: "office",
+    title: "UFFICIO · RIUNIONE COL CAPO",
+    time: "12:00",
+    location: "office",
+    out: 21,
+    description: "Devi parlare con il capo: pulisci il BIONOMAD perché sia smagliante.",
+    steps: [
+      { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
+      { type: "notify", ms: 2600, text: "AL LAVORO", line: "NOTIFICA · Il capo ti aspetta: il BIONOMAD deve essere smagliante" },
+      { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
+      { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", hint: "Premi UNA volta il pulsante dell'aria, prima che scada il tempo." },
+      { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
+      { type: "talk", target: "boss", text: "PARLA CON IL CAPO", line: "Ottimo lavoro: sembra appena uscito dalla serra!" }
+    ]
+  },
+  ufficio_sera: {
+    slot: "evening",
     evening: true,
-    plant: true,
-    emergency: true,
-    drainMultiplier: 2.3,
-    endsAt: "home",
-    description: "LED rossi! Un parassita ha infiltrato il tuo BIONOMAD. Oggi è l'unica task: torna a casa stabilizzando la pianta con 6 cure improvvise. L'ossigeno cala più in fretta, ma ogni cura riuscita ne ridà molto.",
-    steps: [{ type: "emergency", target: "home", actionEveryMs: 4200, cures: 6, text: "STABILIZZA LA PIANTA E TORNA A CASA" }]
-  }
-});
-
-// altri eventi, per avere più varietà tra una partita e l'altra
-Object.assign(EVENTS, {
-  casa_mattina: {
-    level: 1,
-    title: "CASA · MATTINA",
-    time: "07:30",
+    title: "UFFICIO · FINE GIORNATA",
+    time: "18:30",
+    location: "office",
+    out: 20,
+    description: "Finisce la giornata di lavoro e fuori è buio: accendi la luce del BIONOMAD prima di uscire.",
+    steps: [
+      { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
+      { type: "notify", ms: 2400, text: "ULTIME MAIL", line: "Fine della giornata: fuori è già buio" },
+      { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
+      { type: "bio", goal: "light", text: "ACCENDI LA LUCE DEL BIONOMAD", hint: "Accendi l'interruttore della luce: fuori è buio." },
+      { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
+      { type: "exit", target: "door", text: "ESCI DALL'UFFICIO" }
+    ]
+  },
+  // ---------------------------------------------------------------- CASA
+  casa_riscaldamento: {
+    slot: "home",
+    evening: true,
+    title: "CASA · RISCALDAMENTO ACCESO",
+    time: "19:30",
     location: "home",
-    plant: true,
-    description: "La pianta ha passato la notte al buio: prima di uscire dalle luce, poi esci di casa.",
+    out: 28,
+    description: "Entri in casa e il riscaldamento è acceso: abbassa la temperatura del BIONOMAD.",
     steps: [
-      { type: "reach", target: "hub", text: "RAGGIUNGI L'HOME HUB" },
-      { type: "plant", sensor: "light", above: 0.75, holdMs: 2500, text: "DALLE LUCE", hint: "Accendi la torcia e puntala sul sensore di luce.", key: "I" },
-      { type: "exit", target: "door", text: "ESCI DI CASA" }
+      { type: "notify", ms: 1800, text: "ENTRA IN CASA", line: "Il riscaldamento di casa è acceso: 28 °C", out: 28 },
+      { type: "bio", goal: "temp", out: 28, holdMs: 3000, text: "ABBASSA LA TEMPERATURA", hint: "Gira la manopola verso il freddo: tra 18 e 24 °C." }
     ]
   },
-  parco_notte: {
-    level: 2,
-    title: "PARCO · LAMPIONE SPENTO",
-    time: "21:00",
-    location: "foodtruck",
+  casa_notte: {
+    slot: "night",
     evening: true,
-    plant: true,
-    description: "Ti fermi sulla panchina del parco ma il lampione è spento: la pianta ha bisogno di luce.",
+    title: "CASA · NOTTE",
+    time: "23:40",
+    location: "home",
+    out: 22,
+    description: "Dormi, ma il BIONOMAD ti sveglia: ha bisogno di acqua o di aria.",
     steps: [
-      { type: "sit", target: "bench", duration: 2000, text: "SIEDITI SULLA PANCHINA" },
-      { type: "plant", sensor: "light", above: 0.8, holdMs: 3000, timeoutMs: 15000, text: "ILLUMINALA CON LA TORCIA", hint: "Punta la torcia sul sensore finché la barra non si riempie.", key: "I" }
+      { type: "sleep", target: "sofa", duration: 1800, text: "VAI A DORMIRE" },
+      { type: "notify", ms: 2200, text: "DORMI…", line: "03:12 · Il BIONOMAD ti sveglia: ha bisogno di cure", wake: true },
+      { type: "bio", goal: "need", text: "DAI AL BIONOMAD QUELLO CHE SERVE", hint: "Leggi il display: acqua o aria?" }
     ]
   },
-  bus_notte: {
-    level: 2,
-    title: "BUS · NOTTE",
-    time: "22:10",
-    location: "bus",
-    evening: true,
-    plant: true,
-    description: "Sull'ultimo bus le luci al neon sono accecanti: copri la pianta finché non scendi.",
-    steps: [
-      { type: "plant", sensor: "light", below: 0.2, holdMs: 3500, malus: true, text: "COPRI IL BIONOMAD", hint: "Copri il sensore di luce con la mano finché la barra non si riempie.", key: "C" }
-    ]
+  // ---------------------------------------------------------------- EMERGENZA (molto rara)
+  emergenza: {
+    emergency: true,
+    title: "EMERGENZA · BIONOMAD COMPROMESSO",
+    time: "ORA",
+    location: "street",
+    endsAt: "home",
+    description: "Il BIONOMAD è stato compromesso: torna subito a casa tenendolo in vita.",
+    steps: [{ type: "emergency", cures: 3, actionEveryMs: 5200, text: "TORNA A CASA" }]
   }
-});
-
-// l'emergenza è rara: quando esce è l'unico evento della giornata
-export const EMERGENCY_CHANCE = 0.08;
-
-// azioni di cura casuali durante l'emergenza: tempi stretti e tenute più lunghe
-export const EMERGENCY_ACTIONS = [
-  { type: "plant", sensor: "light", above: 0.85, holdMs: 1800, text: "ILLUMINALA!", hint: "Accendi la torcia e puntala sulla pianta.", key: "I", timeoutMs: 5500 },
-  { type: "plant", sensor: "temperature", riseBy: 3, holdMs: 1200, text: "SCALDALA!", hint: "Usa la torcia termica: +3 °C.", key: "H", timeoutMs: 5500 },
-  { type: "plant", sensor: "temperature", dropBy: 3, holdMs: 1200, baseTemperature: 31, text: "RAFFREDDALA!", hint: "La febbre del parassita: abbassa la temperatura di 3 °C.", key: "F", timeoutMs: 5500 },
-  { type: "plant", sensor: "irrigation", on: true, holdMs: 1600, text: "IRRIGALA!", hint: "Attiva l'irrigazione, poi richiudi la leva.", key: "R", timeoutMs: 5500 },
-  { type: "plant", sensor: "vials", holdMs: 1200, text: "ANTIPARASSITARIO!", hint: "Inserisci nel pozzetto le 2 fiale del colore indicato.", key: "1/2/3", timeoutMs: 8000 }
-];
-
-// task extra in base alla difficoltà:
-// MEDIO aggiunge una cura, DIFFICILE una cura + un rimedio a una negligenza
-export const EXTRA_TASKS = {
-  care: [
-    { type: "plant", sensor: "light", above: 0.75, holdMs: 2500, text: "+ ILLUMINALA", hint: "Accendi la torcia e puntala sulla pianta.", key: "I" },
-    { type: "plant", sensor: "temperature", riseBy: 2, maxOver: 5, holdMs: 1500, timeoutMs: 16000, text: "+ SCALDALA UN PO'", hint: "Due gradi in più con la torcia termica, non di più.", key: "H" },
-    { type: "plant", sensor: "vials", holdMs: 1200, text: "+ NUTRILA", hint: "Inserisci nel pozzetto le 2 fiale del colore indicato.", key: "1/2/3" },
-    { type: "plant", sensor: "irrigation", on: true, holdMs: 2000, text: "+ DALLE UN SORSO", hint: "Apri la leva dell'acqua... e poi ricordati di richiuderla!", key: "R" }
-  ],
-  fix: [
-    { type: "plant", sensor: "irrigation", on: false, holdMs: 400, floodMs: 4500, setup: "leverOpen", text: "! CHIUDI LA LEVA APERTA", hint: "Hai lasciato l'irrigazione aperta: il vaso si sta allagando!", key: "R" },
-    { type: "plant", sensor: "vials", holdMs: 1200, setup: "wrongVial", text: "! CAMBIA LA FIALA SBAGLIATA", hint: "Nel pozzetto c'è la fiala del colore sbagliato: toglila (0) e metti quella giusta.", key: "1/2/3" },
-    { type: "plant", sensor: "temperature", dropBy: 4, holdMs: 1500, timeoutMs: 14000, baseTemperature: 31, text: "! L'HAI SURRISCALDATA", hint: "Hai lasciato acceso il riscaldamento: raffreddala di 4 °C.", key: "F" },
-    { type: "plant", sensor: "light", above: 0.7, holdMs: 2000, timeoutMs: 14000, setup: "covered", text: "! L'HAI LASCIATA AL BUIO", hint: "Il vaso è rimasto coperto tutto il giorno: scoprilo e illuminalo.", key: "I" }
-  ]
 };
 
-export const EVENTS_PER_RUN = 3;
+// una giornata: bus del mattino → ufficio (giorno) → ufficio (sera) → casa (sera) → a volte la notte
+export const DAY_PLAN = ["bus", "office", "evening", "home", "night"];
+// probabilità di avere anche la notte in casa, per difficoltà (facile, media, difficile)
+export const NIGHT_CHANCE = [0.25, 0.5, 0.8];
+
+// notifiche a caso durante i tragitti
+export const TRAVEL_TASK_CHANCE = 0.5;
+export const TRAVEL_TASKS = [
+  { type: "bio", goal: "water", text: "IRRIGA IL BIONOMAD", line: "NOTIFICA · Il BIONOMAD ha bisogno di acqua", hint: "Premi UNA volta il pulsante dell'irrigazione, in tempo: due volte è troppa." },
+  { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", line: "NOTIFICA · Il BIONOMAD ha bisogno di aria", hint: "Premi UNA volta il pulsante dell'aria, prima che scada il tempo." }
+];
+
+export const EMERGENCY_CHANCE = 0.03;
+// cure a sorpresa durante la corsa verso casa (tre a caso)
+export const EMERGENCY_ACTIONS = [
+  { type: "bio", goal: "light", qteMs: 5000, text: "! ACCENDI LA LUCE", hint: "Subito: interruttore della luce." },
+  { type: "bio", goal: "temp", out: 4, holdMs: 2000, timeoutMs: 12000, text: "! ALZA LA TEMPERATURA", hint: "Manopola: tra 18 e 24 °C." },
+  { type: "bio", goal: "temp", out: 34, holdMs: 2000, timeoutMs: 12000, text: "! ABBASSA LA TEMPERATURA", hint: "Manopola: tra 18 e 24 °C." },
+  { type: "bio", goal: "water", timeoutMs: 12000, text: "! IRRIGA", hint: "Premi una volta il pulsante dell'acqua." },
+  { type: "bio", goal: "air", timeoutMs: 12000, text: "! ARIEGGIA", hint: "Premi una volta il pulsante dell'aria." }
+];
+
+// compatibilità con il vecchio sistema (non più usato)
+export const EXTRA_TASKS = { care: [], fix: [] };

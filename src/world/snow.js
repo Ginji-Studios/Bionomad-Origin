@@ -14,22 +14,19 @@ const SHAPES = [
 const COLORS = ["#ffffff", "#dfe9f3", "#c4d6e8"];
 
 function flakeTextures(scene) {
+  // fiocchi tondi e morbidi, nello stile piatto
   SHAPES.forEach((rows, si) =>
     COLORS.forEach((col, ci) => {
       const key = `snow_${si}_${ci}`;
       if (scene.textures.exists(key)) return;
-      const n = rows.length;
-      const px = 2;
-      const t = scene.textures.createCanvas(key, n * px, n * px);
+      const r = 1.5 + si * 1.2;
+      const n = Math.ceil(r * 2 + 2);
+      const t = scene.textures.createCanvas(key, n, n);
       const X = t.getContext();
-      rows.forEach((r, y) =>
-        [...r].forEach((v, x) => {
-          if (v === "0") return;
-          X.globalAlpha = v === "1" ? 1 : 0.55;
-          X.fillStyle = col;
-          X.fillRect(x * px, y * px, px, px);
-        })
-      );
+      X.fillStyle = col;
+      X.beginPath();
+      X.arc(n / 2, n / 2, r, 0, 7);
+      X.fill();
       t.refresh();
     })
   );

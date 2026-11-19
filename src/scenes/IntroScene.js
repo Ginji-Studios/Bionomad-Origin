@@ -116,7 +116,7 @@ export class IntroScene extends Phaser.Scene {
     lines.lineBetween(x, y + 64, x + w, y + 64);
     lines.lineBetween(x, y + h - 112, x + w, y + h - 112);
     lines.fillStyle(C.c4, 1);
-    [[x, y + 64], [x + w, y + 64], [x, y + h - 112], [x + w, y + h - 112]].forEach(([nx, ny]) => lines.fillRect(nx - 3, ny - 3, 6, 6));
+    // (angoli a quadratino rimossi: stile vettoriale pulito)
     const warn = this.add.graphics().setVisible(false);
     warn.fillStyle(C.c4, 1);
     warn.fillTriangle(x + 30, y + 48, x + 50, y + 14, x + 70, y + 48);
@@ -147,7 +147,7 @@ export class IntroScene extends Phaser.Scene {
       shell.lineStyle(2, C.c3, 1);
       shell.strokeRect(cxm - cw / 2, cym - ch / 2, cw, ch);
       shell.fillStyle(C.c4, 1);
-      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => shell.fillRect(cxm + (sx * cw) / 2 - 3, cym + (sy * ch) / 2 - 3, 6, 6));
+      // (angoli a quadratino rimossi: stile vettoriale pulito)
     };
     const type = (t, full, ms, done) => {
       let i = 0;
@@ -264,6 +264,10 @@ export class IntroScene extends Phaser.Scene {
       const ev = currentEvent(this.registry);
       goTo(this, ev && (ev.location === "home" || ev.location === "street") ? "EventScene" : "TravelScene");
     });
+  }
+
+  onStart() {
+    this.go();
   }
 
   go() {

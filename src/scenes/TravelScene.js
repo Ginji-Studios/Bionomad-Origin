@@ -1,14 +1,19 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { dayTime, failRun, getRun, nextDestination, cityZone } from "../systems/RunManager.js";
+import { dayTime, failRun, getRun, nextDestination, cityZone, cityTemp } from "../systems/RunManager.js";
+import { TRAVEL_TASKS, TRAVEL_TASK_CHANCE } from "../config/events.js";
+import { Bionomad } from "../systems/Bionomad.js";
+import { PlantSensors } from "../input/PlantSensors.js";
+import { BioPanel, bioKeys } from "../ui/BioPanel.js";
+import { notification } from "./EventScene.js";
+import { biodomPoster } from "../art/biodom.js";
 import { buildSkyline, paint } from "../world/skyline.js";
-import { posterArt } from "../art/places.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey, warmBare } from "../art/people.js";
 import { snowfall } from "../world/snow.js";
 import { careWithPack } from "../entities/packGesture.js";
-import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
+import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
 const PLACE_NAME = { home: "CASA", office: "UFFICIO", bus: "FERMATA DEL BUS", busstop: "FERMATA DEL BUS", foodtruck: "FOOD TRUCK", street: "STRADA" };
@@ -81,8 +86,19 @@ export class TravelScene extends Phaser.Scene {
     brackets(this);
     cityHud(this, this.origin.id, { zone: cityZone(this.run) });
     this.o2 = o2Hud(this);
+    this.chip = statusChip(this);
     this.tasks = taskPanel(this);
-    this.tasks.set(this.finished ? "FINE GIORNATA" : `VERSO L'EVENTO ${this.run.index + 1}/${this.run.events.length}`, [`VAI A: ${PLACE_NAME[this.dest.location] ?? "ARRIVO"}`], 0);
+    this.taskTitle = this.finished ? "FINE GIORNATA" : `VERSO L'EVENTO ${this.run.index + 1}/${this.run.events.length}`;
+    this.goalLabel = `VAI A: ${PLACE_NAME[this.dest.location] ?? "ARRIVO"}`;
+    this.tasks.set(this.taskTitle, [this.goalLabel], 0);
+    // il BIONOMAD all'aperto: fuori fa più freddo, di sera ancora di più
+    Bionomad.setOutside(cityTemp(this.run, this.time_ === "night" ? 8 : 13));
+    this.bio = new BioPanel(this);
+    this.bioContext = { kind: "street", night: this.time_ === "night" };
+    this.bioKeys = bioKeys(this);
+    this.mode = "play";
+    // a volte, durante il tragitto, il BIONOMAD chiede qualcosa (irrigazione o aria)
+    this.taskAt = Math.random() < TRAVEL_TASK_CHANCE ? 0.3 + Math.random() * 0.3 : null;
     this.pad = controls(this, { action: false });
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
   }
@@ -97,48 +113,42 @@ export class TravelScene extends Phaser.Scene {
   }
 
 
+  // manifesti BIODOM nel nuovo stile: pochi, a un terzo e a due terzi del percorso
   addPosters() {
-    const kinds = [
-      { key: "poster_1", w: 64, h: 90, tall: true },
-      { key: "poster_4", w: 196, h: 108 },
-      { key: "poster_2", w: 64, h: 90, tall: true },
-      { key: "poster_5", w: 160, h: 108 },
-      { key: "poster_3", w: 64, h: 90, tall: true }
-    ];
-    const S = 1.25;
-    // pochi e messi apposta: un cartellone a un terzo del percorso e un pannello
-    // verticale a due terzi, lontani dalla partenza e dall'arrivo
-    const spots = [
-      [Math.round(this.worldW * 0.34), kinds[[1, 3][this.run.index % 2]]],
-      [Math.round(this.worldW * 0.68), kinds[[0, 2, 4][this.run.index % 3]]]
-    ];
-    for (const [x, k] of spots) {
-      const tex = `street_${k.key}`;
-      const legs = k.tall ? 70 : 96;
-      const W = Math.round((k.w + 16) * S);
-      const H = Math.round((k.h + 16 + legs) * S);
-      if (!this.textures.exists(tex))
-        this.textures.addCanvas(
-          tex,
-          paint(W, H, S, (T) => {
-            const { X, G } = T;
-            // pali
-            X.fillStyle = G(0.14);
-            if (k.tall) X.fillRect(k.w / 2 + 5, k.h + 8, 6, legs + 8);
-            else {
-              X.fillRect(18, k.h + 8, 6, legs + 8);
-              X.fillRect(k.w - 8, k.h + 8, 6, legs + 8);
-            }
-            // cornice del pannello
-            X.fillStyle = G(0.22);
-            X.fillRect(0, 0, k.w + 16, k.h + 16);
-            posterArt(T, k.key, 8, 8, k.w, k.h);
-            // lampadina che illumina il pannello
-            X.fillStyle = G(0.95);
-            X.fillRect((k.w + 16) / 2 - 6, 0, 12, 3);
-          }, { cell: 1, seedValue: 5 })
-        );
-      this.add.image(x, FEET + 4, tex).setOrigin(0.5, 1).setDepth(150);
+    const spots = [0.34, 0.68].map((f, i) => [Math.round(this.worldW * f), (this.run.index * 2 + i) % 4]);
+    for (const [x, v] of spots) this.add.image(x, FEET + 6, biodomPoster(this, v)).setOrigin(0.5, 1).setDepth(150);
+  }
+
+  // notifica del BIONOMAD durante il tragitto: ci si ferma e si fa la task
+  travelTask() {
+    const t = Phaser.Utils.Array.GetRandom(TRAVEL_TASKS);
+    this.mode = "busy";
+    this.player.vx = 0;
+    PlantSensors.send("N");
+    Sfx.announce?.();
+    notification(this, t.line);
+    this.tasks.set(this.taskTitle, [t.text, this.goalLabel], 0);
+    this.time.delayedCall(1600, () => {
+      this.mode = "bio";
+      this.pad.setVisible(false);
+      this.bio.show(t);
+    });
+  }
+
+  closeTask(ok) {
+    this.bio.close();
+    this.pad.setVisible(true);
+    this.mode = "play";
+    this.tasks.set(this.taskTitle, [this.goalLabel], 0);
+    if (ok) {
+      PlantSensors.send("G");
+      Sfx.o2Gain();
+      this.oxygen = Math.min(1, this.oxygen + 0.06);
+      this.player.o2Pop(1);
+    } else {
+      Sfx.negligence();
+      this.oxygen = Math.max(0, this.oxygen - 0.12);
+      this.player.o2Pop(-1);
     }
   }
 
@@ -170,10 +180,30 @@ export class TravelScene extends Phaser.Scene {
       this.o2.set(this.oxygen, time);
       return;
     }
+    this.bioKeys(delta);
+    Bionomad.update(delta);
+    this.chip.update(time);
     const input = this.pad.poll();
+    this.player.frozen = this.mode !== "play";
     this.player.update(input.dir, delta);
+    if (this.mode === "bio") {
+      const r = this.bio.update(delta);
+      if (r.negligence === "flood") {
+        Sfx.negligence();
+        this.oxygen = Math.max(0, this.oxygen - 0.1);
+      }
+      if (r.done) this.closeTask(true);
+      else if (r.failed) this.closeTask(false);
+    }
+    if (this.mode === "play" && this.taskAt != null) {
+      const p = this.back ? (this.worldW - this.player.x) / this.worldW : this.player.x / this.worldW;
+      if (p >= this.taskAt) {
+        this.taskAt = null;
+        this.travelTask();
+      }
+    }
     const drain = (this.origin.travelDrainSeconds ?? 300) * 1000;
-    this.oxygen = Math.max(0, this.oxygen - delta / drain);
+    this.oxygen = Math.max(0, this.oxygen - (delta * Bionomad.stress()) / drain);
     this.o2.set(this.oxygen, time);
     this.mark.setActive(Math.abs(this.player.x - this.goalX) < 90);
 
@@ -185,7 +215,7 @@ export class TravelScene extends Phaser.Scene {
       this.player.faint(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose" })));
       return;
     }
-    if (this.back ? this.player.x <= this.goalX + 20 : this.player.x >= this.goalX - 20) {
+    if (this.mode === "play" && (this.back ? this.player.x <= this.goalX + 20 : this.player.x >= this.goalX - 20)) {
       this.done = true;
       this.run.oxygen = this.oxygen;
       this.run.lastLocation = this.dest.location;

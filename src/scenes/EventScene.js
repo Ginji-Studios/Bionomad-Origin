@@ -1,16 +1,17 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { EMERGENCY_ACTIONS } from "../config/events.js";
-import { completeEvent, currentEvent, dayTime, failRun, getRun, cityZone } from "../systems/RunManager.js";
+import { EMERGENCY_ACTIONS, EVENTS } from "../config/events.js";
+import { completeEvent, currentEvent, dayTime, failRun, getRun, cityZone, cityTemp } from "../systems/RunManager.js";
 import { PlantSensors } from "../input/PlantSensors.js";
+import { Bionomad } from "../systems/Bionomad.js";
 import { buildSkyline } from "../world/skyline.js";
 import { buildPlace, busSprite, OUTDOOR } from "../art/places.js";
 import { snowfall } from "../world/snow.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
-import { npcKey, operatorKey } from "../art/people.js";
-import { PlantPanel } from "../ui/PlantPanel.js";
-import { box, brackets, cityHud, button, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, skylineLayers, taskPanel, toast, txt, VIEW } from "../ui/hud.js";
+import { npcKey, operatorKey, holdFrames } from "../art/people.js";
+import { BioPanel, bioKeys } from "../ui/BioPanel.js";
+import { cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, Y_ACCENT } from "../ui/hud.js";
 
 const NEAR = 80;
 const STEP_BONUS = 0.04;
@@ -20,10 +21,11 @@ const FEET = 764;
 const VIEWPOINT = { home: 0.1, office: 0.3, bus: 0.5, busstop: 0.62, foodtruck: 0.8 };
 // passanti fermi nei luoghi
 const EXTRAS = { busstop: [["man", 2]], bus: [[260, 1], [880, 3], [1060, 4]], office: [[230, 0]] };
-// step che si fanno tenendo premuto ●
-const HOLD_TYPES = new Set(["hold", "sit"]);
+// temperatura esterna di base (all'aperto di giorno / di sera); al chiuso 21 °C
+const OUT_TEMP = { day: 13, night: 8 };
 // step che si completano appena si arriva
 const REACH_TYPES = new Set(["reach"]);
+const TARGET_NAMES = { hub: "BIONOMAD", door: "USCITA", boss: "CAPO", sofa: "DIVANO", home: "CASA" };
 
 export class EventScene extends Phaser.Scene {
   constructor() {
@@ -43,21 +45,23 @@ export class EventScene extends Phaser.Scene {
     this.stepIndex = 0;
     this.holdMs = 0;
     this.oxygen = this.run.oxygen ?? 1;
-    this.simBase = 22;
     fadeIn(this);
 
     const loc = this.event.location;
-    const outdoor = OUTDOOR.has(loc);
-    this.indoor = !outdoor;
+    const outdoor = OUTDOOR.has(loc) || loc === "bus";
+    this.indoor = !OUTDOOR.has(loc);
     this.time_ = dayTime(this.run);
-    setAmbient(outdoor ? (this.time_ === "night" ? "night" : "city") : null);
+    Bionomad.setOutside(cityTemp(this.run, this.event.out ?? (outdoor ? OUT_TEMP[this.time_] : 21)));
+    setAmbient(OUTDOOR.has(loc) ? (this.time_ === "night" ? "night" : "city") : null);
     this.events.once("shutdown", () => PlantSensors.send("E0"));
-    if (outdoor && this.origin.id === "reykjavik") snowfall(this, { intensity: 0.8 });
+    if (OUTDOOR.has(loc) && this.origin.id === "reykjavik") snowfall(this, { intensity: 0.8 });
 
     // città sullo sfondo
     const sky = skylineLayers(this, this.origin.id, buildSkyline, { time: this.time_, zone: cityZone(this.run) });
     this.wide = loc === "street";
-    const opKey = operatorKey(this, this.registry.get("operator") ?? "a", this.origin.id);
+    const op = this.registry.get("operator") ?? "a";
+    this.packedKey = operatorKey(this, op, this.origin.id);
+    this.bareKey = operatorKey(this, op, this.origin.id, { bare: true, mask: false });
     if (this.wide) {
       // emergenza: strada lunga fino a casa
       this.worldW = sky.worldW;
@@ -67,38 +71,46 @@ export class EventScene extends Phaser.Scene {
       this.worldW = VIEW.w;
       const cam = Math.round((sky.worldW - VIEW.w) * (VIEWPOINT[loc] ?? 0.4));
       this.cameras.main.setScroll(cam, 0);
-      if (!outdoor) {
-        // interno: il cielo resta fermo, la città si vede solo dalle finestre
-      }
       const place = buildPlace(loc, this.origin.id);
       canvasImage(this, `place_${loc}_${this.origin.id}`, place.canvas).setScrollFactor(0).setDepth(0);
-      this.points = place.points;
+      this.points = { ...place.points };
+      this.floorY = place.floorY;
     }
     const sf = this.wide ? 1 : 0;
+    this.sf = sf;
+    if (loc === "office") this.points.boss = this.points.ac ?? 660;
 
     (EXTRAS[loc] ?? []).forEach(([at, key]) => {
       const x = typeof at === "number" ? at : this.points[at];
       const npc = this.add.image(x, FEET, `${npcKey(this, this.origin.id, 6 + key)}_idle`).setOrigin(0.5, 1).setDepth(400).setScrollFactor(sf).setFlipX(true);
-      this.add.ellipse(x, FEET - 6, 70, 12, C.c0, 0.55).setDepth(399).setScrollFactor(sf);
+      this.add.ellipse(x, FEET - 6, 70, 12, 0x24344b, 0.18).setDepth(399).setScrollFactor(sf);
       if (at === "man") this.man = npc;
     });
+    if (this.points.boss) {
+      // il capo in ufficio, in giacca scura, girato verso di te
+      const boss = this.add.image(this.points.boss + 40, FEET, `${npcKey(this, this.origin.id, 12)}_idle`).setOrigin(0.5, 1).setDepth(400).setScrollFactor(sf).setFlipX(true);
+      this.add.ellipse(boss.x, FEET - 6, 70, 12, 0x24344b, 0.18).setDepth(399).setScrollFactor(sf);
+    }
 
-    this.player = new Walker(this, opKey, 420, FEET, { sound: true, indoor: this.indoor, speed: 255 });
+    this.player = new Walker(this, this.packedKey, 420, FEET, { sound: true, indoor: this.indoor, speed: 255 });
     this.player.img.setScrollFactor(sf);
     this.player.shadow.setScrollFactor(sf);
     this.player.maxX = this.worldW - 60;
     if (this.wide) smoothFollow(this, this.player, 480);
 
-    // interfaccia
-    brackets(this);
-    // al food truck niente etichette dei monumenti: finirebbero sopra il furgone
-    cityHud(this, this.origin.id, { labels: (outdoor || this.wide) && loc !== "foodtruck", zone: cityZone(this.run) });
+    // interfaccia pulita: luogo + task in alto a sinistra, respiro in alto al centro
+    cityHud(this, this.origin.id, { zone: cityZone(this.run) });
     this.o2 = o2Hud(this);
+    this.chip = statusChip(this);
     this.tasks = taskPanel(this);
     this.pad = controls(this);
     this.mark = marker(this, 0, "", { y: FEET - 230, h: 230 });
     this.mark.c.setScrollFactor(sf).setVisible(false);
-    this.plantPanel = new PlantPanel(this);
+    this.bio = new BioPanel(this);
+    // sfondo ravvicinato delle task: il posto in cui si è, di giorno o di sera
+    this.bioContext = { kind: ["bus", "office", "home"].includes(loc) ? loc : "street", night: this.time_ === "night" };
+    this.bioKeys = bioKeys(this);
+    this.night = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0x0e1626, 0).setOrigin(0).setScrollFactor(0).setDepth(1300);
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
 
     this.stepLabels = this.event.steps.map((s) => s.text.replace(/^[+!]\s*/, ""));
@@ -115,7 +127,7 @@ export class EventScene extends Phaser.Scene {
     if (this.step?.type === "emergency") {
       const need = this.step.cures;
       const done = Math.min(this.cures ?? 0, need);
-      this.tasks.set(title, [done < need ? `CURE ${done}/${need}` : "PIANTA STABILE", "TORNA A CASA"], done < need ? 0 : 1, { progress });
+      this.tasks.set(title, [done < need ? `TIENI IN VITA IL BIONOMAD · ${done}/${need}` : "TORNA A CASA"], 0, { progress });
       return;
     }
     this.tasks.set(title, this.stepLabels, this.stepIndex, { progress });
@@ -129,155 +141,139 @@ export class EventScene extends Phaser.Scene {
     this.mark.c.setVisible(Boolean(target));
     if (target) {
       this.mark.c.x = target;
-      this.mark.setLabel(this.markLabel(step), step.target);
+      this.mark.setLabel(TARGET_NAMES[step.target] ?? "");
       this.mark.setActive(false);
     }
-    if (step.type === "plant") this.openPlant(step);
-    if (step.type === "prune") this.openPrune();
+    if (step.type === "bio") this.openBio(step);
+    if (step.type === "notify") this.notify(step);
     if (step.type === "busLeaves") this.busLeaves();
     if (step.type === "emergency") {
       this.cures = 0;
       this.emTimer = 0;
       this.mark.c.x = this.points.home;
-      this.mark.setLabel("CASA", "home");
+      this.mark.setLabel("CASA");
       this.mark.c.setVisible(true);
       this.refreshTasks();
     }
   }
 
-  markLabel(step) {
-    const names = { can: "ANNAFFIATOIO", hub: "HUB", door: "USCITA", ac: "CONDIZIONATORE", counter: "FOOD TRUCK", charger: "COLONNINA", bench: "PANCHINA", man: "SIGNORE", home: "CASA" };
-    return names[step.target] ?? "";
+  // ---------- notifica (telefono / BIONOMAD) ----------
+
+  notify(step) {
+    this.mode = "busy";
+    if (step.wake) {
+      // svegliato nel cuore della notte: la stanza si schiarisce appena
+      this.tweens.add({ targets: this.night, fillAlpha: 0.35, duration: 600 });
+      this.player.img.setTexture(`${this.player.key}_idle`);
+    }
+    this.time.delayedCall(Math.round((step.ms ?? 1800) * 0.4), () => {
+      if (step.out != null) Bionomad.setOutside(cityTemp(this.run, step.out));
+      PlantSensors.send("N");
+      Sfx.announce?.();
+      notification(this, step.line ?? step.text);
+    });
+    this.time.delayedCall(step.ms ?? 1800, () => {
+      this.mode = "play";
+      this.completeStep({ quiet: true });
+    });
   }
 
-  // ---------- pianta ----------
+  // ---------- pannello del BIONOMAD ----------
 
-  openPlant(step, emergency = false) {
-    this.mode = "plant";
-    this.plantEmergency = emergency;
-    this.simBase = step.baseTemperature ?? 22;
-    const irrigation = PlantSensors.state.irrigation;
-    PlantSensors.resetSimulation(this.simBase, { ambientLight: step.setup === "covered" ? 0.06 : 0.6 });
-    if (step.sensor === "irrigation" && step.on === false) PlantSensors.state.irrigation = irrigation;
-    if (step.sensor === "vials") {
-      const colors = Phaser.Utils.Array.Shuffle([1, 2, 3]);
-      step = { ...step, required: colors.slice(0, 2) };
-      if (step.setup === "wrongVial" && PlantSensors.simulated("P")) PlantSensors.state.slots = [colors[2], 0];
-    }
-    if (step.setup === "leverOpen" && PlantSensors.simulated("W")) PlantSensors.state.irrigation = true;
-    this.plantPanel.show(step, { timeoutMs: step.timeoutMs ?? 0, emergency });
+  openBio(step, emergency = false) {
+    this.mode = "bio";
+    this.bioEmergency = emergency;
+    this.bio.show(step, { emergency });
     this.pad.setVisible(false);
   }
 
-  closePlant(success) {
-    this.plantPanel.close();
+  closeBio(success) {
+    this.bio.close();
     this.pad.setVisible(true);
     if (success) PlantSensors.send("G");
-    if (this.plantEmergency) {
-      this.plantEmergency = false;
+    if (this.bioEmergency) {
+      this.bioEmergency = false;
       this.mode = "play";
       this.emTimer = 0;
       if (success) {
         this.cures += 1;
-        // in emergenza curare la pianta rende molto ossigeno: +14% a cura (uguale in ogni città),
-        // e un premio di +20% quando la pianta è di nuovo stabile
         const left = this.step.cures - this.cures;
         const bonus = left > 0 ? 0.14 : 0.34;
         this.addOxygen(bonus, true);
         this.player.o2Pop(1);
         this.player.bubble?.(10);
         Sfx.o2Gain();
-        toast(this, left > 0 ? `CURA RIUSCITA · +${Math.round(bonus * 100)}% O₂ · NE MANCANO ${left}` : `PIANTA STABILE · +${Math.round(bonus * 100)}% O₂ · VAI A CASA`, { duration: 1600 });
+        toast(this, left > 0 ? `CURA RIUSCITA · NE MANCANO ${left}` : "BIONOMAD STABILE · VAI A CASA", { duration: 1600 });
       } else {
         this.addOxygen(-0.15, true);
         this.player.o2Pop(-1);
         Sfx.negligence();
         this.cameras.main.shake(200, 0.006);
-        toast(this, "TROPPO TARDI · IL PARASSITA AVANZA", { duration: 1600 });
+        toast(this, "TROPPO TARDI", { duration: 1600 });
       }
       this.refreshTasks();
       return;
     }
-    // chiuso il pannello si torna a giocare: senza questo il personaggio restava bloccato
-    // ("freeze") sulla task successiva, ad esempio "ESCI DALL'UFFICIO"
     this.mode = "play";
     this.completeStep();
   }
 
   negligence(type) {
-    const messages = { forgot: "NEGLIGENZA · NON L'HAI CURATA IN TEMPO", overheat: "NEGLIGENZA · TROPPO CALORE", flood: "NEGLIGENZA · LEVA DELL'ACQUA APERTA", wrongVial: "NEGLIGENZA · FIALA SBAGLIATA" };
-    const cost = { forgot: 0.18, overheat: 0.12, flood: 0.2, wrongVial: 0.12 }[type] ?? 0.1;
+    const messages = {
+      forgot: "NEGLIGENZA · NON L'HAI CURATO IN TEMPO",
+      dark: "NEGLIGENZA · IL BIONOMAD È RIMASTO AL BUIO",
+      flood: "NEGLIGENZA · TROPPA ACQUA",
+      cold: "NEGLIGENZA · TEMPERATURA SBAGLIATA"
+    };
+    const cost = { forgot: 0.18, dark: 0.14, flood: 0.14, cold: 0.12 }[type] ?? 0.1;
     Sfx.negligence();
     this.player.o2Pop(-1);
     this.addOxygen(-cost, true);
     this.cameras.main.shake(220, 0.006);
-    toast(this, messages[type] ?? "NEGLIGENZA", { y: 620, duration: 2200 });
+    toast(this, messages[type] ?? "NEGLIGENZA", { y: 640, duration: 2200 });
     this.run.negligence = (this.run.negligence ?? 0) + 1;
     this.registry.set("run", this.run);
   }
 
-  // ---------- potatura: si toccano le foglie secche ----------
+  // ---------- BIONOMAD sul tavolo (ufficio) ----------
 
-  openPrune() {
-    this.mode = "prune";
-    this.pad.setVisible(false);
-    const c = this.add.container(0, 0).setDepth(1800).setScrollFactor(0);
-    const X0 = 410;
-    const Y0 = 110;
-    c.add(box(this, X0, Y0, 830, 470, { alpha: 1 }));
-    c.add(txt(this, X0 + 32, Y0 + 26, "POTA LE FOGLIE SECCHE", { size: 34, weight: "500" }));
-    c.add(txt(this, X0 + 32, Y0 + 80, "TOCCA LE 3 FOGLIE SCURE", { size: 22, color: HEX.c3 }));
-    const plant = this.add.image(X0 + 300, Y0 + 452, "plant_big").setOrigin(0, 1);
-    c.add(plant);
-    this.pruneLeft = 3;
-    const spots = [[X0 + 350, Y0 + 230], [X0 + 430, Y0 + 180], [X0 + 470, Y0 + 270]];
-    this.leaves = spots.map(([x, y], i) => {
-      const leaf = this.add.ellipse(x, y, 54, 26, C.c0, 1).setStrokeStyle(3, C.c4).setAngle(-20 + i * 25).setScrollFactor(0);
-      leaf.setInteractive({ useHandCursor: true }).on("pointerup", () => this.cutLeaf(leaf));
-      this.tweens.add({ targets: leaf, scale: 1.12, duration: 500, yoyo: true, repeat: -1 });
-      c.add(leaf);
-      return leaf;
-    });
-    this.pruneBox = c;
+  placePack() {
+    const x = this.points.hub;
+    holdFrames(this, this.bareKey);
+    this.packImg = this.add.image(x + 6, (this.floorY ?? 711) - 118, "pack_item").setOrigin(0.5, 1).setScrollFactor(this.sf).setDepth(420).setScale(1.4);
+    this.packImg.setAlpha(0);
+    this.tweens.add({ targets: this.packImg, alpha: 1, y: this.packImg.y + 6, duration: 300 });
+    this.player.key = this.bareKey;
+    this.player.img.setTexture(`${this.bareKey}_idle`);
+    Sfx.attach();
   }
 
-  cutLeaf(leaf) {
-    if (!leaf?.active || !leaf.visible) return;
-    leaf.setVisible(false);
-    Sfx.blip();
-    this.pruneLeft -= 1;
-    if (this.pruneLeft <= 0) {
-      this.time.delayedCall(300, () => {
-        this.pruneBox.destroy();
-        this.pad.setVisible(true);
-        this.mode = "play";
-        this.completeStep();
-      });
-    }
+  takePack() {
+    this.packImg?.destroy();
+    this.packImg = null;
+    this.player.key = this.packedKey;
+    this.player.img.setTexture(`${this.packedKey}_idle`);
+    Sfx.attach();
   }
 
   // ---------- bus che parte ----------
 
-  // il bus arriva da sinistra, rallenta davanti alla fermata e riparte senza di te
   busLeaves() {
     this.mode = "busy";
     const key = busSprite(this, this.origin.id);
     const img = this.add.image(0, 0, key).setOrigin(0, 1);
     const w = img.width;
     const bus = this.add.container(-w - 40, FEET - 4, [img]).setScrollFactor(0).setDepth(450);
-    // la carrozzeria vibra appena sulle sospensioni
     this.tweens.add({ targets: img, y: -2, duration: 180, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-    // fumo dello scarico: quadratini retinati che restano indietro e svaniscono
     const puff = this.time.addEvent({
       delay: 110,
       loop: true,
       callback: () => {
-        const p = this.add.rectangle(bus.x + 8, FEET + 8 - Math.random() * 6, 6, 6, Math.random() < 0.5 ? C.c3 : C.c2, 0.8).setScrollFactor(0).setDepth(449);
-        this.tweens.add({ targets: p, x: p.x - 30 - Math.random() * 30, y: p.y - 14 - Math.random() * 14, alpha: 0, scale: 1.8, duration: 700, onComplete: () => p.destroy() });
+        const p = this.add.circle(bus.x + 8, FEET + 4 - Math.random() * 6, 5, 0xdfe4ea, 0.8).setScrollFactor(0).setDepth(449);
+        this.tweens.add({ targets: p, x: p.x - 30 - Math.random() * 30, y: p.y - 14 - Math.random() * 14, alpha: 0, scale: 2, duration: 700, onComplete: () => p.destroy() });
       }
     });
     Sfx.whoosh?.();
-    // entra, frena davanti alla pensilina, sbuffa e riparte accelerando
     this.tweens.chain({
       targets: bus,
       tweens: [
@@ -288,10 +284,10 @@ export class EventScene extends Phaser.Scene {
       onComplete: () => {
         puff.remove();
         bus.destroy();
-        toast(this, "IL BUS È PARTITO · SI TORNA A PIEDI", { duration: 1800 });
+        toast(this, "IL BUS È PARTITO · FUORI FA FREDDO", { duration: 1800 });
         this.time.delayedCall(800, () => {
           this.mode = "play";
-          this.completeStep();
+          this.completeStep({ quiet: true });
         });
       }
     });
@@ -301,10 +297,10 @@ export class EventScene extends Phaser.Scene {
 
   startEmergency() {
     PlantSensors.send("E1");
-    const alarm = this.add.rectangle(0, 0, VIEW.w, VIEW.h, C.c4, 0).setOrigin(0).setScrollFactor(0).setDepth(1400);
+    const alarm = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0xb4553f, 0).setOrigin(0).setScrollFactor(0).setDepth(1400);
     this.tweens.add({ targets: alarm, fillAlpha: 0.08, duration: 450, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     this.alarm = alarm;
-    toast(this, "EMERGENZA · PARASSITA NEL BIONOMAD", { duration: 2600 });
+    toast(this, "EMERGENZA · IL BIONOMAD È COMPROMESSO", { duration: 2600 });
   }
 
   // ---------- azioni ----------
@@ -317,29 +313,27 @@ export class EventScene extends Phaser.Scene {
   onAction() {
     const step = this.step;
     if (this.mode !== "play" || !step || !this.near()) return;
-    if (HOLD_TYPES.has(step.type) || REACH_TYPES.has(step.type)) return;
-    if (step.line) toast(this, step.line, { duration: 1800 });
+    if (step.type === "sleep" || REACH_TYPES.has(step.type)) return;
     if (step.type === "talk") {
       toast(this, step.line ?? "", { duration: 2400 });
       this.mode = "busy";
-      this.time.delayedCall(1200, () => {
+      this.time.delayedCall(1400, () => {
         this.mode = "play";
         this.completeStep();
       });
       return;
     }
-    if (step.type === "exit") {
-      this.completeStep();
-      return;
-    }
-    Sfx.attach();
+    if (step.type === "place") this.placePack();
+    if (step.type === "take") this.takePack();
     this.completeStep();
   }
 
-  completeStep() {
-    Sfx.o2Gain();
-    this.addOxygen(STEP_BONUS);
-    this.player.o2Pop(1);
+  completeStep({ quiet = false } = {}) {
+    if (!quiet) {
+      Sfx.o2Gain();
+      this.addOxygen(STEP_BONUS);
+      this.player.o2Pop(1);
+    }
     this.stepIndex += 1;
     if (this.stepIndex >= this.event.steps.length) this.finishEvent();
     else this.startStep();
@@ -348,14 +342,21 @@ export class EventScene extends Phaser.Scene {
   finishEvent() {
     this.mode = "done";
     this.mark.c.setVisible(false);
-    this.tasks.set(`EVENTO ${this.run.index + 1}/${this.run.events.length} · ${this.event.title}`, ["EVENTO COMPLETATO"], 1);
+    this.tasks.set(`EVENTO · ${this.event.title}`, ["EVENTO COMPLETATO"], 1);
     this.addOxygen(EVENT_BONUS);
     Sfx.task();
     toast(this, "EVENTO COMPLETATO", { duration: 1500 });
     PlantSensors.send("E0");
     this.time.delayedCall(1700, () => {
-      completeEvent(this.registry, Math.min(1, this.oxygen));
-      goTo(this, "TravelScene");
+      const here = this.event.endsAt ?? this.event.location;
+      const finished = completeEvent(this.registry, Math.min(1, this.oxygen));
+      const run = getRun(this.registry);
+      const nextId = run.events[run.index];
+      // già a casa a fine giornata: niente tragitto, si va alla cutscene finale.
+      // Evento successivo nello stesso posto (ufficio → ufficio, casa → casa): si resta lì.
+      if (finished && here === "home") goTo(this, "OutroScene");
+      else if (!finished && nextId && EVENTS[nextId].location === here) goTo(this, "EventScene");
+      else goTo(this, "TravelScene");
     });
   }
 
@@ -368,7 +369,7 @@ export class EventScene extends Phaser.Scene {
     if (this.mode === "done") return;
     this.mode = "done";
     this.oxygen = 0;
-    this.plantPanel.close();
+    this.bio.close();
     this.mark.c.setVisible(false);
     this.pad.setVisible(false);
     failRun(this.registry);
@@ -382,46 +383,49 @@ export class EventScene extends Phaser.Scene {
       this.o2?.set(this.oxygen ?? 0, time);
       return;
     }
+    this.bioKeys(delta);
+    Bionomad.update(delta);
+    this.chip.update(time);
     const input = this.pad.poll();
     this.player.frozen = this.mode !== "play";
     this.player.update(input.dir, delta);
-    this.plantPanel.simulate(delta, this.simBase);
 
-    let boost = this.event.drainMultiplier ?? 1;
     const step = this.step;
-    if (this.mode === "plant") {
-      const r = this.plantPanel.update(delta);
-      if (r.satisfied && this.plantPanel.step?.drainBoost) boost *= this.plantPanel.step.drainBoost;
+    if (this.mode === "bio") {
+      const r = this.bio.update(delta);
       if (r.negligence) this.negligence(r.negligence);
-      if (r.done) this.closePlant(true);
-      else if (r.timedOut && this.plantEmergency) this.closePlant(false);
-      else if (r.timedOut) {
-        this.negligence("forgot");
-        this.plantPanel.elapsed = 0;
-      }
+      if (r.done) this.closeBio(true);
+      else if (r.failed) this.closeBio(false);
     } else if (this.mode === "play" && step) {
       const near = this.near();
       this.mark.setActive(near);
-      const needsButton = !REACH_TYPES.has(step.type) && step.type !== "emergency";
+      const needsButton = ["place", "take", "talk", "exit"].includes(step.type);
       this.pad.highlight(near && needsButton);
       if (input.action) this.onAction();
-      if (near && REACH_TYPES.has(step.type)) this.completeStep();
-      else if (near && HOLD_TYPES.has(step.type)) {
-        // tieni premuto ●: la barra della task si riempie
+      if (near && REACH_TYPES.has(step.type)) this.completeStep({ quiet: true });
+      else if (near && step.type === "sleep") {
+        // tieni premuto ● vicino al divano: ci si addormenta
         if (input.holding) this.holdMs += delta;
         else this.holdMs = Math.max(0, this.holdMs - delta);
-        const p = Math.min(1, this.holdMs / (step.duration ?? 2000));
-        if (Math.floor(p * 20) !== this.lastHoldStep) {
-          this.lastHoldStep = Math.floor(p * 20);
-          this.refreshTasks(p);
+        const p = Math.min(1, this.holdMs / (step.duration ?? 1800));
+        this.refreshTasks(p);
+        this.night.fillAlpha = p * 0.7;
+        if (p >= 1) {
+          this.player.img.setVisible(true);
+          this.completeStep({ quiet: true });
         }
-        if (p >= 1) this.completeStep();
       }
       if (step.type === "emergency") this.updateEmergency(delta);
     }
 
-    this.addOxygen(-(delta * boost) / (this.origin.drainSeconds * 1000), true);
+    this.addOxygen(-(delta * Bionomad.stress()) / (this.origin.drainSeconds * 1000), true);
     this.o2.set(this.oxygen, time);
+    // livello di ossigeno al LED RGB del dispositivo (solo quando cambia)
+    const o = Math.round(this.oxygen * 100);
+    if (o !== this.lastO2) {
+      this.lastO2 = o;
+      PlantSensors.send(`O:${o}`);
+    }
     if (this.oxygen <= 0) this.fail();
   }
 
@@ -430,11 +434,11 @@ export class EventScene extends Phaser.Scene {
     this.emTimer += delta;
     const stable = this.cures >= step.cures;
     const atHome = this.player.x >= this.points.home - 40;
-    if (!stable && this.emTimer > step.actionEveryMs) this.openPlant(Phaser.Utils.Array.GetRandom(EMERGENCY_ACTIONS), true);
+    if (!stable && this.emTimer > step.actionEveryMs) this.openBio(Phaser.Utils.Array.GetRandom(EMERGENCY_ACTIONS), true);
     else if (atHome && !stable) {
       if (!this.blockToast || this.time.now - this.blockToast > 2500) {
         this.blockToast = this.time.now;
-        toast(this, "PRIMA STABILIZZA LA PIANTA", { duration: 1600 });
+        toast(this, "PRIMA METTI IN SICUREZZA IL BIONOMAD", { duration: 1600 });
       }
       this.emTimer = Math.max(this.emTimer, step.actionEveryMs - 900);
     } else if (atHome) {
@@ -444,4 +448,23 @@ export class EventScene extends Phaser.Scene {
       this.completeStep();
     }
   }
+}
+
+// notifica in stile telefono: scende dall'alto, resta un attimo e risale
+export function notification(scene, line) {
+  // in alto a destra: non copre luogo e task (a sinistra) né il respiro (al centro)
+  const w = 400;
+  const c = scene.add.container(VIEW.w - 32 - w / 2, -80).setDepth(2300).setScrollFactor(0);
+  const g = scene.add.graphics();
+  const t = txt(scene, -w / 2 + 62, 0, line, { size: 16, wrap: w - 84, origin: [0, 0.5] });
+  const h = Math.max(64, t.height + 30);
+  g.fillStyle(C.c0, 0.97);
+  g.fillRoundedRect(-w / 2, -h / 2, w, h, 20);
+  g.fillStyle(Y_ACCENT, 1);
+  g.fillCircle(-w / 2 + 32, 0, 14);
+  const icon = txt(scene, -w / 2 + 32, 0, "!", { size: 17, weight: "500", origin: 0.5, color: HEX.c4 });
+  c.add([g, icon, t]);
+  scene.tweens.add({ targets: c, y: 22 + h / 2, duration: 380, ease: "Back.easeOut" });
+  scene.time.delayedCall(2800, () => scene.tweens.add({ targets: c, y: -h, duration: 300, ease: "Cubic.easeIn", onComplete: () => c.destroy() }));
+  return c;
 }

@@ -68,4 +68,8 @@ export class EndScene extends Phaser.Scene {
     plantNav(this, { right: () => goTo(this, "SetupScene"), left: () => goTo(this, "MenuScene") });
     win ? Sfx.win() : Sfx.gameOver();
   }
+
+  onStart() {
+    goTo(this, "SetupScene");
+  }
 }

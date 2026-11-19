@@ -1,3 +1,4 @@
+import { posterBody } from "./biodom.js";
 // luoghi degli eventi disegnati con gli strumenti del concept (scala di grigi → palette).
 // Gli interni hanno le finestre "bucate": dietro si vede la skyline della città.
 // Coordinate logiche: alto 540, pavimento a GY = 480, largo LW = 1280 / k.
@@ -17,26 +18,18 @@ export function posterArt(T, key, x, y, w, h, { frame = true } = {}) {
     return;
   }
   const { X, G } = T;
-  const img = POSTER_IMG[key];
   if (frame) {
-    X.fillStyle = G(0.1);
-    X.fillRect(x - 4, y - 4, w + 8, h + 8);
-    X.fillStyle = G(0.72);
-    X.fillRect(x - 2, y - 2, w + 4, h + 4);
+    X.fillStyle = "#2B3A50";
+    X.fillRect(x - 3, y - 3, w + 6, h + 6);
   }
-  if (img) {
-    X.save();
-    X.filter = "grayscale(1) brightness(1.35) contrast(1.5)";
-    X.imageSmoothingEnabled = true;
-    X.drawImage(img, x, y, w, h);
-    X.restore();
-  } else {
-    X.fillStyle = G(0.5);
-    X.fillRect(x, y, w, h);
-  }
-  if (frame) {
-    X.fillStyle = G(0.95);
-    [[x, y], [x + w - 3, y], [x, y + h - 3], [x + w - 3, y + h - 3]].forEach(([a, b]) => X.fillRect(a, b, 3, 3));
+  // manifesto BIODOM nel nuovo stile (variante scelta dalla chiave del vecchio poster)
+  const v = (parseInt(String(key).replace(/\D/g, ""), 10) || 0) % 4;
+  X.save();
+  X.translate(x, y);
+  X.scale(w / 200, h / 140);
+  posterBody(X, 200, 140, v);
+  X.restore();
+  if (false) {
   }
 }
 

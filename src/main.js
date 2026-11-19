@@ -3,6 +3,7 @@ import { toggleMute, unlockAudio } from "./systems/Sfx.js";
 import { gameConfig } from "./config/gameConfig.js";
 import { PauseScene } from "./scenes/PauseScene.js";
 import { setupTouchControls } from "./input/TouchControls.js";
+import { PlantSensors } from "./input/PlantSensors.js";
 
 const game = new Phaser.Game({
   ...gameConfig,
@@ -22,4 +23,15 @@ window.addEventListener("pointerdown", () => unlockAudio());
 // sul tablet: tocco con tre dita = pausa per il team
 window.addEventListener("touchstart", (e) => {
   if (e.touches.length === 3) PauseScene.toggle(game);
+});
+
+// pulsante START del BIONOMAD: avvia (nei menu fa la scelta) e mette in pausa durante il gioco.
+// Ogni scena può avere onStart(); se non ce l'ha, il pulsante mette in pausa / riprende.
+game.events.on("poststep", () => {
+  if (!PlantSensors.takeStart()) return;
+  const sm = game.scene;
+  if (sm.isActive("PauseScene")) return PauseScene.toggle(game);
+  const top = sm.getScenes(true).filter((sc) => !["BootScene", "PreloadScene"].includes(sc.scene.key)).pop();
+  if (top?.onStart) top.onStart();
+  else PauseScene.toggle(game);
 });

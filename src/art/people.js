@@ -3,6 +3,7 @@
 // (Milano trench, New Delhi kurta e dupatta, Reykjavík piumino e berretto),
 // passanti tutti diversi e il team visto di fronte nei crediti.
 import { paint, PALETTE } from "../world/skyline.js";
+import { addHiRes } from "./hires.js";
 
 export const K = 800 / 540;
 const RGB = PALETTE.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
@@ -559,6 +560,349 @@ function side(T, ph, o) {
   X.restore();
 }
 
+
+// ---------------------------------------------------------------- nuovo stile (illustrazione piatta)
+// Figure sottili e allungate come nel riferimento: cappotto lungo, gambe sottili scure,
+// testa piccola, sciarpa gialla, colori pieni senza retino. Stessa cinematica di prima
+// (passo, presa dello zaino, cura, svenimento, seduta) così tutte le scene restano uguali.
+const COATS = ["#2F3D52", "#46566E", "#6E7B8E", "#9AA3AF", "#C3C6CA", "#DEDAD1", "#ECE8DF", "#BCA88A"];
+const SKINS = { light: ["#EED9C6", "#E2C4AA"], mid: ["#C99A76", "#B4835F"], dark: ["#93684A", "#7C553A"] };
+const HAIRS = ["#24252B", "#3B2E28", "#6A4C38", "#D9C597", "#E6E1D6"];
+const YELLOW = "#E2B33C";
+const YELLOW_D = "#C99A27";
+const SHOE = "#1F2733";
+const darker = (h, k = 0.18) => {
+  const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return "#" + c.map((v) => Math.round(v * (1 - k)).toString(16).padStart(2, "0")).join("");
+};
+// zaino BIONOMAD: capsula bianca con la cupola di vetro azzurro e la piantina verde (agave)
+function packFlat(X, px, py, a = 0, walking = false) {
+  const pw = 22;
+  const ph = 48;
+  const sway = walking ? Math.sin(a) * 1 : 0;
+  // corpo bianco arrotondato
+  X.fillStyle = "#E9E7E1";
+  X.beginPath();
+  X.moveTo(px + 2, py + 12);
+  X.quadraticCurveTo(px + 2, py + 4, px + pw / 2, py + 4);
+  X.quadraticCurveTo(px + pw - 2, py + 4, px + pw - 2, py + 12);
+  X.lineTo(px + pw, py + ph - 6);
+  X.quadraticCurveTo(px + pw, py + ph, px + pw - 6, py + ph);
+  X.lineTo(px + 6, py + ph);
+  X.quadraticCurveTo(px, py + ph, px, py + ph - 6);
+  X.closePath();
+  X.fill();
+  // lato in ombra
+  X.fillStyle = "#CFCCC4";
+  X.fillRect(px + pw - 6, py + 12, 4, ph - 16);
+  // finestra di vetro con la piantina
+  X.fillStyle = "#B9D0EA";
+  X.beginPath();
+  X.moveTo(px + 5, py + 34);
+  X.lineTo(px + 5, py + 15);
+  X.quadraticCurveTo(px + 5, py + 9, px + pw / 2, py + 9);
+  X.quadraticCurveTo(px + pw - 5, py + 9, px + pw - 5, py + 15);
+  X.lineTo(px + pw - 5, py + 34);
+  X.closePath();
+  X.fill();
+  X.fillStyle = "#6FA06B";
+  [[-4, 14], [-1, 10], [2, 12], [5, 16]].forEach(([dx, h]) => {
+    X.beginPath();
+    X.moveTo(px + pw / 2 + dx - 2, py + 33);
+    X.lineTo(px + pw / 2 + dx + sway * (h / 14), py + 33 - h);
+    X.lineTo(px + pw / 2 + dx + 2, py + 33);
+    X.fill();
+  });
+  X.fillStyle = "rgba(255,255,255,0.55)";
+  X.fillRect(px + 7, py + 14, 2, 14);
+  // anello luminoso (ossigeno) e base
+  X.fillStyle = "#8FD0A6";
+  X.fillRect(px + 3, py + 37, pw - 6, 2);
+  X.fillStyle = "#BDBAB2";
+  X.fillRect(px + 2, py + ph - 4, pw - 4, 3);
+  // tappo
+  X.fillStyle = "#C9CDD3";
+  X.fillRect(px + 6, py + 1, pw - 12, 4);
+}
+function figure(T, ph, o) {
+  const { X } = T;
+  X.lineCap = "round";
+  X.lineJoin = "round";
+  const style = o.style ?? "milano";
+  const ci = Math.max(0, Math.min(COATS.length - 1, Math.floor((o.top ?? 0.4) * COATS.length)));
+  const coat = o.coat ?? COATS[ci];
+  const legC = o.legC ?? ((o.legs ?? 0.16) > 0.4 ? "#5D6778" : "#27303D");
+  const sk = style === "delhi" ? SKINS[(o.skin ?? 0.6) > 0.6 ? "mid" : "dark"] : SKINS[(o.skin ?? 0.6) > 0.62 ? "light" : (o.skin ?? 0.6) > 0.55 ? "light" : "mid"];
+  const hairC = o.hairC ?? HAIRS[(o.hairTone ?? 0.1) > 0.75 ? 3 : (o.hairTone ?? 0.1) > 0.5 ? 4 : (o.hairTone ?? 0.1) > 0.25 ? 2 : (o.hairTone ?? 0.1) > 0.15 ? 1 : 0];
+  const scarf = o.scarf !== false;
+  const a = ph * Math.PI * 2;
+  const walking = o.walking;
+  const bob = walking ? Math.abs(Math.cos(a)) * 1.6 : 0;
+  const poly = (pts, fillC) => {
+    X.beginPath();
+    pts.forEach(([x, y], i) => (i ? X.lineTo(x, y) : X.moveTo(x, y)));
+    X.closePath();
+    X.fillStyle = fillC;
+    X.fill();
+  };
+  let hip = [60, 118 - bob];
+  const sh = [62, 72 - bob];
+  const crouch = o.crouch ?? 0;
+  const sit = o.sit ?? 0;
+  const hip0 = [...hip];
+  const leg = (s, front) => {
+    hip = [...hip0];
+    let th = walking ? Math.sin(a + s) * 0.46 : s ? -0.04 : 0.06;
+    const lift = walking ? Math.max(0, Math.cos(a + s)) * 0.72 : 0;
+    let kx = hip[0] + Math.sin(th) * 37;
+    let ky = hip[1] + Math.cos(th) * 37;
+    let t2 = th - lift;
+    let fx = kx + Math.sin(t2) * 36;
+    let fy = ky + Math.cos(t2) * 36;
+    const solve = (hpx, hpy, footX) => {
+      fx = footX;
+      fy = 191;
+      const dx = fx - hpx;
+      const dy = fy - hpy;
+      const d = Math.min(72, Math.hypot(dx, dy));
+      const h = Math.sqrt(Math.max(0, 36.5 * 36.5 - (d / 2) * (d / 2)));
+      const nx = -dy / Math.hypot(dx, dy);
+      const ny = dx / Math.hypot(dx, dy);
+      const c1 = [hpx + dx / 2 + nx * h, hpy + dy / 2 + ny * h];
+      const c2 = [hpx + dx / 2 - nx * h, hpy + dy / 2 - ny * h];
+      [kx, ky] = c1[0] > c2[0] ? c1 : c2;
+      hip[0] = hpx;
+      hip[1] = hpy;
+    };
+    if (crouch) solve(hip[0] + 4 * crouch, hip[1] + 40 * crouch, 60 + (s ? -8 : 6) - 10 * crouch);
+    if (sit) solve(hip0[0] - 4 * sit, hip0[1] + 36 * sit, hip0[0] + (s ? 30 : 36) * sit + (1 - sit) * (s ? -2 : 4));
+    const c = front ? legC : darker(legC, 0.25);
+    X.strokeStyle = c;
+    X.lineWidth = 7;
+    X.beginPath();
+    X.moveTo(hip[0], hip[1]);
+    X.lineTo(kx, ky);
+    X.lineTo(fx, fy - 3);
+    X.stroke();
+    // scarpa a punta arrotondata
+    X.fillStyle = front ? SHOE : darker(SHOE, 0.2);
+    X.beginPath();
+    X.moveTo(fx - 5, fy + 3);
+    X.lineTo(fx - 5, fy - 5);
+    X.quadraticCurveTo(fx + 6, fy - 6, fx + 12, fy);
+    X.lineTo(fx + 12, fy + 3);
+    X.closePath();
+    X.fill();
+  };
+  const arm = (s, front) => {
+    const sw = walking ? -Math.sin(a + s) : 0;
+    const th = walking ? sw * 0.48 : s ? 0.06 : -0.03;
+    let ex = sh[0] + Math.sin(th) * 27;
+    let ey = sh[1] + Math.cos(th) * 27;
+    const t2 = th + (walking ? 0.16 + Math.max(0, sw) * 0.5 : 0.1);
+    let hx = ex + Math.sin(t2) * 25;
+    let hy = ey + Math.cos(t2) * 25;
+    if (o.blend != null) {
+      const v = o.blend;
+      const lerp4 = (A, B) => A.map((q, i) => q + (B[i] - q) * v);
+      if (s === 0) [ex, ey, hx, hy] = lerp4([74, 94, 38, 68], [80, 96, 89, 79]);
+      else [ex, ey, hx, hy] = lerp4([ex, ey, hx, hy], [70, 100, 84, 116]);
+    } else if (o.hold) {
+      const hb = o.hold === true ? 1 : o.hold;
+      const tap = o.tap ?? 0;
+      const [tex, tey, thx, thy] = s === 0 ? [80, 96, 89 + tap * 0.4, 79 + tap] : [70, 100, 84, 116];
+      ex += (tex - ex) * hb;
+      ey += (tey - ey) * hb;
+      hx += (thx - hx) * hb;
+      hy += (thy - hy) * hb;
+    }
+    if (o.clutch) {
+      const c = o.clutch;
+      const [tex, tey, thx, thy] = s === 0 ? [82, 88, 74, 54] : [52, 92, 66, 104];
+      ex += (tex - ex) * c;
+      ey += (tey - ey) * c;
+      hx += (thx - hx) * c;
+      hy += (thy - hy) * c;
+    }
+    if (s === 0 && o.reach) {
+      const r = o.reach;
+      const tap = o.tap ?? 0;
+      ex += (80 - ex) * r;
+      ey += (90 - bob - ey) * r;
+      hx += (44 + tap * 0.5 - hx) * r;
+      hy += (70 + tap - bob - hy) * r;
+    }
+    X.strokeStyle = front ? coat : darker(coat, 0.2);
+    X.lineWidth = 7;
+    X.beginPath();
+    X.moveTo(sh[0], sh[1]);
+    X.lineTo(ex, ey);
+    X.lineTo(hx, hy);
+    X.stroke();
+    X.fillStyle = front ? sk[0] : sk[1];
+    X.beginPath();
+    X.arc(hx, hy + 1, 3.6, 0, 7);
+    X.fill();
+  };
+  if (walking) {
+    X.translate(60, 196);
+    X.rotate(0.04);
+    X.translate(-60, -196);
+  }
+  if (crouch) {
+    leg(Math.PI, false);
+    leg(0, true);
+    X.translate(4 * crouch, 40 * crouch);
+    X.translate(60, 118);
+    X.rotate(0.22 * crouch);
+    X.translate(-60, -118);
+  } else if (sit) {
+    leg(Math.PI, false);
+    leg(0, true);
+    X.translate(-4 * sit, 36 * sit);
+  } else {
+    leg(Math.PI, false);
+    leg(0, true);
+  }
+  arm(Math.PI, false);
+  // coda della sciarpa che scende dietro
+  if (scarf) {
+    const fl = walking ? Math.sin(a) * 3 : 0;
+    poly([[54, 66 - bob], [48, 70 - bob], [44 + fl, 96], [50 + fl, 97], [57, 72 - bob]], YELLOW_D);
+  }
+  // zaino BIONOMAD sulla schiena
+  if (o.pack !== false) packFlat(X, 26, 66 - bob, a, walking);
+  // cappotto lungo, appena svasato in fondo
+  const cy = 66 - bob;
+  const long = sit ? 26 : 52;
+  X.fillStyle = coat;
+  X.beginPath();
+  X.moveTo(52, cy);
+  X.lineTo(70, cy);
+  X.quadraticCurveTo(77, cy + 2, 76, cy + 14);
+  X.lineTo(78 + (walking ? 1 : 0), cy + 40 + long * 0.6);
+  X.lineTo(80, cy + 40 + long);
+  X.lineTo(46, cy + 40 + long);
+  X.lineTo(48, cy + 40 + long * 0.6);
+  X.lineTo(47, cy + 12);
+  X.quadraticCurveTo(47, cy + 1, 52, cy);
+  X.fill();
+  // piega d'ombra sul retro e bottoni
+  X.fillStyle = darker(coat, 0.12);
+  X.fillRect(47, cy + 14, 6, 26 + long);
+  if (o.pack !== false) {
+    X.strokeStyle = "#3A4558";
+    X.lineWidth = 2.5;
+    X.beginPath();
+    X.moveTo(52, cy + 2);
+    X.quadraticCurveTo(58, cy + 16, 54, cy + 34);
+    X.stroke();
+  }
+  arm(0, true);
+  // sciarpa gialla al collo
+  if (scarf) {
+    X.fillStyle = YELLOW;
+    X.beginPath();
+    X.ellipse(63, cy - 1, 10, 5, -0.1, 0, 7);
+    X.fill();
+    poly([[66, cy + 2], [72, cy + 2], [74, cy + 22], [69, cy + 22]], YELLOW);
+  }
+  // testa piccola di profilo, collo sottile
+  const hx = 64;
+  const hy = 44 - bob;
+  X.fillStyle = sk[1];
+  X.fillRect(hx - 3, hy + 6, 6, 9);
+  X.fillStyle = sk[0];
+  X.beginPath();
+  X.ellipse(hx, hy, 9, 10.5, 0, 0, 7);
+  X.fill();
+  X.beginPath();
+  X.moveTo(hx + 7, hy - 2);
+  X.lineTo(hx + 11, hy + 2);
+  X.lineTo(hx + 7, hy + 4);
+  X.fill();
+  // capelli
+  X.fillStyle = hairC;
+  const hair = o.hair ?? "short";
+  X.beginPath();
+  X.moveTo(hx - 10, hy + 3);
+  X.quadraticCurveTo(hx - 11, hy - 12, hx + 1, hy - 11);
+  X.quadraticCurveTo(hx + 10, hy - 10, hx + 9, hy - 3);
+  X.lineTo(hx - 2, hy - 4);
+  X.lineTo(hx - 4, hy + 4);
+  X.closePath();
+  X.fill();
+  if (hair === "long") poly([[hx - 10, hy - 2], [hx - 3, hy], [hx - 4, hy + 18], [hx - 13, hy + 18]], hairC);
+  if (hair === "bun") {
+    X.beginPath();
+    X.arc(hx - 9, hy - 9, 4.5, 0, 7);
+    X.fill();
+  }
+  if (hair === "braid") for (let i = 0; i < 4; i++) {
+    X.beginPath();
+    X.arc(hx - 9, hy + 4 + i * 5, 2.8, 0, 7);
+    X.fill();
+  }
+  // copricapo
+  if (o.hat === "cap" || o.hat === "fedora") {
+    X.fillStyle = "#2A2F3A";
+    X.fillRect(hx - 13, hy - 9, 26, 3);
+    X.beginPath();
+    X.moveTo(hx - 8, hy - 9);
+    X.lineTo(hx - 7, hy - 18);
+    X.lineTo(hx + 7, hy - 18);
+    X.lineTo(hx + 8, hy - 9);
+    X.fill();
+    X.fillStyle = YELLOW;
+    X.fillRect(hx - 8, hy - 11, 16, 2);
+  } else if (o.hat === "beanie") {
+    X.fillStyle = o.hatT && o.hatT > 0.5 ? "#E9E7E1" : "#4A5A72";
+    X.beginPath();
+    X.moveTo(hx - 11, hy - 2);
+    X.quadraticCurveTo(hx - 11, hy - 17, hx, hy - 16);
+    X.quadraticCurveTo(hx + 11, hy - 15, hx + 10, hy - 3);
+    X.closePath();
+    X.fill();
+    X.beginPath();
+    X.arc(hx, hy - 17, 3.5, 0, 7);
+    X.fill();
+  } else if (o.hat === "scarf") {
+    X.fillStyle = YELLOW;
+    X.beginPath();
+    X.moveTo(hx - 12, hy + 12);
+    X.quadraticCurveTo(hx - 13, hy - 14, hx + 1, hy - 13);
+    X.quadraticCurveTo(hx + 11, hy - 12, hx + 10, hy - 4);
+    X.lineTo(hx + 2, hy - 6);
+    X.lineTo(hx - 4, hy + 12);
+    X.closePath();
+    X.fill();
+  }
+  // occhio
+  X.fillStyle = "#1E2430";
+  X.fillRect(hx + 4, hy - 2, 2, 2);
+  if (o.mask === false) return;
+  // respiratore: mascherina chiara con il filtro, tubo sopra la spalla fino allo zaino
+  X.fillStyle = "#D6DAE0";
+  X.beginPath();
+  X.moveTo(hx + 2, hy + 2);
+  X.quadraticCurveTo(hx + 10, hy, hx + 13, hy + 4);
+  X.quadraticCurveTo(hx + 13, hy + 10, hx + 6, hy + 11);
+  X.quadraticCurveTo(hx + 1, hy + 10, hx + 2, hy + 2);
+  X.fill();
+  X.fillStyle = "#8D99AA";
+  X.beginPath();
+  X.arc(hx + 12, hy + 7, 3, 0, 7);
+  X.fill();
+  if (o.pack !== false) {
+    X.strokeStyle = "#AEB6C2";
+    X.lineWidth = 2.5;
+    X.beginPath();
+    X.moveTo(37, 69 - bob);
+    X.bezierCurveTo(34, 50 - bob, 54, 56 - bob, hx + 6, hy + 11);
+    X.stroke();
+  }
+}
+
 // ---------------------------------------------------------------- vista frontale (crediti)
 
 // ciocche davanti (coordinate del disegno frontale, cx = 60): dalla tempia alle spalle
@@ -829,15 +1173,14 @@ function accentize(c, m) {
 // curva dei toni dei personaggi: più contrasto, così usano tutta la palette BIODOM
 // (dal Dusk blue al Mineral white) invece di restare sui blu intermedi
 const TONE = (v) => Math.max(0, Math.min(1, (v - 0.45) * 1.4 + 0.55));
+// SS: i personaggi si disegnano 2 volte più grandi (vettoriale nitido), senza retino né grana
+export const SS = 2;
 function sideFrame(w, h, k, ph, o) {
-  const c = finish(paint(w, h, k, (T) => side({ ...T, G: (v, a) => T.G(TONE(v), a) }, ph, o), { seedValue: 11, cell: 1 }));
-  if (o.pack === false) return c;
-  const m = paint(w, h, k, (T) => side(T, ph, { ...o, accentPass: true }), { seedValue: 11, cell: 1, raw: true });
-  return accentize(c, m);
+  return finish(paint(w * SS, h * SS, k * SS, (T) => figure(T, ph, o), { seedValue: 11, cell: 1, raw: true }), { rim: false, outline: false, pad: 3 * SS });
 }
+const addHi = (scene, key, canvas) => addHiRes(scene, key, canvas, SS);
 
-function finish(c, { rim = true, outline = true } = {}) {
-  const pad = 3;
+function finish(c, { rim = true, outline = true, pad = 3 } = {}) {
   const out = document.createElement("canvas");
   out.width = c.width + pad * 2;
   out.height = c.height + pad * 2;
@@ -892,7 +1235,7 @@ function* bareGen(scene, key) {
   const h = Math.round(BH * k);
   const add = function* (name, o) {
     if (scene.textures.exists(name)) return;
-    scene.textures.addCanvas(name, sideFrame(w, h, k, 0, o));
+    addHi(scene, name, sideFrame(w, h, k, 0, o));
     yield name;
   };
   for (let i = 0; i < 8; i++) yield* add(`${bare}_h${i}`, { ...bopts, walking: false, pack: false, hold: 1, tap: -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2) });
@@ -901,9 +1244,9 @@ function* bareGen(scene, key) {
   const poses = [[0.35, 0], [0.7, 0], [1, 0], [1, -3], [1, -5], [1, -2]];
   for (let i = 0; i < 6; i++) yield* add(`${key}_c${i}`, { ...opts, walking: false, reach: poses[i][0], tap: poses[i][1] });
   if (!scene.textures.exists("pack_item")) {
-    scene.textures.addCanvas(
+    addHi(scene, 
       "pack_item",
-      accentize(finish(paint(28, 58, 1, (T) => drawPack(T.X, (v, a) => T.G(TONE(v), a), 4, 9), { seedValue: 11, cell: 1 }), { rim: false }), paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9, 0, false, true), { seedValue: 11, cell: 1, raw: true }))
+      finish(paint(30 * SS, 60 * SS, SS, (T) => packFlat(T.X, 4, 6), { seedValue: 11, cell: 1, raw: true }), { rim: false, outline: false, pad: 3 * SS })
     );
     yield "pack_item";
   }
@@ -928,7 +1271,7 @@ export function careFrames(scene, key) {
   const w = Math.round(BW * k);
   const h = Math.round(BH * k);
   const poses = [[0.35, 0], [0.7, 0], [1, 0], [1, -3], [1, -5], [1, -2]];
-  poses.forEach(([reach, tap], i) => scene.textures.addCanvas(`${key}_c${i}`, sideFrame(w, h, k, 0, { ...opts, walking: false, reach, tap })));
+  poses.forEach(([reach, tap], i) => addHi(scene, `${key}_c${i}`, sideFrame(w, h, k, 0, { ...opts, walking: false, reach, tap })));
   return key;
 }
 
@@ -938,7 +1281,7 @@ export function dieFrames(scene, key) {
   if (!opts || scene.textures.exists(`${key}_d0`)) return key;
   const k = opts.scale ?? 1;
   [[1, 0], [1, 0.35], [1, 0.7], [0.6, 1]].forEach(([clutch, crouch], i) =>
-    scene.textures.addCanvas(`${key}_d${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, clutch, crouch }))
+    addHi(scene, `${key}_d${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, clutch, crouch }))
   );
   return key;
 }
@@ -951,7 +1294,7 @@ export function sitFrames(scene, key) {
   const k = opts.scale ?? 1;
   // 8 pose intermedie con andamento morbido (lento all'inizio e all'arrivo sulla seduta)
   SIT_STEPS.forEach((sit, i) =>
-    scene.textures.addCanvas(`${key}_s${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, sit }))
+    addHi(scene, `${key}_s${i}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, sit }))
   );
   return key;
 }
@@ -963,7 +1306,7 @@ export function holdFrames(scene, bareKey) {
   if (!opts) return bareKey;
   if (!scene.textures.exists(`${bareKey}_h0`)) {
     const k = opts.scale ?? 1;
-    const make = (name, o) => scene.textures.addCanvas(`${bareKey}_${name}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, pack: false, ...o }));
+    const make = (name, o) => addHi(scene, `${bareKey}_${name}`, sideFrame(Math.round(BW * k), Math.round(BH * k), k, 0, { ...opts, walking: false, pack: false, ...o }));
     // h0-h7: la mano picchietta la pianta con un ritmo morbido (seno)
     for (let i = 0; i < 8; i++) make(`h${i}`, { hold: 1, tap: -2.5 + 2.5 * Math.cos((i / 8) * Math.PI * 2) });
     // m0-m4: dalla mano sulla spalla alla presa davanti (lo zaino segue la mano)
@@ -971,9 +1314,9 @@ export function holdFrames(scene, bareKey) {
     // b1-b3: dalle braccia a riposo alla presa davanti (per prendere / posare lo zaino)
     [0.25, 0.5, 0.75].forEach((v, i) => make(`b${i + 1}`, { hold: v, tap: 0 }));
   }
-  if (!scene.textures.exists("pack_item")) scene.textures.addCanvas(
+  if (!scene.textures.exists("pack_item")) addHi(scene, 
       "pack_item",
-      accentize(finish(paint(28, 58, 1, (T) => drawPack(T.X, (v, a) => T.G(TONE(v), a), 4, 9), { seedValue: 11, cell: 1 }), { rim: false }), paint(28, 58, 1, (T) => drawPack(T.X, T.G, 4, 9, 0, false, true), { seedValue: 11, cell: 1, raw: true }))
+      finish(paint(30 * SS, 60 * SS, SS, (T) => packFlat(T.X, 4, 6), { seedValue: 11, cell: 1, raw: true }), { rim: false, outline: false, pad: 3 * SS })
     );
   return bareKey;
 }
@@ -987,8 +1330,8 @@ function makeSide(scene, key, opts) {
   const w = Math.round(BW * k);
   const h = Math.round(BH * k);
   const make = (ph, walking) => sideFrame(w, h, k, ph, { ...opts, walking });
-  for (let i = 0; i < WALK_FRAMES; i++) scene.textures.addCanvas(`${key}_${i}`, make(i / WALK_FRAMES, true));
-  scene.textures.addCanvas(`${key}_idle`, make(0, false));
+  for (let i = 0; i < WALK_FRAMES; i++) addHi(scene, `${key}_${i}`, make(i / WALK_FRAMES, true));
+  addHi(scene, `${key}_idle`, make(0, false));
   return key;
 }
 
@@ -1045,20 +1388,28 @@ export const TEAM_LOOK = [
   { hair: "long", hairTone: 0.14, top: 0.78, legs: 0.4, overalls: true }
 ];
 const RUST = "#B4553F";
+// ciuffo rosso morbido (curve, non blocchi di pixel)
+function tuft(x, P) {
+  x.fillStyle = RUST;
+  x.beginPath();
+  x.moveTo(...P(44, 30));
+  x.quadraticCurveTo(...P(52, 25), ...P(62, 29));
+  x.quadraticCurveTo(...P(55, 31), ...P(51, 37));
+  x.quadraticCurveTo(...P(48, 32), ...P(44, 30));
+  x.fill();
+}
 
 export function crewKey(scene, i) {
   const key = `crew_${i}`;
   if (scene.textures.exists(key)) return key;
   const o = TEAM_LOOK[i];
-  const c = finish(paint(BW, BH, 1, (T) => front(T, o), { seedValue: 31 + i, cell: 1 }));
+  const c = finish(paint(BW * SS, BH * SS, SS, (T) => front(T, o), { seedValue: 31 + i, cell: 1 }), { rim: false, outline: false, pad: 3 * SS });
   if (o.tuft) {
     // ciuffo rosso che esce dal cappellino: l'unico accento di colore
     const x = c.getContext("2d", { willReadFrequently: true });
-    x.fillStyle = RUST;
-    const px = [[44, 28, 18, 3], [45, 31, 12, 3], [46, 34, 6, 2]];
-    px.forEach(([a, b, w, h]) => x.fillRect(a + 3, b + 3, w, h));
+    tuft(x, (a, b) => [(a + 3) * SS, (b + 3) * SS]);
   }
-  scene.textures.addCanvas(key, c);
+  addHi(scene, key, c);
   return key;
 }
 
@@ -1067,41 +1418,32 @@ export function crewBust(scene, i) {
   const key = `crew_bust_${i}`;
   if (scene.textures.exists(key)) return key;
   const o = TEAM_LOOK[i];
-  const c = paint(152, 168, 2, (T) => {
+  const S = 2 * SS;
+  const c = paint(152 * SS, 168 * SS, S, (T) => {
     T.X.translate(-22, -4);
     front(T, o);
   }, { seedValue: 41 + i, cell: 1 });
-  if (o.tuft) {
-    const x = c.getContext("2d", { willReadFrequently: true });
-    x.fillStyle = RUST;
-    [[44, 28, 18, 3], [45, 31, 12, 3], [46, 34, 6, 2]].forEach(([a, b, w, h]) => x.fillRect((a - 22) * 2, (b - 4) * 2, w * 2, h * 2));
-  }
+  const x = c.getContext("2d", { willReadFrequently: true });
+  if (o.tuft) tuft(x, (a, b) => [(a - 22) * S, (b - 4) * S]);
   if (o.balayage) {
-    // shatush fucsia: le ciocche sono già disegnate nel tono dei capelli; qui si colorano
-    // le punte, con un passaggio a retino tra il castano e il fucsia
-    const x = c.getContext("2d", { willReadFrequently: true });
-    const S = 2;
-    const locks = FRONT_LOCKS.map((pts) => {
-      const p = new Path2D();
+    // shatush fucsia: le punte delle ciocche sfumano dal castano al fucsia (sfumatura morbida)
+    const all = new Path2D();
+    FRONT_LOCKS.forEach((pts) => {
       const P = ([lx, ly]) => [(lx - 22) * S, (ly - 4) * S];
-      p.moveTo(...P(pts[0]));
-      for (let i = 1; i < pts.length; i += 2) p.quadraticCurveTo(...P(pts[i]), ...P(pts[i + 1]));
-      p.closePath();
-      return p;
+      all.moveTo(...P(pts[0]));
+      for (let j = 1; j < pts.length; j += 2) all.quadraticCurveTo(...P(pts[j]), ...P(pts[j + 1]));
+      all.closePath();
     });
-    for (let py = 0; py < c.height; py++) {
-      const t = (py / S + 4 - 56) / 10;
-      if (t <= 0) continue;
-      for (let px = 0; px < c.width; px++) {
-        if (!locks.some((l) => x.isPointInPath(l, px + 0.5, py + 0.5))) continue;
-        const cell = ((px >> 1) * 7 + (py >> 1) * 3) % 10;
-        if (t < 1 && cell >= t * 10) continue;
-        x.fillStyle = ((px >> 1) + (py >> 1)) % 2 ? "#D94F9A" : "#E58CB6";
-        x.fillRect(px, py, 1, 1);
-      }
-    }
+    x.save();
+    x.clip(all);
+    const g = x.createLinearGradient(0, (56 - 4) * S, 0, (68 - 4) * S);
+    g.addColorStop(0, "rgba(217,79,154,0)");
+    g.addColorStop(1, "rgba(217,79,154,1)");
+    x.fillStyle = g;
+    x.fillRect(0, (56 - 4) * S, c.width, c.height);
+    x.restore();
   }
-  scene.textures.addCanvas(key, c);
+  addHi(scene, key, c);
   return key;
 }
 

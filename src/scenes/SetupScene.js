@@ -1,3 +1,4 @@
+import { addHiRes } from "../art/hires.js";
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { ORIGINS } from "../config/origins.js";
@@ -47,24 +48,47 @@ function cityThumb(scene, id) {
 }
 
 // fondo a griglia dei riquadri immagine, come nelle schede dei dispositivi
+// sfondo della scheda operatore: una via in stile illustrato piatto (cielo chiaro, palazzi
+// blu-grigi con le finestre, marciapiede), disegnata in vettoriale a risoluzione doppia
 function gridBg(scene, h = IMG_H) {
-  const key = `setup_grid_${h}`;
+  const key = `setup_street_${h}`;
   if (scene.textures.exists(key)) return key;
   const w = CW - 32;
-  scene.textures.addCanvas(key, paint(w, h, 1, ({ X, G }) => {
-    const bg = X.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, G(0.18));
-    bg.addColorStop(1, G(0.06));
-    X.fillStyle = bg;
-    X.fillRect(0, 0, w, h);
-    X.fillStyle = G(0.3, 0.5);
-    for (let x = 0; x < w; x += 16) X.fillRect(x, 0, 1, h);
-    for (let y = 0; y < h; y += 16) X.fillRect(0, y, w, 1);
-    X.fillStyle = G(0.26);
-    X.fillRect(0, h - 40, w, 40);
-    X.fillStyle = G(0.6);
-    X.fillRect(0, h - 40, w, 2);
-  }));
+  const S = 2;
+  const c = document.createElement("canvas");
+  c.width = w * S;
+  c.height = h * S;
+  const X = c.getContext("2d");
+  X.scale(S, S);
+  const sky = X.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, "#B9C5D6");
+  sky.addColorStop(1, "#E4E8EE");
+  X.fillStyle = sky;
+  X.fillRect(0, 0, w, h);
+  X.fillStyle = "rgba(255,255,255,0.8)";
+  X.beginPath();
+  X.ellipse(w * 0.72, 70, 34, 10, 0, 0, 7);
+  X.ellipse(w * 0.76, 62, 20, 10, 0, 0, 7);
+  X.fill();
+  const ground = h - 40;
+  const row = (list, col, win) =>
+    list.forEach(([x, bw, bh]) => {
+      X.fillStyle = col;
+      X.fillRect(x, ground - bh, bw, bh);
+      if (!win) return;
+      X.fillStyle = win;
+      for (let y = ground - bh + 14; y < ground - 18; y += 22) for (let wx = x + 8; wx < x + bw - 10; wx += 16) X.fillRect(wx, y, 8, 10);
+    });
+  row([[-10, 90, 330], [86, 70, 260], [150, 110, 380], [256, 60, 290], [312, 80, 340]], "#A7B4C7");
+  row([[0, 80, 200], [96, 64, 150], [200, 92, 230], [300, 60, 170]], "#8296B1", "rgba(228,233,240,0.55)");
+  // marciapiede e strada
+  X.fillStyle = "#6C7E98";
+  X.fillRect(0, ground, w, 40);
+  X.fillStyle = "#D7DDE6";
+  X.fillRect(0, ground, w, 3);
+  X.fillStyle = "rgba(255,255,255,0.5)";
+  for (let x = 10; x < w; x += 70) X.fillRect(x, ground + 24, 36, 3);
+  addHiRes(scene, key, c, S);
   return key;
 }
 
@@ -111,7 +135,7 @@ export class SetupScene extends Phaser.Scene {
     g.lineStyle(bright ? 3 : 2, bright ? C.c4 : C.c3, 1);
     g.strokeRect(x, y, w, h);
     g.fillStyle(C.c4, 1);
-    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([nx, ny]) => g.fillRect(nx - 3, ny - 3, 6, 6));
+    // (angoli a quadratino rimossi: stile vettoriale pulito)
     this.layer.add(g);
     return g;
   }
@@ -223,6 +247,10 @@ export class SetupScene extends Phaser.Scene {
     Sfx.blip();
     this.op = id;
     this.showOperators();
+  }
+
+  onStart() {
+    this.confirm();
   }
 
   move(dir) {

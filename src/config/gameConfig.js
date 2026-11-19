@@ -18,8 +18,10 @@ export const gameConfig = {
   width: 1280,
   height: 800,
   backgroundColor: "#1C2839",
-  pixelArt: true,
-  roundPixels: true,
+  // stile illustrato vettoriale: niente pixel art, bordi smussati
+  pixelArt: false,
+  antialias: true,
+  roundPixels: false,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH

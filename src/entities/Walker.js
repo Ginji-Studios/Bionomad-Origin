@@ -36,7 +36,7 @@ export class Walker {
       const by = this.img.y - 138 * s;
       const size = Math.random() < 0.35 ? 5 : Math.random() < 0.6 ? 4 : 3;
       const col = Math.random() < 0.7 ? 0xf1f0ed : 0x5e6d88;
-      const b = this.scene.add.rectangle(bx, by, size, size, col, 0.95).setDepth(this.depth + 1).setScrollFactor(sf);
+      const b = this.scene.add.circle(bx, by, size * 0.55, col, 0.95).setDepth(this.depth + 1).setScrollFactor(sf);
       const drift = (Math.random() - 0.5) * 30;
       this.scene.tweens.add({ targets: b, y: by - 60 - Math.random() * 60, alpha: 0, duration: 1400 + Math.random() * 800, delay: i * 110, ease: "Sine.easeOut", onComplete: () => b.destroy() });
       this.scene.tweens.add({ targets: b, x: bx + drift, duration: 700, delay: i * 110, yoyo: true, repeat: 1, ease: "Sine.easeInOut" });

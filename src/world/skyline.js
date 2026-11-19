@@ -39,43 +39,44 @@ const G = (v, a = 1) => {
 let X;
 let VW = 864; // larghezza logica della vista, impostata da buildSkyline
 
-// scala di grigi -> palette con retino a celle CS x CS
-export function quant(c, CS = 2, dither = true) {
+// scala di grigi -> rampa di colori piatti del nuovo stile (illustrazione vettoriale, niente retino).
+// I pixel già colorati (accenti disegnati con colori veri) restano com'erano; su tutto una grana leggera.
+const RAMP = [[0, "#1E2B3E"], [0.22, "#2E415A"], [0.42, "#4C6585"], [0.62, "#7A8EA9"], [0.8, "#ADB9CA"], [1, "#EEF0F4"]].map(([t, h]) => [t, [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))]);
+function ramp(v) {
+  for (let i = 1; i < RAMP.length; i++)
+    if (v <= RAMP[i][0]) {
+      const [t0, c0] = RAMP[i - 1];
+      const [t1, c1] = RAMP[i];
+      const u = (v - t0) / (t1 - t0);
+      return c0.map((c, j) => c + (c1[j] - c) * u);
+    }
+  return RAMP[RAMP.length - 1][1];
+}
+export function quant(c) {
   const w = c.width;
   const h = c.height;
   const x = c.getContext("2d", { willReadFrequently: true });
-  const d = x.getImageData(0, 0, w, h).data;
-  const out = x.createImageData(w, h);
-  const o = out.data;
-  for (let cy = 0; cy < h; cy += CS)
-    for (let cx = 0; cx < w; cx += CS) {
-      let s = 0;
-      let a = 0;
-      let n = 0;
-      for (let j = 0; j < CS && cy + j < h; j++)
-        for (let i = 0; i < CS && cx + i < w; i++) {
-          const k = ((cy + j) * w + cx + i) * 4;
-          s += d[k] * d[k + 3];
-          a += d[k + 3];
-          n++;
-        }
-      if (a / n < 128) continue;
-      const v = Math.max(0, Math.min(1, s / a / 255 + LIFT + DAY_LIFT + (rnd() - 0.5) * 0.05));
-      const p = v * 4;
-      const lo = Math.min(3, p | 0);
-      // senza retino: tinta piatta (stile pixel art a campiture), al livello più vicino
-      const i = dither ? (B8[((cy / CS) & 7) * 8 + ((cx / CS) & 7)] < p - lo ? lo + 1 : lo) : Math.min(4, Math.round(p));
-      const col = PR[i];
-      for (let j = 0; j < CS && cy + j < h; j++)
-        for (let q = 0; q < CS && cx + q < w; q++) {
-          const k = ((cy + j) * w + cx + q) * 4;
-          o[k] = col[0];
-          o[k + 1] = col[1];
-          o[k + 2] = col[2];
-          o[k + 3] = 255;
-        }
+  const img = x.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let k = 0; k < d.length; k += 4) {
+    if (d[k + 3] < 4) continue;
+    const r = d[k];
+    const g = d[k + 1];
+    const b = d[k + 2];
+    const n = (rnd() - 0.5) * 7;
+    if (Math.abs(r - g) < 6 && Math.abs(g - b) < 6) {
+      const v = Math.max(0, Math.min(1, (r + g + b) / 765 + LIFT * 0.5 + DAY_LIFT));
+      const col = ramp(v);
+      d[k] = col[0] + n;
+      d[k + 1] = col[1] + n;
+      d[k + 2] = col[2] + n;
+    } else {
+      d[k] = r + n;
+      d[k + 1] = g + n;
+      d[k + 2] = b + n;
     }
-  x.putImageData(out, 0, 0);
+  }
+  x.putImageData(img, 0, 0);
 }
 
 const rect = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
@@ -1204,7 +1205,7 @@ function nearPerlan(w) {
 }
 
 // zone per città: nome del quartiere, primo piano, etichette dei luoghi nel primo piano
-export const ZONES = {
+const ZONES_OLD = {
   milano: [
     { name: "DUOMO", near: (w) => near(w), labels: [["Duomo di Milano", 520, 112], ["Galleria V. Emanuele II", 1250, 224], ["Castello Sforzesco", 2260, 60]] },
     { name: "PORTA NUOVA", near: nearPortaNuova, labels: [["Torre UniCredit", 620, 40], ["Piazza Gae Aulenti", 880, 380], ["Bosco Verticale", 1280, 150], ["Torre Solaria", 2085, 170]] },
@@ -1268,7 +1269,7 @@ const CITIES = {
 // Ogni livello ha il suo fattore di parallasse f e un canvas già convertito in palette.
 // Il disegno usa le coordinate del concept (alto 540) scalate di k = viewH / 540,
 // e il retino viene applicato alla risoluzione finale, così resta nitido.
-export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night", zone = 0 } = {}) {
+function buildSkylineOld(cityId, { viewW = 1280, viewH = 800, time = "night", zone = 0 } = {}) {
   DAY = time === "day";
   DAY_LIFT = DAY ? 0.06 : 0;
   const k = viewH / VH_L;
@@ -1277,7 +1278,7 @@ export function buildSkyline(cityId, { viewW = 1280, viewH = 800, time = "night"
   const defs = CITIES[cityId] ?? CITIES.milano;
   const layers = defs.map(([f, draw], li) => {
     // livello 0 = cielo: di giorno quello chiaro, di notte quello della città (Delhi di notte usa la luna)
-    const zones = ZONES[cityId] ?? ZONES.milano;
+    const zones = ZONES_OLD[cityId] ?? ZONES_OLD.milano;
     const last = li === defs.length - 1;
     NEAR = zones[zone % zones.length].near;
     const fn = li === 0 ? (DAY ? daySky : cityId === "delhi" ? sky : draw) : last ? zones[zone % zones.length].near : draw;
@@ -1321,3 +1322,6 @@ export function paint(width, height, k, draw, { cell = 2, seedValue = 7, raw = f
   if (!raw) quant(c, cell, dither);
   return c;
 }
+
+// nuova città in stile illustrazione piatta (vedi city.js)
+export { buildCity as buildSkyline, ZONES } from "./city.js";

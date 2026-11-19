@@ -1,4 +1,4 @@
-import { EVENTS, EXTRA_TASKS, EMERGENCY_CHANCE } from "../config/events.js";
+import { EVENTS, EMERGENCY_CHANCE, DAY_PLAN, NIGHT_CHANCE } from "../config/events.js";
 import { ORIGINS } from "../config/origins.js";
 
 // la run vive nel registry di Phaser, così la vedono tutte le scene
@@ -10,23 +10,6 @@ function shuffle(list) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
-}
-
-// task extra di un evento: non ripetono un sensore già usato nell'evento
-function pickExtras(eventId, origin) {
-  const used = new Set(EVENTS[eventId].steps.filter((s) => s.sensor).map((s) => s.sensor));
-  const extras = [];
-  const take = (pool, kind) => {
-    const free = shuffle(pool).filter((task) => !used.has(task.sensor));
-    const task = free[0] ?? shuffle(pool)[0];
-    used.add(task.sensor);
-    extras.push({ ...task, extra: kind });
-  };
-  // una cura in più a caso ogni tanto, così le giornate non sono mai uguali
-  const bonus = Math.random() < 0.3 ? 1 : 0;
-  for (let i = 0; i < (origin?.extras?.care ?? 0) + bonus; i += 1) take(EXTRA_TASKS.care, "care");
-  for (let i = 0; i < (origin?.extras?.fix ?? 0); i += 1) take(EXTRA_TASKS.fix, "fix");
-  return extras;
 }
 
 // le extra vanno prima dell'uscita / della corsa verso casa, altrimenti in coda
@@ -83,7 +66,7 @@ function makeTune(origin) {
 }
 
 function tuneStep(step, t) {
-  if (!t || step.type !== "plant") return step;
+  if (!t || (step.type !== "plant" && step.type !== "bio")) return step;
   const s = { ...step };
   if (s.holdMs) s.holdMs = Math.round(s.holdMs * t.hold);
   if (s.timeoutMs) s.timeoutMs = Math.round(s.timeoutMs * t.timeout);
@@ -99,35 +82,22 @@ export function startRun(registry, originId) {
   const lvl = origin?.level ?? 2;
   const history = readHistory();
   const seen = (id) => history.filter((h) => h === id).length;
-  // raramente la giornata è solo l'emergenza (nessuna task extra: è già lunga e difficile)
-  const emergency = Math.random() < EMERGENCY_CHANCE * (lvl === 3 ? 1.6 : lvl === 1 ? 0.5 : 1) && seen("emergenza") === 0;
+  // molto raramente la giornata è solo l'emergenza (e allora niente altri eventi)
+  const emergency = Math.random() < EMERGENCY_CHANCE && seen("emergenza") === 0;
   let events = ["emergenza"];
   if (!emergency) {
-    // le tappe alternano giorno e notte: di giorno eventi diurni, di notte quelli serali.
-    // Pesi: eventi visti di recente quasi mai, livello vicino alla difficoltà della città,
-    // mai lo stesso luogo due volte di fila.
+    // giornata: bus del mattino → ufficio → ufficio a fine giornata → casa → (a volte) la notte.
+    // Per ogni momento si sceglie un evento, evitando quelli visti nelle ultime partite.
     events = [];
-    const n = eventCount(origin);
-    for (let i = 0; i < n; i++) {
-      const night = i % 2 === 1;
-      const pool = Object.keys(EVENTS).filter((id) => !EVENTS[id].emergency && !events.includes(id) && Boolean(EVENTS[id].evening) === night);
-      const prevLoc = events.length ? EVENTS[events[events.length - 1]].location : null;
-      events.push(
-        pick(pool, (id) => {
-          const ev = EVENTS[id];
-          let w = 1 / (1 + 12 * seen(id));
-          w *= [1, 0.6, 0.3][Math.abs((ev.level ?? 2) - lvl)];
-          if (ev.location === prevLoc) w *= 0.15;
-          return w;
-        })
-      );
-    }
+    DAY_PLAN.forEach((slot) => {
+      if (slot === "night" && Math.random() > NIGHT_CHANCE[lvl - 1]) return;
+      const pool = Object.keys(EVENTS).filter((id) => EVENTS[id].slot === slot);
+      if (pool.length) events.push(pick(pool, (id) => 1 / (1 + 6 * seen(id))));
+    });
   }
-  const extras = events.map((id) => (EVENTS[id].emergency ? [] : pickExtras(id, origin)));
-  const tune = events.map(() => makeTune(origin));
   saveHistory(events);
   registry.set("origin", originId);
-  registry.set("run", { origin: originId, events, extras, tune, zoneOffset: Math.floor(Math.random() * 4), index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
+  registry.set("run", { origin: originId, events, extras: events.map(() => []), tune: events.map(() => makeTune(origin)), zoneOffset: Math.floor(Math.random() * 4), index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
   return registry.get("run");
 }
 
@@ -136,9 +106,17 @@ export function cityZone(run) {
   return ((run?.zoneOffset ?? 0) + (run?.index ?? 0)) % 4;
 }
 
-// le task si alternano: giorno, notte, giorno... (la prima è di giorno)
+// di giorno o di sera: lo decide l'evento (fine giornata, casa, notte = sera)
 export function dayTime(run) {
-  return (run?.index ?? 0) % 2 === 1 ? "night" : "day";
+  const id = run?.events?.[run?.index ?? 0];
+  if (!id) return "night";
+  return EVENTS[id]?.evening ? "night" : "day";
+}
+
+// temperatura esterna della città: Reykjavík più fredda, New Delhi più calda
+export function cityTemp(run, t) {
+  const d = { reykjavik: -6, milano: 0, delhi: 6 }[run?.origin] ?? 0;
+  return t + d;
 }
 
 export function getRun(registry) {

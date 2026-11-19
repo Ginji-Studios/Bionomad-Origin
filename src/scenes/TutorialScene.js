@@ -2,6 +2,7 @@ import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/PlantPanel.js";
+import { bionomadArt } from "../ui/BioPanel.js";
 import { dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 import { plantNav } from "../input/plantNav.js";
@@ -57,6 +58,10 @@ export class TutorialScene extends Phaser.Scene {
     this.showPage(0);
   }
 
+  onStart() {
+    goTo(this, this.next);
+  }
+
   back() {
     this.showPage(Math.max(0, this.page - 1));
   }
@@ -87,7 +92,7 @@ export class TutorialScene extends Phaser.Scene {
     g.lineStyle(2, bright ? C.c4 : C.c3, 1);
     g.strokeRect(x, y, w, h);
     g.fillStyle(C.c4, 1);
-    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([nx, ny]) => g.fillRect(nx - 3, ny - 3, 6, 6));
+    // (angoli a quadratino rimossi: stile vettoriale pulito)
     this.layer.add(g);
     return g;
   }
@@ -274,22 +279,141 @@ export class TutorialScene extends Phaser.Scene {
 
   // ---------- pagine 2 e 3: gesti sul vaso vero, con l'effetto sull'ossigeno
 
+  // pagina 2: i cinque comandi del BIONOMAD · pagina 3: notifiche e cure (+O₂ / −O₂)
   pageGestures(care) {
-    this.badge(care ? "✓   +O₂" : "✗   −O₂", care ? "CURA LA PIANTA: PIÙ OSSIGENO" : "NEGLIGENZE: MENO OSSIGENO");
-    const kinds = care ? ["torch", "cover", "heat", "water", "vial"] : ["dark", "shock", "flood", "wrong"];
-    const CAPTION = { torch: "TORCIA SUL SENSORE", cover: "MANO SUL SENSORE", heat: "TORCIA TERMICA", water: "TIRA LA LEVA", vial: "FIALA NEL POZZETTO", dark: "COPERTA TROPPO", shock: "TROPPO CALDO", flood: "LEVA LASCIATA APERTA", wrong: "FIALA SBAGLIATA" };
-    const n = kinds.length;
-    this.tileW = Math.floor((VIEW.w - 80 - (n - 1) * 16) / n);
-    kinds.forEach((kind, i) => {
-      const x = 40 + i * (this.tileW + 16);
-      const y = 140;
-      this.frame(x, y, this.tileW, TILE_H, false);
-      const plant = this.add.image(x + this.tileW / 2, y + 352, "plant_tile").setOrigin(0.5, 1);
+    if (care) return this.pageControls();
+    return this.pageNotify();
+  }
+
+  card(x, y, w, h) {
+    const g = this.add.graphics();
+    g.fillStyle(C.c0, 0.95);
+    g.fillRoundedRect(x, y, w, h, 18);
+    this.layer.add(g);
+    return g;
+  }
+
+  pageControls() {
+    this.badge("I COMANDI DEL BIONOMAD", "OGNI TASK USA UNO DI QUESTI");
+    const items = [
+      ["START", "AVVIA · PAUSA", "start"],
+      ["LUCE", "INTERRUTTORE", "light"],
+      ["TEMPERATURA", "MANOPOLA", "knob"],
+      ["IRRIGAZIONE", "UNA PRESSIONE, IN TEMPO", "water"],
+      ["ARIA", "UNA PRESSIONE, IN TEMPO", "air"]
+    ];
+    const n = items.length;
+    const w = Math.floor((VIEW.w - 80 - (n - 1) * 16) / n);
+    items.forEach(([name, cap, kind], i) => {
+      const x = 40 + i * (w + 16);
+      const y = 150;
+      this.card(x, y, w, 470);
       const g = this.add.graphics();
-      this.layer.add([plant, g]);
-      this.layer.add(txt(this, x + this.tileW / 2, y + TILE_H - 26, CAPTION[kind], { size: 16, origin: 0.5 }));
-      this.tiles.push({ kind, x, y, plant, g, care, delay: i * 250 });
+      this.layer.add(g);
+      this.layer.add(txt(this, x + w / 2, y + 380, name, { size: 20, weight: "500", origin: 0.5 }));
+      this.layer.add(txt(this, x + w / 2, y + 412, cap, { size: 14, color: HEX.c3, origin: 0.5 }));
+      this.tiles.push({ kind, x, y, w, g, anim: true, delay: i * 300 });
     });
+  }
+
+  pageNotify() {
+    this.badge("✓ +O₂   ·   ✗ −O₂", "ARRIVA UNA NOTIFICA: CURA IL BIONOMAD IN TEMPO");
+    const x = 140;
+    const y = 160;
+    this.card(x, y, VIEW.w - 280, 450);
+    this.layer.add(this.add.image(x + 40, y + 420, bionomadArt(this)).setOrigin(0, 1).setScale(1.1));
+    const g = this.add.graphics();
+    this.layer.add(g);
+    const note = txt(this, x + 460, y + 70, "! Il BIONOMAD ha bisogno di acqua", { size: 20, wrap: 480 });
+    const ok = txt(this, x + 460, y + 330, "", { size: 34, weight: "500" });
+    this.layer.add([note, ok]);
+    this.tiles.push({ kind: "notify", x, y, g, note, ok, anim: true, delay: 0 });
+  }
+
+  // animazioni delle schede dei comandi (t in ms)
+  animTile(tile, t) {
+    const { kind, x, y, w, g } = tile;
+    g.clear();
+    const u = ((t - tile.delay) % 3000) / 3000;
+    const on = u > 0 && u < 0.5;
+    const cx = x + (w ?? 0) / 2;
+    const cy = y + 190;
+    if (kind === "start") {
+      g.fillStyle(0xc9c6be, 1);
+      g.fillCircle(cx, cy, 46);
+      g.fillStyle(on ? 0x24344b : 0x3a4b63, 1);
+      g.fillCircle(cx, cy + (on ? 3 : 0), 34);
+      g.fillStyle(0xf4f5f7, 1);
+      if (on) {
+        g.fillRect(cx - 10, cy - 12, 7, 26);
+        g.fillRect(cx + 3, cy - 12, 7, 26);
+      } else g.fillTriangle(cx - 8, cy - 14, cx - 8, cy + 14, cx + 14, cy);
+    } else if (kind === "light") {
+      g.fillStyle(0xc9c6be, 1);
+      g.fillRoundedRect(cx - 34, cy - 54, 68, 108, 12);
+      g.fillStyle(on ? 0xe2b33c : 0x8a99b0, 1);
+      g.fillRoundedRect(cx - 22, on ? cy - 44 : cy + 2, 44, 42, 8);
+      if (on) {
+        g.fillStyle(0xe2b33c, 0.25);
+        g.fillCircle(cx, cy - 100, 40);
+      }
+    } else if (kind === "knob") {
+      const ang = -2.4 + Math.sin(u * Math.PI * 2) * 1.6 + 1.6;
+      g.fillStyle(0xc9c6be, 1);
+      g.fillCircle(cx, cy, 48);
+      g.fillStyle(0x24344b, 1);
+      g.fillCircle(cx, cy, 36);
+      g.lineStyle(6, 0xf4f5f7, 1);
+      g.lineBetween(cx, cy, cx + Math.cos(ang) * 30, cy + Math.sin(ang) * 30);
+      // display: zaino / esterno
+      g.fillStyle(0x24344b, 1);
+      g.fillRoundedRect(cx - 60, cy - 140, 120, 50, 8);
+      g.fillStyle(0x8fd0a6, 1);
+      g.fillRect(cx - 50, cy - 102, 40 + 60 * ((ang + 2.4) / 3.2), 4);
+    } else if (kind === "water") {
+      g.fillStyle(0xc9c6be, 1);
+      g.fillCircle(cx, cy + 40, 40);
+      g.fillStyle(0x3f67a8, 1);
+      g.fillCircle(cx, cy + 40 + (on ? 3 : 0), 28);
+      // livello dell'acqua con la fascia giusta
+      g.fillStyle(0xe3e8ef, 1);
+      g.fillRoundedRect(cx - 18, cy - 130, 36, 120, 8);
+      g.fillStyle(0x8fd0a6, 0.6);
+      g.fillRect(cx - 18, cy - 130 + 120 * 0.25, 36, 120 * 0.35);
+      const lvl = Math.min(0.95, u < 0.5 ? u * 1.3 : 0.65);
+      g.fillStyle(0x3f67a8, 1);
+      g.fillRoundedRect(cx - 18, cy - 10 - 120 * lvl, 36, 120 * lvl, 8);
+    } else if (kind === "air") {
+      g.fillStyle(0xc9c6be, 1);
+      g.fillCircle(cx, cy + 40, 40);
+      g.fillStyle(0xf4f5f7, 1);
+      g.fillCircle(cx, cy + 40 + (u < 0.8 ? 3 : 0), 28);
+      g.fillStyle(0x8a99b0, 1);
+      for (let i = 0; i < 5; i++) {
+        const k = (u * 3 + i / 5) % 1;
+        if (u < 0.8) g.fillCircle(cx - 30 + i * 15, cy - 20 - k * 120, 5 * (1 - k) + 2);
+      }
+      g.fillStyle(0xe3e8ef, 1);
+      g.fillRoundedRect(cx - 50, cy - 160, 100, 10, 5);
+      g.fillStyle(0x24344b, 1);
+      g.fillRoundedRect(cx - 50, cy - 160, 100 * Math.min(1, u / 0.8), 10, 5);
+    } else if (kind === "notify") {
+      const { note, ok } = tile;
+      const p = (t % 6000) / 6000;
+      note.setAlpha(p > 0.05 ? 1 : 0);
+      g.fillStyle(0xe2b33c, 1);
+      if (p > 0.05) g.fillCircle(x + 440, y + 80, 12);
+      // la mano preme l'irrigazione, la barra sale nella fascia giusta
+      const lvl = Math.min(0.62, Math.max(0, (p - 0.2) * 1.4));
+      g.fillStyle(0xe3e8ef, 1);
+      g.fillRoundedRect(x + 460, y + 200, 360, 16, 8);
+      g.fillStyle(0x8fd0a6, 0.6);
+      g.fillRect(x + 460 + 360 * 0.4, y + 200, 360 * 0.35, 16);
+      g.fillStyle(0x3f67a8, 1);
+      g.fillRoundedRect(x + 460, y + 200, Math.max(10, 360 * lvl), 16, 8);
+      if (p > 0.65) ok.setText("✓  +O₂").setColor(HEX.c4);
+      else ok.setText("");
+    }
   }
 
   updateTile(tile, t) {
@@ -504,7 +628,7 @@ export class TutorialScene extends Phaser.Scene {
     this.t += delta;
     if (this.page === 0) this.updateMove(this.t % PAGE_MS, delta);
     else if (this.page === 3) this.updateBreath(this.t % pageMs(3));
-    else this.tiles.forEach((tile) => this.updateTile(tile, this.t % PAGE_MS));
+    else this.tiles.forEach((tile) => (tile.anim ? this.animTile(tile, this.t) : this.updateTile(tile, this.t % PAGE_MS)));
     const b = this.bar;
     b.clear();
     const segW = 180;
