@@ -168,7 +168,7 @@ export class MenuScene extends Phaser.Scene {
     // titolo vettoriale
     if (!this.textures.exists("menu_title2")) addHiRes(this, "menu_title2", titleVector(), 3);
     this.add.image(68, 158, "menu_title2").setOrigin(0).setScale(0.8).setDepth(21);
-    txt(this, 72, 268, "Respira con la tua pianta.", { size: 19, color: HEX.c4 }).setDepth(21);
+    txt(this, 72, 268, "Each breath is a choice.", { size: 19, color: HEX.c4 }).setDepth(21);
     this.add.rectangle(72, 306, 46, 4, Y_ACCENT).setOrigin(0, 0.5).setDepth(21);
 
     // voci del menu: numero, nome grande, freccia; la voce attiva ha la pillola scura
