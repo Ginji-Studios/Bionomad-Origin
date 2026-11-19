@@ -11,7 +11,7 @@ import { snowfall } from "../world/snow.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey, holdFrames } from "../art/people.js";
 import { BioPanel, bioKeys } from "../ui/BioPanel.js";
-import { cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, Y_ACCENT } from "../ui/hud.js";
+import { cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, Y_ACCENT, BRAND } from "../ui/hud.js";
 
 const NEAR = 80;
 const STEP_BONUS = 0.04;
@@ -199,14 +199,14 @@ export class EventScene extends Phaser.Scene {
       if (success) {
         this.cures += 1;
         const left = this.step.cures - this.cures;
-        const bonus = left > 0 ? 0.14 : 0.34;
+        const bonus = left > 0 ? 0.18 : 0.4;
         this.addOxygen(bonus, true);
         this.player.o2Pop(1);
         this.player.bubble?.(10);
         Sfx.o2Gain();
         toast(this, left > 0 ? `CURA RIUSCITA · NE MANCANO ${left}` : "BIONOMAD STABILE · VAI A CASA", { duration: 1600 });
       } else {
-        this.addOxygen(-0.15, true);
+        this.addOxygen(-0.08, true);
         this.player.o2Pop(-1);
         Sfx.negligence();
         this.cameras.main.shake(200, 0.006);
@@ -226,7 +226,8 @@ export class EventScene extends Phaser.Scene {
       flood: "NEGLIGENZA · TROPPA ACQUA",
       cold: "NEGLIGENZA · TEMPERATURA SBAGLIATA"
     };
-    const cost = { forgot: 0.18, dark: 0.14, flood: 0.14, cold: 0.12 }[type] ?? 0.1;
+    // gioco più semplice: errori che costano la metà
+    const cost = { forgot: 0.09, dark: 0.07, flood: 0.07, cold: 0.06 }[type] ?? 0.05;
     Sfx.negligence();
     this.player.o2Pop(-1);
     this.addOxygen(-cost, true);
@@ -453,19 +454,87 @@ export class EventScene extends Phaser.Scene {
 
 // notifica in stile telefono: scende dall'alto, resta un attimo e risale
 export function notification(scene, line) {
-  // in alto a destra: non copre luogo e task (a sinistra) né il respiro (al centro)
-  const w = 400;
-  const c = scene.add.container(VIEW.w - 32 - w / 2, -80).setDepth(2300).setScrollFactor(0);
+  // notifica come sul telefono: arriva da destra in alto (non copre luogo, task e respiro),
+  // icona del BIONOMAD colorata in base al bisogno, titolo, messaggio e tempo che scorre
+  const msg = String(line).replace(/^NOTIFICA\s*·\s*/i, "");
+  const low = msg.toLowerCase();
+  const kind = /emergenza|subito|!/.test(low) ? "alert" : /acqua|irrig|sete/.test(low) ? "water" : /aria|polvere|ventil/.test(low) ? "air" : /luce|buio/.test(low) ? "light" : /freddo|caldo|temperatura|riscald/.test(low) ? "temp" : "info";
+  // colori del brand biodom+ (verdi-acqua e inchiostro); l'urgenza resta in inchiostro scuro
+  const col = { alert: BRAND.ink, water: BRAND.teal2, air: BRAND.teal3, light: BRAND.teal, temp: BRAND.teal2, info: BRAND.teal }[kind];
+  const w = 420;
+  const LIFE = 3400;
+  const c = scene.add.container(VIEW.w + w / 2 + 20, 0).setDepth(2300).setScrollFactor(0);
   const g = scene.add.graphics();
-  const t = txt(scene, -w / 2 + 62, 0, line, { size: 16, wrap: w - 84, origin: [0, 0.5] });
-  const h = Math.max(64, t.height + 30);
-  g.fillStyle(C.c0, 0.97);
-  g.fillRoundedRect(-w / 2, -h / 2, w, h, 20);
-  g.fillStyle(Y_ACCENT, 1);
-  g.fillCircle(-w / 2 + 32, 0, 14);
-  const icon = txt(scene, -w / 2 + 32, 0, "!", { size: 17, weight: "500", origin: 0.5, color: HEX.c4 });
-  c.add([g, icon, t]);
-  scene.tweens.add({ targets: c, y: 22 + h / 2, duration: 380, ease: "Back.easeOut" });
-  scene.time.delayedCall(2800, () => scene.tweens.add({ targets: c, y: -h, duration: 300, ease: "Cubic.easeIn", onComplete: () => c.destroy() }));
+  const icon = scene.add.graphics();
+  const title = txt(scene, -w / 2 + 76, 0, "BIONOMAD", { size: 12, color: HEX.c3, origin: [0, 0] });
+  title.setLetterSpacing?.(2);
+  const when = txt(scene, w / 2 - 20, 0, "ora", { size: 12, color: HEX.c3, origin: [1, 0] });
+  const t = txt(scene, -w / 2 + 76, 0, msg, { size: 17, weight: "500", wrap: w - 100, origin: [0, 0] });
+  const h = Math.max(78, t.height + 52);
+  title.y = -h / 2 + 14;
+  when.y = -h / 2 + 14;
+  t.y = -h / 2 + 32;
+  g.fillStyle(C.c4, 0.16);
+  g.fillRoundedRect(-w / 2, -h / 2 + 6, w, h, 22);
+  g.fillStyle(C.c0, 0.98);
+  g.fillRoundedRect(-w / 2, -h / 2, w, h, 22);
+  // icona: cerchio colorato con la foglia
+  const ix = -w / 2 + 40;
+  icon.fillStyle(col, 1);
+  icon.fillCircle(ix, 0, 22);
+  icon.fillStyle(0xffffff, 1);
+  icon.beginPath();
+  icon.moveTo(ix, 10);
+  icon.lineTo(ix - 9, -2);
+  icon.lineTo(ix, -13);
+  icon.lineTo(ix + 9, -2);
+  icon.closePath();
+  icon.fillPath();
+  icon.lineStyle(2, col, 1);
+  icon.lineBetween(ix, 9, ix, -9);
+  // anello che pulsa attorno all'icona e barra del tempo
+  const ring = scene.add.graphics();
+  const bar = scene.add.graphics();
+  c.add([g, ring, icon, title, when, t, bar]);
+  const y = 96 + h / 2;
+  c.y = y;
+  scene.tweens.add({ targets: c, x: VIEW.w - 28 - w / 2, duration: 420, ease: "Cubic.easeOut" });
+  const t0 = scene.time.now;
+  const tick = () => {
+    if (!c.scene) return;
+    const e = scene.time.now - t0;
+    const p = Math.min(1, e / LIFE);
+    ring.clear();
+    const k = (e % 1000) / 1000;
+    ring.lineStyle(3, col, 0.6 * (1 - k));
+    ring.strokeCircle(ix, 0, 22 + k * 12);
+    bar.clear();
+    bar.fillStyle(C.c1, 1);
+    bar.fillRoundedRect(-w / 2 + 76, h / 2 - 12, w - 100, 4, 2);
+    bar.fillStyle(col, 1);
+    bar.fillRoundedRect(-w / 2 + 76, h / 2 - 12, Math.max(4, (w - 100) * (1 - p)), 4, 2);
+  };
+  scene.events.on("update", tick);
+  // un piccolo scossone all'arrivo, come una vibrazione
+  scene.time.delayedCall(430, () => scene.tweens.add({ targets: c, angle: { from: -1.2, to: 1.2 }, duration: 60, yoyo: true, repeat: 2, onComplete: () => c.setAngle(0) }));
+  let gone = false;
+  const leave = () => {
+    if (gone || !c.scene) return;
+    gone = true;
+    scene.tweens.add({
+      targets: c,
+      x: VIEW.w + w / 2 + 20,
+      alpha: 0,
+      duration: 340,
+      ease: "Cubic.easeIn",
+      onComplete: () => {
+        scene.events.off("update", tick);
+        c.destroy();
+      }
+    });
+  };
+  scene.time.delayedCall(LIFE, leave);
+  // quando si apre lo zaino la notifica ha già fatto il suo lavoro: esce subito
+  scene.events.once("bio-open", leave);
   return c;
 }

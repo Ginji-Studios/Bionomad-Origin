@@ -217,7 +217,7 @@ export class MenuScene extends Phaser.Scene {
     foot.strokeCircle(92, VIEW.h - 70, 18);
     foot.fillStyle(Y_ACCENT, 1);
     foot.fillTriangle(86, VIEW.h - 80, 86, VIEW.h - 60, 102, VIEW.h - 70);
-    txt(this, 124, VIEW.h - 70, "Premi START o tocca una foglia", { size: 15, color: HEX.c4, origin: [0, 0.5] }).setDepth(21);
+    txt(this, 124, VIEW.h - 70, "Premi START per iniziare", { size: 15, color: HEX.c4, origin: [0, 0.5] }).setDepth(21);
     this.plantBtn = this.buttons[1];
     this.plantLabel = (s) => this.plantBtn.setLabel(s);
     this.input.keyboard.on("keydown-UP", () => this.select((this.sel + 2) % 3));

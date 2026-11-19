@@ -733,7 +733,7 @@ function figure(T, ph, o) {
       hy += (70 + tap - bob - hy) * r;
     }
     X.strokeStyle = front ? coat : darker(coat, 0.2);
-    X.lineWidth = 7;
+    X.lineWidth = o.garment === "parka" ? 9 : o.garment === "kurta" ? 6 : 7;
     X.beginPath();
     X.moveTo(sh[0], sh[1]);
     X.lineTo(ex, ey);
@@ -774,22 +774,57 @@ function figure(T, ph, o) {
   if (o.pack !== false) packFlat(X, 26, 66 - bob, a, walking);
   // cappotto lungo, appena svasato in fondo
   const cy = 66 - bob;
-  const long = sit ? 26 : 52;
+  const garment = o.garment ?? "trench";
+  // lunghezza e volume dell'abito: trench lungo, kurta al ginocchio, piumino imbottito
+  const long = sit ? (garment === "kurta" ? 18 : 26) : garment === "kurta" ? 34 : garment === "parka" ? 40 : 52;
+  const puff = garment === "parka" ? 3 : 0;
   X.fillStyle = coat;
   X.beginPath();
-  X.moveTo(52, cy);
-  X.lineTo(70, cy);
-  X.quadraticCurveTo(77, cy + 2, 76, cy + 14);
-  X.lineTo(78 + (walking ? 1 : 0), cy + 40 + long * 0.6);
-  X.lineTo(80, cy + 40 + long);
-  X.lineTo(46, cy + 40 + long);
-  X.lineTo(48, cy + 40 + long * 0.6);
-  X.lineTo(47, cy + 12);
-  X.quadraticCurveTo(47, cy + 1, 52, cy);
+  X.moveTo(52 - puff, cy);
+  X.lineTo(70 + puff, cy);
+  X.quadraticCurveTo(77 + puff, cy + 2, 76 + puff, cy + 14);
+  X.lineTo(78 + puff + (walking ? 1 : 0), cy + 40 + long * 0.6);
+  X.lineTo(80 + puff, cy + 40 + long);
+  X.lineTo(46 - puff, cy + 40 + long);
+  X.lineTo(48 - puff, cy + 40 + long * 0.6);
+  X.lineTo(47 - puff, cy + 12);
+  X.quadraticCurveTo(47 - puff, cy + 1, 52 - puff, cy);
   X.fill();
-  // piega d'ombra sul retro e bottoni
+  // piega d'ombra sul retro
   X.fillStyle = darker(coat, 0.12);
-  X.fillRect(47, cy + 14, 6, 26 + long);
+  X.fillRect(47 - puff, cy + 14, 6, 26 + long);
+  if (garment === "trench") {
+    // cintura annodata e revers
+    X.fillStyle = darker(coat, 0.2);
+    X.fillRect(47, cy + 34, 33, 4);
+    X.fillRect(70, cy + 36, 3, 9);
+    X.strokeStyle = darker(coat, 0.16);
+    X.lineWidth = 1.2;
+    X.beginPath();
+    X.moveTo(70, cy + 2);
+    X.lineTo(74, cy + 30);
+    X.stroke();
+  } else if (garment === "kurta") {
+    // spacco laterale e bordo ricamato
+    X.strokeStyle = darker(coat, 0.18);
+    X.lineWidth = 1.2;
+    X.beginPath();
+    X.moveTo(78, cy + 40 + long);
+    X.lineTo(77, cy + 40 + long - 14);
+    X.stroke();
+    X.fillStyle = darker(coat, 0.1);
+    X.fillRect(46, cy + 37 + long, 34, 3);
+  } else if (garment === "parka") {
+    // cuciture orizzontali del piumino
+    X.strokeStyle = darker(coat, 0.18);
+    X.lineWidth = 1.4;
+    for (let y = cy + 12; y < cy + 36 + long; y += 11) {
+      X.beginPath();
+      X.moveTo(50, y);
+      X.quadraticCurveTo(63, y + 2, 77 + (y > cy + 40 ? 2 : 0), y);
+      X.stroke();
+    }
+  }
   if (o.pack !== false) {
     X.strokeStyle = "#3A4558";
     X.lineWidth = 2.5;
@@ -810,6 +845,17 @@ function figure(T, ph, o) {
   // testa piccola di profilo, collo sottile
   const hx = 64;
   const hy = 44 - bob;
+  if ((o.garment ?? "") === "parka") {
+    // cappuccio abbassato con il bordo di pelo, dietro la nuca
+    X.fillStyle = darker(coat, 0.08);
+    X.beginPath();
+    X.ellipse(hx - 9, hy + 14, 9, 7, -0.3, 0, 7);
+    X.fill();
+    X.fillStyle = "#D8D2C4";
+    X.beginPath();
+    X.ellipse(hx - 4, hy + 16, 7, 4, 0, 0, 7);
+    X.fill();
+  }
   X.fillStyle = sk[1];
   X.fillRect(hx - 3, hy + 6, 6, 9);
   X.fillStyle = sk[0];
@@ -1376,9 +1422,12 @@ export const OPERATORS = [
 
 // abiti degli operatori per città
 const OP_LOOK = {
-  milano: { a: { hair: "short", hat: "cap", top: 0.42, hairTone: 0.1 }, b: { hair: "long", top: 0.55, hairTone: 0.12 } },
-  delhi: { a: { hair: "short", top: 0.62, legs: 0.5, hairTone: 0.06, scarfT: 0.35 }, b: { hair: "braid", hat: "scarf", top: 0.4, legs: 0.6, hairTone: 0.06, scarfT: 0.75 } },
-  reykjavik: { a: { hair: "short", hat: "beanie", top: 0.38, hairTone: 0.7, hatT: 0.7 }, b: { hair: "long", hat: "beanie", top: 0.6, hairTone: 0.85, hatT: 0.3 } }
+  // MILANO: trench lungo da città (grigio-blu / cammello) con la cintura, cappello
+  milano: { a: { hair: "short", hat: "cap", top: 0.42, hairTone: 0.1, garment: "trench" }, b: { hair: "long", top: 0.55, hairTone: 0.12, garment: "trench", coat: "#BCA88A" } },
+  // NEW DELHI: caldo e smog: kurta di lino chiaro più corta, pantaloni leggeri, dupatta gialla
+  delhi: { a: { hair: "short", top: 0.62, legs: 0.5, hairTone: 0.06, scarfT: 0.35, garment: "kurta", coat: "#DCE3EA", legC: "#8C96A6" }, b: { hair: "braid", hat: "scarf", top: 0.4, legs: 0.6, hairTone: 0.06, scarfT: 0.75, garment: "kurta", coat: "#E6DCCB", legC: "#5D6778" } },
+  // REYKJAVÍK: freddo: piumino imbottito con le cuciture, cappuccio col pelo, berretto
+  reykjavik: { a: { hair: "short", hat: "beanie", top: 0.38, hairTone: 0.7, hatT: 0.7, garment: "parka", coat: "#2F5A60" }, b: { hair: "long", hat: "beanie", top: 0.6, hairTone: 0.85, hatT: 0.3, garment: "parka", coat: "#E9E7E1" } }
 };
 
 // chiave delle texture dell'operatore nella città (bare = senza zaino, per la scena iniziale).

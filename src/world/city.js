@@ -304,7 +304,7 @@ function frontLayer(w, buildings) {
   for (let x = 140; x < w; x += 360) xs.push(x);
   wires(w, xs);
   xs.forEach(lampPost);
-  tinyPeople(w);
+  // i passanti lontani ora sono animati (vedi livePeople in hud.js), non più disegnati fermi
 }
 
 // ------------------------------------------------------------------ MILANO

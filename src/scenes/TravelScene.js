@@ -100,7 +100,9 @@ export class TravelScene extends Phaser.Scene {
     this.mode = "play";
     // a volte, durante il tragitto, il BIONOMAD chiede qualcosa (irrigazione o aria)
     this.taskAt = Math.random() < TRAVEL_TASK_CHANCE ? 0.3 + Math.random() * 0.3 : null;
-    this.pad = controls(this, { action: false });
+    // anche in strada ci sono tutti e tre i tasti (◀ ▶ ●), come nelle stanze
+    this.pad = controls(this);
+    this.pad.highlight(false);
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
   }
 
@@ -117,7 +119,9 @@ export class TravelScene extends Phaser.Scene {
   // manifesti BIODOM nel nuovo stile: pochi, a un terzo e a due terzi del percorso
   addPosters() {
     const spots = [0.34, 0.68].map((f, i) => [Math.round(this.worldW * f), (this.run.index * 2 + i) % 4]);
-    for (const [x, v] of spots) this.add.image(x, FEET + 6, biodomPoster(this, v)).setOrigin(0.5, 1).setDepth(150);
+    // i cartelloni stanno DIETRO al marciapiede su cui si cammina: i pali poggiano più indietro
+    // (sopra i piedi del personaggio), così chi passa è sempre davanti, mai a metà
+    for (const [x, v] of spots) this.add.image(x, FEET - 38, biodomPoster(this, v)).setOrigin(0.5, 1).setScale(0.88).setDepth(150);
   }
 
   // notifica del BIONOMAD durante il tragitto: ci si ferma e si fa la task
@@ -144,7 +148,7 @@ export class TravelScene extends Phaser.Scene {
     if (ok) {
       PlantSensors.send("G");
       Sfx.o2Gain();
-      this.oxygen = Math.min(1, this.oxygen + 0.06);
+      this.oxygen = Math.min(1, this.oxygen + 0.1);
       this.player.o2Pop(1);
     } else {
       Sfx.negligence();
@@ -206,7 +210,9 @@ export class TravelScene extends Phaser.Scene {
     const drain = (this.origin.travelDrainSeconds ?? 300) * 1000;
     this.oxygen = Math.max(0, this.oxygen - (delta * Bionomad.stress()) / drain);
     this.o2.set(this.oxygen, time);
-    this.mark.setActive(Math.abs(this.player.x - this.goalX) < 90);
+    const nearGoal = Math.abs(this.player.x - this.goalX) < 90;
+    this.mark.setActive(nearGoal);
+    this.pad.highlight(nearGoal);
 
     if (this.oxygen <= 0) {
       this.done = true;

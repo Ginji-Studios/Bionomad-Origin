@@ -15,7 +15,7 @@ import { PlantSensors } from "../input/PlantSensors.js";
 export const POUR_MS = 1800;
 export const VENT_MS = 3400;
 
-export const IDEAL = { tMin: 18, tMax: 24, wMin: 0.4, wMax: 0.75, aMin: 0.5 };
+export const IDEAL = { tMin: 17, tMax: 25, wMin: 0.4, wMax: 0.75, aMin: 0.5 };
 
 const s = {
   temp: 21, // °C nello zaino
@@ -86,9 +86,9 @@ export const Bionomad = {
   // quanto il BIONOMAD sta "soffrendo": moltiplica il consumo di ossigeno
   stress() {
     let k = 1;
-    if (s.temp < IDEAL.tMin - 2 || s.temp > IDEAL.tMax + 2) k += 0.5;
-    if (s.water < 0.2 || s.water > 0.92) k += 0.4;
-    if (s.air < 0.3) k += 0.4;
+    if (s.temp < IDEAL.tMin - 2 || s.temp > IDEAL.tMax + 2) k += 0.25;
+    if (s.water < 0.2 || s.water > 0.92) k += 0.2;
+    if (s.air < 0.3) k += 0.2;
     return k;
   },
   tempOk() {

@@ -63,7 +63,7 @@ export function quant(c) {
     const r = d[k];
     const g = d[k + 1];
     const b = d[k + 2];
-    const n = (rnd() - 0.5) * 7;
+    const n = (rnd() - 0.5) * 3; // grana appena percettibile, niente retino
     if (Math.abs(r - g) < 6 && Math.abs(g - b) < 6) {
       const v = Math.max(0, Math.min(1, (r + g + b) / 765 + LIFT * 0.5 + DAY_LIFT));
       const col = ramp(v);
@@ -169,10 +169,7 @@ function stone(pts, l, r, o = {}) {
   ao.addColorStop(1, G(0, 0.3));
   X.fillStyle = ao;
   X.fillRect(x, top + h * 0.7, w, h * 0.3);
-  for (let i = 0; i < (w * h) / 50; i++) {
-    X.fillStyle = G(rnd() < 0.5 ? 0 : 1, 0.08);
-    X.fillRect(x + rnd() * w, top + rnd() * h, 2, 2);
-  }
+  // (niente puntini a quadratino: superficie pulita, stile vettoriale)
   sheen(x, top, w, h);
   X.restore();
 }

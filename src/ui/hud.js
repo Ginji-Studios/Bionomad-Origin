@@ -6,6 +6,8 @@ import { PlantSensors } from "../input/PlantSensors.js";
 import { paint, quant, ZONES } from "../world/skyline.js";
 import { LANDMARKS } from "../world/city.js";
 import { iconKey } from "./icons.js";
+import { addHiRes } from "../art/hires.js";
+import { npcKey, WALK_FRAMES } from "../art/people.js";
 import { Bionomad, IDEAL } from "../systems/Bionomad.js";
 
 // nuovo stile (illustrazione piatta): carte chiare, inchiostro blu notte, accento giallo.
@@ -152,7 +154,7 @@ export function o2Hud(scene) {
       if (disp == null) disp = v;
       disp += (v - disp) * 0.18;
       const low = disp < 0.3;
-      const col = low ? 0xb4553f : disp < 0.6 ? Y_ACCENT : 0x6fae7f;
+      const col = low ? 0xb4553f : disp < 0.6 ? Y_ACCENT : BRAND.teal3;
       fx.clear();
       // puntino di stato: verde, giallo, rosso che pulsa
       fx.fillStyle(col, low ? 0.55 + 0.45 * Math.abs(Math.sin(time / 220)) : 1);
@@ -170,6 +172,8 @@ export function o2Hud(scene) {
   };
 }
 
+// palette del brand biodom+ (dai manifesti): inchiostro, verdi-acqua, carta
+export const BRAND = { ink: 0x1b2528, teal: 0x2f5a60, teal2: 0x3e6e75, teal3: 0x5a8e92, teal4: 0x7faaaa, paper: 0xe7e6e1, mist: 0xdde3e2 };
 // colori del HUD: blu notte su chiaro (nessun verde)
 export const GREEN = { dark: 0x24344b, mid: 0x6b7b93, light: 0xb3bccb, cream: 0xf4f5f7 };
 export const GREEN_HEX = { dark: "#24344B", mid: "#6B7B93", cream: "#F4F5F7" };
@@ -192,18 +196,21 @@ export function taskPanel(scene, { x = 40, y = 30 } = {}) {
   let dark = false;
   let last = null;
   const paintText = () => {
-    place.setColor(dark ? "#F4F5F7" : GREEN_HEX.dark);
-    co.setColor(dark ? "#B3BCCB" : GREEN_HEX.mid);
-    task.setColor(dark ? "#F4F5F7" : HEX.c4);
+    // un solo colore che va bene sempre: bianco caldo con un'ombra scura morbida sotto
+    // (come i sottotitoli): si legge sul cielo chiaro, sulle pareti scure e dentro lo zaino
+    const sh = "rgba(14,22,36,0.78)";
+    [place, co, task].forEach((t) => t.setShadow(0, 2, sh, 7, false, true));
+    place.setColor("#F4F5F7");
+    co.setColor("#DDE3E2");
+    task.setColor("#F4F5F7");
   };
-  return {
+  // contrasto automatico: ogni 0,6 s si guarda quanto è chiaro lo sfondo dietro al testo
+  // e si sceglie blu scuro (sfondo chiaro) o bianco sporco (sfondo scuro)
+  const panel = {
     c,
     // sfondo scuro (sera, interni bui): testo crema; sfondo chiaro: verde bosco
-    setDark(v) {
-      dark = Boolean(v);
-      paintText();
-      if (last) this.set(...last);
-    },
+    // (il colore è unico e fisso: setDark resta solo per compatibilità e non cambia nulla)
+    setDark() {},
     set(title, steps, current, opts = {}) {
       last = [title, steps, current, opts];
       const { progress = null } = opts;
@@ -220,7 +227,10 @@ export function taskPanel(scene, { x = 40, y = 30 } = {}) {
       const n = steps.length;
       if (n > 1) {
         steps.forEach((_, i) => {
-          fx.fillStyle(i < current ? (dark ? GREEN.cream : GREEN.dark) : i === current ? Y_ACCENT : dark ? GREEN.mid : GREEN.light, 1);
+          // trattini: fatti bianchi, attuale giallo, da fare grigio chiaro, con ombra
+          fx.fillStyle(0x0e1624, 0.45);
+          fx.fillRoundedRect(i * 31, hgt - 2, 26, 4, 2);
+          fx.fillStyle(i < current ? 0xf4f5f7 : i === current ? Y_ACCENT : 0xb3bccb, 1);
           fx.fillRoundedRect(i * 31, hgt - 4, 26, 4, 2);
         });
       }
@@ -235,15 +245,18 @@ export function taskPanel(scene, { x = 40, y = 30 } = {}) {
       this.height = hgt;
     }
   };
+  paintText();
+  return panel;
 }
 
 // comandi a schermo al centro in basso: cerchi crema con bordo verde, ◀ ▶ ● disegnati.
 // Funzionano anche da tastiera (A/D o frecce, SPAZIO/E)
 export function controls(scene, { action = true } = {}) {
   const st = { left: false, right: false, action: false, actionPressed: false, enabled: true };
-  const size = 84;
-  const gap = 14;
-  const y = VIEW.h - size - 26;
+  // tasti piccoli e discreti: vetro chiaro semitrasparente, bordo sottile, icone fini
+  const size = 58;
+  const gap = 12;
+  const y = VIEW.h - size - 22;
   const n = action ? 3 : 2;
   const x0 = VIEW.w / 2 - (n * size + (n - 1) * gap) / 2;
   const mk = (x, key) => {
@@ -253,16 +266,23 @@ export function controls(scene, { action = true } = {}) {
     const r = size / 2;
     const draw = (on) => {
       g.clear();
-      g.fillStyle(GREEN.dark, 0.12);
+      // ombra morbida
+      g.fillStyle(0x0e1624, 0.14);
       g.fillCircle(r, r + 3, r);
-      g.fillStyle(on ? GREEN.dark : GREEN.cream, on ? 1 : 0.94);
-      g.fillCircle(r, r, r - 1);
-      g.lineStyle(3, GREEN.dark, 1);
-      g.strokeCircle(r, r, r - 2);
-      g.fillStyle(on ? GREEN.cream : GREEN.dark, 1);
-      if (key === "left") g.fillTriangle(r - 15, r, r + 11, r - 15, r + 11, r + 15);
-      else if (key === "right") g.fillTriangle(r + 15, r, r - 11, r - 15, r - 11, r + 15);
-      else g.fillCircle(r, r, 9);
+      // vetro chiaro (o pieno blu notte quando è premuto)
+      g.fillStyle(on ? 0x24344b : 0xf4f5f7, on ? 0.96 : 0.82);
+      g.fillCircle(r, r, r);
+      g.lineStyle(1.5, on ? 0x24344b : 0xffffff, on ? 1 : 0.9);
+      g.strokeCircle(r, r, r - 0.75);
+      // disattivato (non c'è niente da fare): icona grigia
+      g.fillStyle(on ? 0xf4f5f7 : c.dis ? 0x9aa7ba : 0x24344b, 1);
+      if (key === "left") g.fillTriangle(r - 8, r, r + 5, r - 8, r + 5, r + 8);
+      else if (key === "right") g.fillTriangle(r + 8, r, r - 5, r - 8, r - 5, r + 8);
+      else {
+        g.fillCircle(r, r, 6);
+        g.lineStyle(1.5, on ? 0xf4f5f7 : c.dis ? 0x9aa7ba : 0x24344b, 0.5);
+        g.strokeCircle(r, r, 11);
+      }
     };
     draw(false);
     const zone = scene.add.zone(0, 0, size, size).setOrigin(0).setInteractive().setScrollFactor(0);
@@ -270,7 +290,7 @@ export function controls(scene, { action = true } = {}) {
     const set = (v) => {
       if (key === "action" && v && !st.action) st.actionPressed = true;
       st[key] = v;
-      draw(v);
+      draw(v && !c.dis);
     };
     zone.on("pointerdown", () => set(true));
     zone.on("pointerup", () => set(false));
@@ -299,7 +319,11 @@ export function controls(scene, { action = true } = {}) {
     // il pulsante azione si accende quando c'è qualcosa da fare
     highlight(on) {
       if (!ba) return;
-      ba.c.setAlpha(on ? 1 : 0.45);
+      // sempre presente: attivo quando serve, grigio e più trasparente quando non serve
+      if (ba.c.dis === !on) return;
+      ba.c.dis = !on;
+      ba.draw(false);
+      ba.c.setAlpha(on ? 1 : 0.6);
     },
     setVisible(v) {
       [bl, br, ba].forEach((b) => b?.c.setVisible(v));
@@ -377,7 +401,9 @@ export function goTo(scene, key, data) {
 // immagine di sfondo da un canvas, con chiave unica
 export function canvasImage(scene, key, canvas, x = 0, y = 0) {
   if (scene.textures.exists(key)) scene.textures.remove(key);
-  scene.textures.addCanvas(key, canvas);
+  // canvas disegnato in alta risoluzione (es. i luoghi): resta nitido e vettoriale
+  if (canvas._ss) addHiRes(scene, key, canvas, canvas._ss);
+  else scene.textures.addCanvas(key, canvas);
   return scene.add.image(x, y, key).setOrigin(0);
 }
 
@@ -392,7 +418,59 @@ export function skylineLayers(scene, cityId, build, { time = "night", zone = 0 }
     if (!scene.textures.exists(key)) scene.textures.addCanvas(key, canvas);
     return scene.add.image(0, 0, key).setOrigin(0).setScrollFactor(f, 0).setDepth(-10 + i);
   });
+  livePeople(scene, s, -10 + imgs.length - 0.5, cityId);
   return { ...s, imgs };
+}
+
+// passanti lontani sul marciapiede di fondo: sono gli stessi NPC del primo piano (stesso
+// disegno, stessi abiti della città, stessa camminata a fotogrammi), solo più piccoli e
+// un po' velati dalla distanza
+export function livePeople(scene, sky, depth, cityId = "milano") {
+  const k = sky.k ?? 1.48;
+  const y0 = sky.groundY + 7 * k;
+  const W = sky.worldW ?? VIEW.w * 3;
+  const keys = [0, 1, 2, 3, 4].map((i) => npcKey(scene, cityId, 20 + i));
+  const people = [];
+  let x = 60 + Math.random() * 80;
+  let n = 0;
+  while (x < W) {
+    const key = keys[n++ % keys.length];
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const img = scene.add.image(x, y0, `${key}_0`).setOrigin(0.5, 1).setDepth(depth).setScrollFactor(1, 0);
+    img.setScale(0.23 + Math.random() * 0.04).setFlipX(dir < 0).setTint(0xc4cddb);
+    people.push({ img, key, x, dir, v: 16 + Math.random() * 18, ph: Math.random(), stop: 0 });
+    x += 120 + Math.random() * 260;
+  }
+  const tick = (time, delta) => {
+    const dt = Math.min(delta, 50) / 1000;
+    const cam = scene.cameras.main;
+    const left = cam.scrollX - 60;
+    const right = cam.scrollX + VIEW.w + 60;
+    people.forEach((p) => {
+      if (!p.img.scene) return;
+      if (p.stop > 0) {
+        p.stop -= dt;
+        if (p.stop <= 0) p.img.setTexture(`${p.key}_0`);
+      } else {
+        p.x += p.dir * p.v * dt;
+        p.ph = (p.ph + p.v * dt * 0.045) % 1;
+        if (Math.random() < dt * 0.03) {
+          p.stop = 1 + Math.random() * 2;
+          p.img.setTexture(`${p.key}_idle`);
+        }
+      }
+      if (p.x < -30) p.x = W + 20;
+      if (p.x > W + 30) p.x = -20;
+      const vis = p.x > left && p.x < right;
+      p.img.setVisible(vis);
+      if (!vis) return;
+      p.img.x = p.x;
+      if (p.stop <= 0) p.img.setTexture(`${p.key}_${Math.floor(p.ph * WALK_FRAMES) % WALK_FRAMES}`);
+    });
+  };
+  scene.events.on("update", tick);
+  scene.events.once("shutdown", () => scene.events.off("update", tick));
+  return people;
 }
 
 export const clamp = Phaser.Math.Clamp;
@@ -474,6 +552,10 @@ export function statusChip(scene) {
   let last = "";
   return {
     update(time) {
+      // avvisi sotto al respiro (freddo, caldo, sete, aria) tolti: lo stato del BIONOMAD
+      // si vede solo dentro le task, quando si apre lo zaino
+      return;
+      // eslint-disable-next-line no-unreachable
       const s = Bionomad.state;
       let msg = "";
       if (s.temp < IDEAL.tMin - 1) msg = `ZAINO ${Math.round(s.temp)}°C · TROPPO FREDDO`;

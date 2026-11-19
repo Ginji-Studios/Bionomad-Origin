@@ -174,8 +174,9 @@ export function productArt(scene, kind, w, h) {
     X.fill();
     X.save();
     X.clip();
-    agave(X, cx - 45, y0 + 4, 110, 9, 8);
-    agave(X, cx + 50, y0 + 4, 100, 8, 8);
+    // serra piena: tante piante su due file (quelle dietro più chiare)
+    for (let i = 0; i < 6; i++) agave(X, cx - 88 + i * 35, y0 + 4, 92 + ((i * 23) % 26), 9, 7, ["#76A574", "#8DB98A", "#6A9A69"]);
+    for (let i = 0; i < 5; i++) agave(X, cx - 70 + i * 35, y0 + 6, 70 + ((i * 31) % 30), 10, 8);
     X.restore();
     X.fillStyle = "#AEB6C2";
     X.fillRect(cx - hw / 2, y0 - 128, hw, 12);

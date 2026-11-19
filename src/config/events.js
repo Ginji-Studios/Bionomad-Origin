@@ -25,7 +25,7 @@ export const EVENTS = {
     description: "Il bus è pieno e le persone coprono il tuo BIONOMAD: accendi la luce in tempo.",
     steps: [
       { type: "notify", ms: 1600, text: "SALI SUL BUS", line: "Il bus è pieno: le persone coprono il BIONOMAD, la pianta è al buio!" },
-      { type: "bio", goal: "light", qteMs: 6000, text: "LA PIANTA È AL BUIO", hint: "Le persone coprono lo zaino: premi LUCE prima che finisca il tempo." }
+      { type: "bio", goal: "light", qteMs: 9000, text: "LA PIANTA È AL BUIO", hint: "Le persone coprono lo zaino: premi LUCE prima che finisca il tempo." }
     ]
   },
   bus_perso: {
@@ -36,7 +36,7 @@ export const EVENTS = {
     description: "Perdi il bus e fuori fa freddo: porta la temperatura dello zaino al valore giusto.",
     steps: [
       { type: "busLeaves", text: "ASPETTA IL BUS" },
-      { type: "bio", goal: "temp", out: 3, holdMs: 3000, text: "FA FREDDO: SCALDA LO ZAINO", hint: "Fuori ci sono 3 °C: gira TEMP verso il caldo finché il display resta tra 18 e 24 °C." }
+      { type: "bio", goal: "temp", out: 3, holdMs: 2000, text: "FA FREDDO: SCALDA LO ZAINO", hint: "Fuori ci sono 3 °C: gira TEMP verso il caldo finché il display resta tra 17 e 25 °C." }
     ]
   },
   // ---------------------------------------------------------------- UFFICIO
@@ -52,7 +52,7 @@ export const EVENTS = {
       { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
       { type: "notify", ms: 2600, text: "AL LAVORO", line: "NOTIFICA · Riscaldamento dell'ufficio spento: il BIONOMAD ha freddo", out: 12 },
       { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
-      { type: "bio", goal: "temp", out: 12, holdMs: 3000, text: "IL BIONOMAD HA FREDDO", hint: "Riscaldamento spento: gira TEMP verso il caldo e tieni il display tra 18 e 24 °C." },
+      { type: "bio", goal: "temp", out: 12, holdMs: 2000, text: "IL BIONOMAD HA FREDDO", hint: "Riscaldamento spento: gira TEMP verso il caldo e tieni il display tra 17 e 25 °C." },
       { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
       { type: "exit", target: "door", text: "ESCI DALL'UFFICIO" }
     ]
@@ -101,7 +101,7 @@ export const EVENTS = {
     description: "Entri in casa e il riscaldamento è acceso: abbassa la temperatura del BIONOMAD.",
     steps: [
       { type: "notify", ms: 1800, text: "ENTRA IN CASA", line: "Il riscaldamento di casa è acceso: 28 °C", out: 28 },
-      { type: "bio", goal: "temp", out: 28, holdMs: 3000, text: "FA CALDO: RAFFREDDA LO ZAINO", hint: "In casa ci sono 28 °C: gira TEMP verso il freddo e tieni il display tra 18 e 24 °C." }
+      { type: "bio", goal: "temp", out: 28, holdMs: 2000, text: "FA CALDO: RAFFREDDA LO ZAINO", hint: "In casa ci sono 28 °C: gira TEMP verso il freddo e tieni il display tra 17 e 25 °C." }
     ]
   },
   casa_notte: {
@@ -145,11 +145,11 @@ export const TRAVEL_TASKS = [
 export const EMERGENCY_CHANCE = 0.03;
 // cure a sorpresa durante la corsa verso casa (tre a caso)
 export const EMERGENCY_ACTIONS = [
-  { type: "bio", goal: "light", qteMs: 5000, text: "! ACCENDI LA LUCE", hint: "Subito: premi LUCE." },
-  { type: "bio", goal: "temp", out: 4, holdMs: 2000, timeoutMs: 12000, text: "! SCALDA LO ZAINO", hint: "Gira TEMP verso il caldo: 18–24 °C." },
-  { type: "bio", goal: "temp", out: 34, holdMs: 2000, timeoutMs: 12000, text: "! RAFFREDDA LO ZAINO", hint: "Gira TEMP verso il freddo: 18–24 °C." },
-  { type: "bio", goal: "water", timeoutMs: 12000, text: "! IRRIGA", hint: "Premi ACQUA una volta." },
-  { type: "bio", goal: "air", timeoutMs: 12000, text: "! ARIEGGIA", hint: "Premi ARIA una volta." }
+  { type: "bio", goal: "light", qteMs: 8000, text: "! ACCENDI LA LUCE", hint: "Subito: premi LUCE." },
+  { type: "bio", goal: "temp", out: 4, holdMs: 2000, timeoutMs: 18000, text: "! SCALDA LO ZAINO", hint: "Gira TEMP verso il caldo: 17–25 °C." },
+  { type: "bio", goal: "temp", out: 34, holdMs: 2000, timeoutMs: 18000, text: "! RAFFREDDA LO ZAINO", hint: "Gira TEMP verso il freddo: 17–25 °C." },
+  { type: "bio", goal: "water", timeoutMs: 18000, text: "! IRRIGA", hint: "Premi ACQUA una volta." },
+  { type: "bio", goal: "air", timeoutMs: 18000, text: "! ARIEGGIA", hint: "Premi ARIA una volta." }
 ];
 
 // compatibilità con il vecchio sistema (non più usato)

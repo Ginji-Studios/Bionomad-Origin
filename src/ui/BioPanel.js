@@ -6,7 +6,7 @@ import Phaser from "../phaser.js";
 import { Bionomad, IDEAL } from "../systems/Bionomad.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { Sfx } from "../systems/Sfx.js";
-import { C, HEX, txt, VIEW, Y_ACCENT } from "./hud.js";
+import { BRAND, C, HEX, txt, VIEW, Y_ACCENT } from "./hud.js";
 import { grain } from "../world/city.js";
 import { addHiRes } from "../art/hires.js";
 
@@ -116,6 +116,10 @@ const BTN = {
   water: { x: PX + 124, y: 690, col: 0x3f8fe0 },
   air: { x: PX + 196, y: 690, col: 0x8a99b0 }
 };
+// termometro dentro il guscio, accanto al vetro (la temperatura si regola col potenziometro vero)
+const THERMO = { x: PX + PW / 2 - 30, y0: 190, y1: 540 };
+const T_MIN = 0;
+const T_MAX = 40;
 const PIPE_X = GLASS.x + GLASS.w - 22; // tubo dell'irrigazione interna (sale dal serbatoio)
 const SPRAY_Y = GLASS.y + 120; // barra con gli ugelli sopra le piante
 const GREENS = [0x5f8f62, 0x76a574, 0x4e7c55, 0x6a9a69];
@@ -402,6 +406,12 @@ function packTextures(scene) {
   }
 }
 
+// mescola due colori 0xRRGGBB (k da 0 a 1)
+function mixC(a, b, k) {
+  const m = (sh) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * k));
+  return (m(16) << 16) | (m(8) << 8) | m(0);
+}
+
 const GOAL_NAME = { light: "TASTO LUCE", temp: "MANOPOLA TEMP", water: "TASTO ACQUA", air: "TASTO ARIA" };
 
 export class BioPanel {
@@ -418,6 +428,7 @@ export class BioPanel {
   show(step, { emergency = false } = {}) {
     this.close();
     const scene = this.scene;
+    scene.events.emit("bio-open");
     packTextures(scene);
     let goal = step.goal;
     let hint = step.hint;
@@ -443,7 +454,7 @@ export class BioPanel {
     this.prev = { light: s.light, knob: s.knob };
     // quick time event dei pulsanti: si conta da qui quante volte vengono premuti
     this.presses0 = { irr: Bionomad.pulse.irrPresses, air: Bionomad.pulse.airPresses };
-    this.qte = step.qteMs ?? step.timeoutMs ?? (goal === "water" || goal === "air" ? 7000 : null);
+    this.qte = step.qteMs ?? step.timeoutMs ?? (goal === "water" || goal === "air" ? 10000 : null);
 
     const ctx = scene.bioContext ?? { kind: "street", night: false };
     scene.tasks?.setDark?.(ctx.night || (goal === "light" && step.qteMs));
@@ -473,14 +484,13 @@ export class BioPanel {
     this.arm = scene.add.graphics();
     this.props.add(this.arm);
     this.hand = null;
-    if (goal === "temp") {
-      this.hand = scene.add.image(DIAL.x, DIAL.y, "bv_grip").setOrigin(60 / 140, 60 / 140);
-    } else {
-      // il dito preme il tasto dello zaino
+    if (goal !== "temp") {
+      // il dito preme il tasto dello zaino (per la temperatura si usa il potenziometro vero:
+      // nel gioco si vede lo zaino che scalda o raffredda, senza mano)
       const k = BTN[goal];
       this.hand = scene.add.image(k.x + 6, k.y + 8, "bv_hand2").setOrigin(22 / 140, 22 / 140);
+      this.props.add(this.hand);
     }
-    this.props.add(this.hand);
     // la mano entra dal basso a destra
     if (this.hand) {
       const hx = this.hand.x;
@@ -505,8 +515,12 @@ export class BioPanel {
     this.bar = scene.add.graphics();
     c.add(this.bar);
     this.makeTouch(c);
+    // entrata morbida: il pannello sfuma e lo zaino sale dal basso
     c.setAlpha(0);
-    scene.tweens.add({ targets: c, alpha: 1, duration: 220 });
+    c.y = 40;
+    scene.tweens.add({ targets: c, alpha: 1, y: 0, duration: 320, ease: "Cubic.easeOut" });
+    this.outro = null;
+    this.shownProg = 0;
     this.c = c;
     Sfx.announce?.();
   }
@@ -529,12 +543,16 @@ export class BioPanel {
     if (g === "water" && PlantSensors.simulated("IR")) zone(BTN.water.x, BTN.water.y, 76, 90, () => (scene._simIrr = true), () => (scene._simIrr = false));
     if (g === "air" && PlantSensors.simulated("AR")) zone(BTN.air.x, BTN.air.y, 76, 90, () => (scene._simAir = true), () => (scene._simAir = false));
     if (g === "temp" && PlantSensors.simulated("TK"))
-      [-1, 1].forEach((d) => zone(DIAL.x + d * 60, DIAL.y, 120, 180, () => (this.knobDir = d), () => (this.knobDir = 0)));
+      // simulazione senza Arduino: metà alta del termometro = più caldo, metà bassa = più freddo
+      [-1, 1].forEach((d) => zone(THERMO.x, d > 0 ? (THERMO.y0 + THERMO.y1) / 2 - 90 : (THERMO.y0 + THERMO.y1) / 2 + 90, 90, 180, () => (this.knobDir = d), () => (this.knobDir = 0)));
   }
 
   close() {
     this.c?.destroy();
     this.c = null;
+    this.outro = null;
+    // l'HUD torna ai colori del posto in cui si è
+    this.scene.tasks?.setDark?.(this.scene.bioContext?.night);
     this.scene._simIrr = false;
     this.scene._simAir = false;
     this.knobDir = 0;
@@ -542,7 +560,23 @@ export class BioPanel {
 
   // ritorna { done, failed, negligence, progress }
   update(delta) {
-    if (!this.c || this.done) return {};
+    if (!this.c) return {};
+    // finale: esito visibile per un attimo, poi il pannello sfuma e solo allora si torna al gioco
+    if (this.outro) {
+      const o = this.outro;
+      o.t += delta;
+      this.t += delta;
+      this.animate(delta, o.ok ? 1 : this.shownProg);
+      if (o.ok && Math.random() < delta / 30) this.sparks.push({ x: GLASS.x + 30 + Math.random() * (GLASS.w - 60), y: SOIL_Y - 40 - Math.random() * 200, a: 1 });
+      this.drawSparks(delta);
+      if (o.t > 1300) {
+        const r = o.res;
+        this.outro = null;
+        return { done: r.done, failed: r.failed, progress: 1 };
+      }
+      return {};
+    }
+    if (this.done) return {};
     const step = this.step;
     const s = Bionomad.state;
     if (this.knobDir) Bionomad.sim.knob = Phaser.Math.Clamp(Bionomad.sim.knob + this.knobDir * 0.4 * (delta / 1000), 0, 1);
@@ -582,7 +616,65 @@ export class BioPanel {
     }
     if (!res.done && !res.failed && step.timeoutMs && this.elapsed > step.timeoutMs + 4000) res = { ...res, failed: true, negligence: res.negligence ?? "forgot" };
     this.animate(delta, progress);
+    if (res.done || res.failed) {
+      // non si chiude di colpo: prima si mostra l'esito
+      this.done = true;
+      this.startOutro(res);
+      return { negligence: res.negligence, progress };
+    }
     return { ...res, progress };
+  }
+
+  // esito sopra lo zaino: pillola che compare con un piccolo rimbalzo, poi tutto sfuma
+  startOutro(res) {
+    const scene = this.scene;
+    const ok = Boolean(res.done);
+    this.outro = { t: 0, ok, res };
+    this.sparks = [];
+    if (ok) Sfx.cure?.();
+    const pill = scene.add.container(PX, GLASS.y + 150);
+    const g = scene.add.graphics();
+    const label = ok ? "FATTO  ·  +O₂" : res.negligence === "dark" ? "TROPPO TARDI" : "TEMPO SCADUTO";
+    const t = txt(scene, 14, 0, label, { size: 24, weight: "500", origin: [0.5, 0.5], color: ok ? "#2F5A60" : "#1B2528" });
+    const w = t.width + 90;
+    g.fillStyle(C.c4, 0.18);
+    g.fillRoundedRect(-w / 2, -28 + 5, w, 56, 28);
+    g.fillStyle(C.c0, 1);
+    g.fillRoundedRect(-w / 2, -28, w, 56, 28);
+    g.fillStyle(ok ? BRAND.teal3 : BRAND.ink, 1);
+    g.fillCircle(-w / 2 + 34, 0, 13);
+    g.lineStyle(4, 0xffffff, 1);
+    if (ok) {
+      g.beginPath();
+      g.moveTo(-w / 2 + 27, 0);
+      g.lineTo(-w / 2 + 32, 6);
+      g.lineTo(-w / 2 + 41, -6);
+      g.strokePath();
+    } else {
+      g.lineBetween(-w / 2 + 29, -5, -w / 2 + 39, 5);
+      g.lineBetween(-w / 2 + 39, -5, -w / 2 + 29, 5);
+    }
+    pill.add([g, t]);
+    pill.setScale(0.6).setAlpha(0);
+    this.c.add(pill);
+    scene.tweens.add({ targets: pill, scale: 1, alpha: 1, duration: 260, ease: "Back.easeOut" });
+    // la mano si ritira, poi il pannello sfuma via
+    if (this.hand) scene.tweens.add({ targets: this.hand, x: this.hand.x + 220, y: this.hand.y + 300, duration: 420, delay: 250, ease: "Cubic.easeIn" });
+    scene.tweens.add({ targets: this.c, alpha: 0, duration: 320, delay: 980, ease: "Sine.easeIn" });
+  }
+
+  // bollicine di ossigeno che salgono dalle piante quando la cura riesce
+  drawSparks(delta) {
+    const F = this.fx;
+    this.sparks = (this.sparks ?? []).filter((p) => {
+      p.y -= delta * 0.09;
+      p.a -= delta / 900;
+      F.fillStyle(0xffffff, Math.max(0, p.a));
+      F.fillCircle(p.x, p.y, 4);
+      F.lineStyle(1.5, BRAND.teal4, Math.max(0, p.a));
+      F.strokeCircle(p.x, p.y, 4);
+      return p.a > 0;
+    });
   }
 
   // manica del cappotto dalla spalla al polso, sempre attaccata alla mano (anche mentre entra)
@@ -664,10 +756,9 @@ export class BioPanel {
       const k = BTN[goal];
       const press = this.t < (this.tapUntil ?? 0) ? 1 : 0;
       this.handPress = ease(this.handPress ?? 0, press, 60);
-      if (handFree) this.hand.setPosition(k.x + 6 + 20 * (1 - this.handPress), k.y + 8 + 24 * (1 - this.handPress));
-    } else if (goal === "temp") {
-      const ang = -Math.PI * 0.75 + s.knob * Math.PI * 1.5;
-      if (handFree) this.hand.setPosition(DIAL.x + Math.sin(ang) * 30, DIAL.y - Math.cos(ang) * 30).setRotation(ang * 0.5);
+      // in attesa la mano respira appena; quando si preme il tasto vero, il dito affonda
+      const bob = (1 - this.handPress) * Math.sin(t * 2.4) * 3;
+      if (handFree && !this.outro) this.hand.setPosition(k.x + 6 + 20 * (1 - this.handPress), k.y + 8 + 24 * (1 - this.handPress) + bob);
     }
     this.prev = { light: s.light, knob: s.knob, presses };
     this.drawArm();
@@ -852,30 +943,63 @@ export class BioPanel {
         D.lineBetween(k.x - 12, cy + 6, k.x + 4, cy + 6);
       }
     });
-    if (goal === "temp" || step.out != null) {
-      // ghiera sul fianco: scala dal blu (freddo) al rosso (caldo), indice, zigrinatura
-      const a0 = -Math.PI * 0.75 - Math.PI / 2;
-      for (let i = 0; i < 24; i++) {
-        const u = i / 23;
-        const a = a0 + u * Math.PI * 1.5;
-        const col = Phaser.Display.Color.GetColor(Math.round(0x5f + (0xd0 - 0x5f) * u), Math.round(0x8f + (0x6a - 0x8f) * u), Math.round(0xd0 + (0x4f - 0xd0) * u));
-        D.lineStyle(6, col, 1);
-        D.lineBetween(DIAL.x + Math.cos(a) * (DIAL.r + 10), DIAL.y + Math.sin(a) * (DIAL.r + 10), DIAL.x + Math.cos(a) * (DIAL.r + 22), DIAL.y + Math.sin(a) * (DIAL.r + 22));
+    // ---------- temperatura: termometro nel guscio e piastra sotto la terra che scalda o raffredda
+    {
+      const tgt = Bionomad.target();
+      const diff = tgt - s.temp;
+      this.heat = ease(this.heat ?? 0, Phaser.Math.Clamp(diff / 6, -1, 1), 250);
+      const hk = this.heat;
+      // piastra a serpentina sotto la terra (si vede dal vetro)
+      const my = SOIL_Y + 30;
+      const col = hk > 0.05 ? mixC(0x9aa7ba, 0xe0763c, Math.min(1, hk * 1.4)) : hk < -0.05 ? mixC(0x9aa7ba, 0x6fc3ff, Math.min(1, -hk * 1.4)) : 0x9aa7ba;
+      if (Math.abs(hk) > 0.05) {
+        D.lineStyle(14, col, 0.25 * Math.min(1, Math.abs(hk) * 1.5));
+        D.beginPath();
+        for (let i = 0; i <= 16; i++) D.lineTo(GLASS.x + 20 + i * ((GLASS.w - 40) / 16), my + (i % 2 ? -7 : 7));
+        D.strokePath();
       }
-      D.fillStyle(0x20304a, 0.25);
-      D.fillCircle(DIAL.x + 4, DIAL.y + 6, DIAL.r);
-      D.fillStyle(0xc9c6be, 1);
-      D.fillCircle(DIAL.x, DIAL.y, DIAL.r);
-      const ang = -Math.PI * 0.75 + s.knob * Math.PI * 1.5 - Math.PI / 2;
-      D.lineStyle(4, 0xb2aea5, 1);
-      for (let i = 0; i < 18; i++) {
-        const a = ang + (i / 18) * Math.PI * 2;
-        D.lineBetween(DIAL.x + Math.cos(a) * (DIAL.r - 12), DIAL.y + Math.sin(a) * (DIAL.r - 12), DIAL.x + Math.cos(a) * (DIAL.r - 2), DIAL.y + Math.sin(a) * (DIAL.r - 2));
+      D.lineStyle(4, col, 1);
+      D.beginPath();
+      for (let i = 0; i <= 16; i++) D.lineTo(GLASS.x + 20 + i * ((GLASS.w - 40) / 16), my + (i % 2 ? -7 : 7));
+      D.strokePath();
+      // aria che sale: onde calde arancio o cristalli freddi azzurri
+      if (Math.abs(hk) > 0.1) {
+        for (let i = 0; i < 7; i++) {
+          const k = ((t * 0.5 + i / 7) % 1);
+          const x0 = GLASS.x + 40 + i * ((GLASS.w - 80) / 6);
+          const y0 = SOIL_Y - 10 - k * 260;
+          const al = Math.sin(k * Math.PI) * Math.min(1, Math.abs(hk) * 1.6);
+          if (hk > 0) {
+            D.lineStyle(3, 0xe0763c, al * 0.8);
+            D.beginPath();
+            for (let j = 0; j <= 6; j++) D.lineTo(x0 + Math.sin(j / 1.4 + t * 5 + i) * 5, y0 - j * 7);
+            D.strokePath();
+          } else {
+            D.fillStyle(0xdff3ff, al);
+            D.fillCircle(x0 + Math.sin(t * 2 + i) * 6, y0, 3.5);
+            D.lineStyle(1.5, 0x6fc3ff, al);
+            D.lineBetween(x0 - 6, y0, x0 + 6, y0);
+            D.lineBetween(x0, y0 - 6, x0, y0 + 6);
+          }
+        }
       }
+      // termometro: scala 0-40 °C, fascia giusta 18-24 evidenziata, colonnina che sale e scende
+      const ty = (v) => THERMO.y1 - ((v - T_MIN) / (T_MAX - T_MIN)) * (THERMO.y1 - THERMO.y0);
+      D.fillStyle(0xd9d6ce, 1);
+      D.fillRoundedRect(THERMO.x - 14, THERMO.y0 - 14, 28, THERMO.y1 - THERMO.y0 + 50, 14);
+      D.fillStyle(0xf4f5f7, 1);
+      D.fillRoundedRect(THERMO.x - 7, THERMO.y0 - 6, 14, THERMO.y1 - THERMO.y0 + 10, 7);
+      D.fillStyle(0x5a8e92, 0.35);
+      D.fillRect(THERMO.x - 7, ty(IDEAL.tMax), 14, ty(IDEAL.tMin) - ty(IDEAL.tMax));
+      const tcol = mixC(0x6fc3ff, 0xe0763c, Phaser.Math.Clamp((s.temp - 10) / 20, 0, 1));
+      const top = Math.max(THERMO.y0, ty(Phaser.Math.Clamp(s.temp, T_MIN, T_MAX)));
+      D.fillStyle(tcol, 1);
+      D.fillRoundedRect(THERMO.x - 4, top, 8, THERMO.y1 + 4 - top, 4);
+      D.fillCircle(THERMO.x, THERMO.y1 + 18, 12);
+      // tacca dove la manopola vera sta portando la temperatura
+      const tt = ty(Phaser.Math.Clamp(tgt, T_MIN, T_MAX));
       D.fillStyle(0x24344b, 1);
-      D.fillCircle(DIAL.x, DIAL.y, DIAL.r - 18);
-      D.lineStyle(7, Y_ACCENT, 1);
-      D.lineBetween(DIAL.x + Math.cos(ang) * 10, DIAL.y + Math.sin(ang) * 10, DIAL.x + Math.cos(ang) * (DIAL.r - 22), DIAL.y + Math.sin(ang) * (DIAL.r - 22));
+      D.fillTriangle(THERMO.x - 20, tt - 6, THERMO.x - 20, tt + 6, THERMO.x - 11, tt);
     }
     D.fillStyle(0x24344b, 1);
     D.fillRoundedRect(SCREEN.x, SCREEN.y, SCREEN.w, SCREEN.h, 10);
@@ -925,7 +1049,8 @@ export class BioPanel {
     B.fillStyle(C.c1, 1);
     B.fillRoundedRect(VIEW.w - 352, this.barY, 300, 8, 4);
     B.fillStyle(C.c4, 1);
-    B.fillRoundedRect(VIEW.w - 352, this.barY, Math.max(8, 300 * progress), 8, 4);
+    this.shownProg = (this.shownProg ?? 0) + (progress - (this.shownProg ?? 0)) * Math.min(1, delta / 120);
+    B.fillRoundedRect(VIEW.w - 352, this.barY, Math.max(8, 300 * this.shownProg), 8, 4);
     const limit = pressed ? null : this.qte;
     if (limit) {
       const left = Math.max(0, 1 - this.elapsed / limit);

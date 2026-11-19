@@ -196,7 +196,9 @@ export function posterBody(X, w, h, v) {
     X.moveTo(w * 0.5, h);
     X.quadraticCurveTo(w * 0.48, h * 0.6, w * 0.52, h * 0.3);
     X.stroke();
-    logoAt(X, w / 2, h * 0.58, (wide ? h : w) * 0.2, "#E6EAE9", "center");
+    // il logo sta sempre tutto dentro il manifesto (largo al massimo l'82%)
+    const lh = Math.min((wide ? h : w) * 0.2, (w * 0.82) / ((LOGO_W / LOGO_H) * 1.25));
+    logoAt(X, w / 2, h * 0.58, lh, "#E6EAE9", "center");
   }
   X.restore();
 }

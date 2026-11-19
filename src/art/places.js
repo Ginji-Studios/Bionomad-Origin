@@ -1,3 +1,4 @@
+import { addHiRes } from "./hires.js";
 import { posterBody } from "./biodom.js";
 // luoghi degli eventi disegnati con gli strumenti del concept (scala di grigi → palette).
 // Gli interni hanno le finestre "bucate": dietro si vede la skyline della città.
@@ -24,13 +25,11 @@ export function posterArt(T, key, x, y, w, h, { frame = true } = {}) {
   }
   // manifesto BIODOM nel nuovo stile (variante scelta dalla chiave del vecchio poster)
   const v = (parseInt(String(key).replace(/\D/g, ""), 10) || 0) % 4;
+  // disegnato alle sue misure vere (niente stiramento: il manifesto si adatta al riquadro)
   X.save();
   X.translate(x, y);
-  X.scale(w / 200, h / 140);
-  posterBody(X, 200, 140, v);
+  posterBody(X, w, h, v);
   X.restore();
-  if (false) {
-  }
 }
 
 export const LW = Math.round(1280 / K);
@@ -90,36 +89,75 @@ function wall(T, w, windows, { tone = 0.3 } = {}) {
   });
 }
 
-// hub BIODOM: colonna con vasca di vetro e piante, pannello luminoso
+// hub BIONOMAD (come il dispositivo vero): blocco bianco dagli spigoli morbidi, sansevierie
+// in cima, tasti e display sul davanti, appoggiato su un mobiletto
 function hub(T, cx, base, s = 1) {
-  const { X, G, fillP, lgx, stone } = T;
-  stone([[cx - 26 * s, base], [cx - 26 * s, base - 70 * s], [cx + 26 * s, base - 70 * s], [cx + 26 * s, base]], 0.5, 0.3, { rib: 6 });
-  // pannello di stato
-  X.fillStyle = G(0.95);
-  X.fillRect(cx - 12 * s, base - 50 * s, 24 * s, 10 * s);
-  // vasca di vetro con piante
-  const top = base - 150 * s;
-  fillP([[cx - 34 * s, base - 70 * s], [cx - 34 * s, top], [cx + 34 * s, top], [cx + 34 * s, base - 70 * s]], G(0.25, 0.9));
-  for (let i = 0; i < 7; i++) {
-    const x = cx - 26 * s + i * 9 * s;
-    X.strokeStyle = G(0.6);
-    X.lineWidth = 2;
+  const { X } = T;
+  // mobiletto
+  X.fillStyle = "#56667E";
+  X.beginPath();
+  X.roundRect(cx - 40 * s, base - 62 * s, 80 * s, 62 * s, 4 * s);
+  X.fill();
+  X.fillStyle = "#6B7B93";
+  X.fillRect(cx - 40 * s, base - 62 * s, 80 * s, 6 * s);
+  const top = base - 62 * s;
+  // piante (dietro al bordo del blocco)
+  const leaf = (bx, by, h, lean, w) => {
     X.beginPath();
-    X.moveTo(x, base - 74 * s);
-    X.quadraticCurveTo(x + 4, base - 100 * s, x + (i % 2 ? 6 : -6) * s, top + 18 * s + (i % 3) * 8 * s);
+    X.moveTo(bx - w, by);
+    X.quadraticCurveTo(bx - w + lean * 0.3, by - h * 0.55, bx + lean, by - h);
+    X.quadraticCurveTo(bx + w + lean * 0.3, by - h * 0.55, bx + w, by);
+    X.closePath();
+    X.fillStyle = "#2E5B4B";
+    X.fill();
+    X.strokeStyle = "rgba(217,201,143,0.7)";
+    X.lineWidth = 0.5 * s;
     X.stroke();
-    for (let j = 0; j < 3; j++) {
-      X.fillStyle = G(0.82 + 0.05 * j);
-      X.beginPath();
-      X.ellipse(x + (j % 2 ? 6 : -6) * s, top + 24 * s + (i % 3) * 8 * s + j * 14 * s, 8 * s, 3 * s, j % 2 ? -0.6 : 0.6, 0, 7);
-      X.fill();
+  };
+  // tante sansevierie: tre ciuffi che riempiono tutta la vaschetta
+  [-20, 0, 20].forEach((dx, k) => {
+    for (let i = 0; i < 9; i++) {
+      const u = i / 8;
+      leaf(cx + dx * s + (u - 0.5) * 26 * s, top - 52 * s, (34 + Math.sin(u * Math.PI) * (k === 1 ? 34 : 22)) * s, (u - 0.5) * 26 * s, 3.4 * s);
     }
-  }
-  X.strokeStyle = G(0.92);
-  X.lineWidth = 2;
-  X.strokeRect(cx - 34 * s, top, 68 * s, 80 * s);
-  X.fillStyle = lgx(cx - 38 * s, cx + 38 * s, 0.7, 0.4);
-  X.fillRect(cx - 38 * s, top - 8 * s, 76 * s, 8 * s);
+  });
+  // blocco bianco
+  X.fillStyle = "#E4E1D9";
+  X.beginPath();
+  X.roundRect(cx - 36 * s, top - 56 * s, 72 * s, 56 * s, 10 * s);
+  X.fill();
+  X.fillStyle = "#F4F2EC";
+  X.beginPath();
+  X.roundRect(cx - 36 * s, top - 56 * s, 72 * s, 12 * s, 6 * s);
+  X.fill();
+  X.fillStyle = "#4A3A2F";
+  X.beginPath();
+  X.roundRect(cx - 26 * s, top - 54 * s, 52 * s, 5 * s, 2 * s);
+  X.fill();
+  // tasti
+  ["#E2B33C", "#3F8FE0", "#9AA7BA", "#4CBF72"].forEach((col, i) => {
+    X.fillStyle = "#F9F8F4";
+    X.beginPath();
+    X.arc(cx - 22 * s + i * 10 * s, top - 38 * s, 3.6 * s, 0, 7);
+    X.fill();
+    X.fillStyle = col;
+    X.beginPath();
+    X.arc(cx - 22 * s + i * 10 * s, top - 38 * s, 1.6 * s, 0, 7);
+    X.fill();
+  });
+  X.fillStyle = "#24344B";
+  X.beginPath();
+  X.arc(cx + 24 * s, top - 38 * s, 4.5 * s, 0, 7);
+  X.fill();
+  // display acceso
+  X.fillStyle = "#1A2434";
+  X.beginPath();
+  X.roundRect(cx - 28 * s, top - 30 * s, 56 * s, 24 * s, 3 * s);
+  X.fill();
+  X.fillStyle = "#3D5272";
+  X.fillRect(cx - 25 * s, top - 27 * s, 50 * s, 18 * s);
+  X.fillStyle = "#8FD0A6";
+  X.fillRect(cx - 21 * s, top - 14 * s, 26 * s, 2 * s);
 }
 
 function door(T, x, { lit = true } = {}) {
@@ -711,15 +749,18 @@ export function buildPlace(id, city = "milano", { sofa: withSofa = true } = {}) 
   let pts = {};
   QUEUE = [];
   NO_SOFA = !withSofa;
-  const canvas = paint(1280, 800, K, (T) => {
+  // disegnato a risoluzione doppia (SS): niente pixel, resta nitido sul tablet
+  const SS = 2;
+  const canvas = paint(1280 * SS, 800 * SS, K * SS, (T) => {
     pts = (PLACES[id] ?? home)(T, city) ?? {};
-  }, { seedValue: 21 });
-  // manifesti retinati a grana fine e incollati sopra
+  }, { seedValue: 21, cell: 1 });
+  canvas._ss = SS;
+  // manifesti biodom+ incollati sopra, vettoriali
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   QUEUE.forEach(([key, x, y, w, h, frame]) => {
     const pad = 4;
-    const c = paint((w + pad * 2) * K, (h + pad * 2) * K, K, (T) => posterArt({ ...T, direct: true }, key, pad, pad, w, h, { frame }), { cell: 1, seedValue: 9 });
-    ctx.drawImage(c, Math.round((x - pad) * K), Math.round((y - pad) * K));
+    const c = paint((w + pad * 2) * K * SS, (h + pad * 2) * K * SS, K * SS, (T) => posterArt({ ...T, direct: true }, key, pad, pad, w, h, { frame }), { cell: 1, seedValue: 9, raw: true });
+    ctx.drawImage(c, Math.round((x - pad) * K * SS), Math.round((y - pad) * K * SS));
   });
   QUEUE = null;
   NO_SOFA = false;
@@ -737,7 +778,7 @@ export function sofaSprite(scene, city, seatPx) {
   const s = seatPx / K; // seduta in unità logiche
   const W = 210;
   const H = s + 54;
-  scene.textures.addCanvas(key, paint(Math.round(W * K), Math.round(H * K), K, (T) => {
+  addHiRes(scene, key, paint(Math.round(W * K) * 2, Math.round(H * K) * 2, K * 2, (T) => {
     const { X, G, stone } = T;
     const b = H - 1;
     const x0 = 14;
@@ -791,7 +832,7 @@ export function busSprite(scene, city) {
   if (scene.textures.exists(key)) return key;
   const W = 420;
   const H = 214;
-  scene.textures.addCanvas(key, paint(Math.round(W * K), Math.round(H * K), K, (T) => {
+  addHiRes(scene, key, paint(Math.round(W * K) * 2, Math.round(H * K) * 2, K * 2, (T) => {
     const { X, G, lgx, fillP } = T;
     const g0 = 186; // linea delle ruote
     const top = 12;

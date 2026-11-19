@@ -3,9 +3,9 @@ import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/PlantPanel.js";
 import { bionomadArt } from "../ui/BioPanel.js";
-import { dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
+import { careFrames, dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
 import { addHiRes } from "../art/hires.js";
-import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
+import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, o2Hud, txt, VIEW } from "../ui/hud.js";
 import { plantNav } from "../input/plantNav.js";
 
 // tutorial senza testo: quattro "schermate video" animate che scorrono da sole,
@@ -14,7 +14,9 @@ import { plantNav } from "../input/plantNav.js";
 const PAGE_MS = 6500;
 // l'ultimo video è più lungo: deve mostrare tutto lo svenimento
 const CTRL_MS = 2000; // ogni comando del BIONOMAD resta acceso 2 secondi
-const pageMs = (i) => (i === 3 ? 8800 : i === 1 ? CTRL_MS * 5 + 400 : PAGE_MS);
+// pagine: 0 movimento · 1 comandi del BIONOMAD · 2 respiro (la pagina delle notifiche è stata tolta)
+const LAST = 2;
+const pageMs = (i) => (i === LAST ? 8800 : i === 1 ? CTRL_MS * 5 + 400 : PAGE_MS);
 const TILE_W = 270;
 const TILE_H = 480;
 
@@ -69,7 +71,7 @@ export class TutorialScene extends Phaser.Scene {
   }
 
   advance() {
-    if (this.page < 3) this.showPage(this.page + 1);
+    if (this.page < LAST) this.showPage(this.page + 1);
     else goTo(this, this.next);
   }
 
@@ -80,21 +82,19 @@ export class TutorialScene extends Phaser.Scene {
     this.layer.removeAll(true);
     this.tiles = [];
     if (i === 0) this.pageMove();
-    else if (i === 1) this.pageGestures(true);
-    else if (i === 2) this.pageGestures(false);
+    else if (i === 1) this.pageControls();
     else this.pageBreath();
   }
 
   // ---------- elementi comuni
 
-  frame(x, y, w, h, bright = false) {
-    // fondo con la trama a retino (scuro in alto, più chiaro verso il basso) invece del pieno
-    this.layer.add(ditherBand(this, x, y, w, h, { from: 0.0, to: 0.3, vertical: true }));
+  // scheda chiara con gli angoli arrotondati e un'ombra leggera (stile del gioco)
+  frame(x, y, w, h) {
     const g = this.add.graphics();
-    g.lineStyle(2, bright ? C.c4 : C.c3, 1);
-    g.strokeRect(x, y, w, h);
-    g.fillStyle(C.c4, 1);
-    // (angoli a quadratino rimossi: stile vettoriale pulito)
+    g.fillStyle(C.c4, 0.1);
+    g.fillRoundedRect(x, y + 4, w, h, 18);
+    g.fillStyle(C.c0, 0.96);
+    g.fillRoundedRect(x, y, w, h, 18);
     this.layer.add(g);
     return g;
   }
@@ -207,21 +207,31 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 1: si cammina toccando le foglie del vaso vero (o con le frecce)
 
   pageMove() {
-    this.badge("◀  TOCCA  ▶", "TOCCA UNA FOGLIA PER CAMMINARE · OPPURE USA LE FRECCE");
+    this.badge("◀  TOCCA  ▶", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER CAMMINARE");
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
-    this.layer.add(this.add.image(290, 600, "plant_mid").setOrigin(0.5, 1));
+    // due piante vere: toccare quella di sinistra fa andare a sinistra, quella di destra a destra
+    this.plantL = this.add.image(180, 590, potPlantArt(this)).setOrigin(0.5, 1).setScale(0.66);
+    this.plantR = this.add.image(400, 590, potPlantArt(this)).setOrigin(0.5, 1).setScale(0.66);
+    this.layer.add([this.plantL, this.plantR]);
+    this.layer.add(txt(this, 180, 330, "◀ SINISTRA", { size: 15, color: HEX.c3, origin: 0.5 }));
+    this.layer.add(txt(this, 400, 330, "DESTRA ▶", { size: 15, color: HEX.c3, origin: 0.5 }));
     // cartellino sotto il vaso: quale foglia si sta toccando
     this.leafTag = txt(this, 290, 626, "", { size: 20, origin: 0.5 });
     this.layer.add(this.leafTag);
     // la città scorre dietro l'operatore, come nel gioco (lui resta al centro)
-    this.city = this.add.tileSprite(542, 560 - 380, 676, 380, "menu_bg").setOrigin(0).setTileScale(0.535);
+    // la città riempie la scheda fino in alto (niente fascia bianca), angoli arrotondati
+    this.city = this.add.tileSprite(550, 140, 660, 420, "menu_bg").setOrigin(0).setTileScale(0.6);
     this.city.tilePositionX = 900;
+    const cm = this.make.graphics({ add: false });
+    cm.fillStyle(0xffffff, 1);
+    cm.fillRoundedRect(550, 140, 660, 500, 12);
+    this.city.setMask(cm.createGeometryMask());
     const street = this.add.graphics();
-    street.fillStyle(C.c1, 1);
-    street.fillRect(542, 560, 676, 88);
+    street.fillStyle(0xd5dae2, 1);
+    street.fillRoundedRect(550, 560, 660, 80, { tl: 0, tr: 0, bl: 12, br: 12 });
     street.fillStyle(C.c3, 1);
-    street.fillRect(542, 560, 676, 2);
+    street.fillRect(550, 560, 660, 2);
     this.layer.add([this.city, street]);
     this.dash = this.add.graphics();
     this.shadow = this.add.ellipse(880, 584, 64, 10, C.c0, 0.6);
@@ -240,15 +250,20 @@ export class TutorialScene extends Phaser.Scene {
     const touching = tt > 500 && tt < PAGE_MS / 2 - 400;
     const g = this.moveG;
     g.clear();
-    const leaf = right ? [352, 380] : [224, 380];
+    const leaf = right ? [406, 420] : [186, 420];
+    // la pianta toccata si piega un poco e si illumina
+    const pressed = right ? this.plantR : this.plantL;
+    const other = right ? this.plantL : this.plantR;
+    pressed.setAngle(touching ? Math.sin(tt / 120) * 1.5 : 0).setAlpha(1);
+    other.setAngle(0).setAlpha(touching ? 0.6 : 1);
     if (touching) {
-      g.lineStyle(3, C.c4, 0.8);
+      g.lineStyle(4, 0xe2b33c, 0.9);
       g.strokeCircle(leaf[0], leaf[1], 18 + (tt % 400) / 40);
     }
     // la mano arriva sulla foglia e poi si stacca
     const reach = Phaser.Math.Clamp(Math.min(tt / 400, (PAGE_MS / 2 - tt) / 300), 0, 1);
-    this.hand(g, leaf[0], leaf[1] + (1 - reach) * 60);
-    this.leafTag.setText(touching ? (right ? "FOGLIA DESTRA  ▶" : "◀  FOGLIA SINISTRA") : "");
+    if (reach > 0) drawHand(g, leaf[0], leaf[1] + 4 + (1 - reach) * 60, false);
+    this.leafTag.setText(touching ? (right ? "PIANTA DESTRA  ▶" : "◀  PIANTA SINISTRA") : "");
     // passo con accelerazione e frenata morbide, la città scorre in senso opposto
     const target = touching ? (right ? 1 : -1) : 0;
     // tutto legato al tempo reale (non ai fotogrammi): stessa andatura a 60 o 120 Hz.
@@ -265,17 +280,20 @@ export class TutorialScene extends Phaser.Scene {
     d.clear();
     d.fillStyle(C.c3, 0.7);
     const off = ((this.city.tilePositionX * 1.6) % 80 + 80) % 80;
-    for (let x = 542 - off; x < 1218; x += 80) if (x > 542) d.fillRect(x, 606, Math.min(40, 1218 - x), 3);
+    for (let x = 552 - off; x < 1208; x += 80) if (x > 552) d.fillRect(x, 606, Math.min(40, 1208 - x), 3);
     // frecce del tablet sotto la strada, accese insieme alla foglia
     [[600, !right], [1110, right]].forEach(([bx, on]) => {
+      // frecce tonde come i comandi del gioco: cerchio chiaro, bordo blu notte
       const lit = on && touching;
-      g.fillStyle(lit ? C.c4 : C.c0, lit ? 1 : 0.8);
-      g.fillRect(bx - 30, 584, 60, 54);
-      g.lineStyle(2, C.c3, 1);
-      g.strokeRect(bx - 30, 584, 60, 54);
+      g.fillStyle(C.c4, 0.12);
+      g.fillCircle(bx, 614, 30);
+      g.fillStyle(lit ? C.c4 : C.c0, 1);
+      g.fillCircle(bx, 611, 29);
+      g.lineStyle(3, C.c4, 1);
+      g.strokeCircle(bx, 611, 28);
       g.fillStyle(lit ? C.c0 : C.c4, 1);
-      if (bx > 900) g.fillTriangle(bx - 8, 596, bx - 8, 626, bx + 12, 611);
-      else g.fillTriangle(bx + 8, 596, bx + 8, 626, bx - 12, 611);
+      if (bx > 900) g.fillTriangle(bx + 12, 611, bx - 8, 599, bx - 8, 623);
+      else g.fillTriangle(bx - 12, 611, bx + 8, 599, bx + 8, 623);
     });
   }
 
@@ -300,21 +318,21 @@ export class TutorialScene extends Phaser.Scene {
   pageControls() {
     this.badge("I COMANDI DEL BIONOMAD", "OGNI TASTO SI ILLUMINA QUANDO VA USATO");
     this.card(40, 140, VIEW.w - 80, 560);
-    this.layer.add(this.add.image(70, 190, machineArt(this)).setOrigin(0));
+    this.layer.add(this.add.image(MG.ox, MG.oy, machineArt(this)).setOrigin(0).setScale(MG.k));
+    // lo schermo della macchina reagisce al comando usato (una schermata per comando)
+    this.screens = {};
+    CTRL_ROW.forEach((k) => {
+      const im = this.add.image(MG.ox, MG.oy, screenArt(this, k.id)).setOrigin(0).setScale(MG.k).setVisible(false);
+      this.screens[k.id] = im;
+      this.layer.add(im);
+    });
     const g = this.add.graphics();
     const hand = this.add.graphics();
     this.layer.add([g, hand]);
-    const name = txt(this, 900, 560, "", { size: 30, weight: "500", origin: 0.5 });
-    const cap = txt(this, 900, 604, "", { size: 18, color: HEX.c3, origin: 0.5, align: "center", wrap: 520 });
+    // nome del comando SOPRA i tasti, descrizione SOTTO
+    const name = txt(this, 925, 250, "", { size: 34, weight: "500", origin: 0.5 });
+    const cap = txt(this, 925, 560, "", { size: 19, color: HEX.c3, origin: 0.5, align: "center", wrap: 520 });
     this.layer.add([name, cap]);
-    // pillole con il nome sotto ogni tasto
-    CTRL_ROW.forEach((k) => {
-      const pg = this.add.graphics();
-      pg.lineStyle(2, C.c4, 1);
-      pg.strokeRoundedRect(k.x - 44, 470, 88, 30, 15);
-      this.layer.add(pg);
-      this.layer.add(txt(this, k.x, 485, k.label, { size: 14, origin: 0.5 }));
-    });
     this.tiles.push({ kind: "machine", g, hand, name, cap, anim: true, delay: 0 });
   }
 
@@ -428,53 +446,131 @@ export class TutorialScene extends Phaser.Scene {
     const act = CTRL_ROW[idx];
     const press = u > 0.3 && u < 0.55;
     const after = u >= 0.3;
-    name.setText(act.label === "PLAY" ? "START" : act.label === "TEMP" ? "TEMPERATURA" : act.label === "ACQUA" ? "IRRIGAZIONE" : act.label);
-    cap.setText(act.cap);
+    // passaggio morbido: tempo reale tra un fotogramma e l'altro per le dissolvenze
+    const dt = this.mLast == null || t < this.mLast ? 16 : Math.min(50, t - this.mLast);
+    this.mLast = t;
+    const ease = (a, b, ms) => a + (b - a) * Math.min(1, dt / ms);
+    // nome e descrizione sfumano tra un comando e l'altro (escono, cambiano, rientrano)
+    const label = act.label === "PLAY" ? "START" : act.label === "TEMP" ? "TEMPERATURA" : act.label === "ACQUA" ? "IRRIGAZIONE" : act.label;
+    if (name.text !== label) {
+      name.setText(label);
+      cap.setText(act.cap);
+    }
+    const ta = Phaser.Math.Clamp(Math.min(u / 0.08, (1 - u) / 0.08), 0, 1);
+    name.setAlpha(ta).setY(250 + (1 - ta) * 8);
+    cap.setAlpha(ta).setY(560 + (1 - ta) * 8);
     // --- reazione della macchina (sopra l'illustrazione)
     const M = MACHINE;
-    if (act.id === "light" && after) {
-      g.fillStyle(0xf6e7a8, 0.35);
-      // luce interna: striscia LED sopra le agavi e cono caldo sulla terra
-      g.fillTriangle(M.x + 300, M.y + 10, M.x + 160, M.y + 140, M.x + 440, M.y + 110);
-      g.fillStyle(0xfff3c4, 0.95);
-      g.fillRoundedRect(M.x + 250, M.y + 4, 100, 10, 5);
-    }
-    if (act.id === "water" && after) {
-      g.fillStyle(0x5f8fd0, 0.9);
-      for (let i = 0; i < 7; i++) {
-        const k = ((u - 0.3) * 3 + i / 7) % 1;
-        g.fillCircle(M.x + 190 + i * 34, M.y + 50 + k * 80, 4.5);
-      }
-    }
-    if (act.id === "air" && after) {
-      for (let i = 0; i < 5; i++) {
-        const k = ((u - 0.3) * 2.5 + i / 5) % 1;
-        g.lineStyle(4, 0x8a99b0, 1 - k);
-        g.lineBetween(M.x + 120 + k * 280, M.y + 30 + i * 20, M.x + 170 + k * 280, M.y + 26 + i * 20);
-      }
-    }
-    if (act.id === "play" && after) {
-      g.fillStyle(0x8fd0a6, 1);
-      g.fillTriangle(M.sx + 66, M.sy + 30, M.sx + 66, M.sy + 70, M.sx + 100, M.sy + 50);
+    // le schermate del display si incrociano in dissolvenza
+    Object.entries(this.screens ?? {}).forEach(([id, im]) => {
+      const target = after && id === act.id && u < 0.97 ? 1 : 0;
+      const a = ease(im.alpha * (im.visible ? 1 : 0), target, 160);
+      im.setVisible(a > 0.01).setAlpha(a);
+    });
+    // intensità dell'alone di ogni tasto (sale e scende piano, niente on/off secco)
+    this.glowK = this.glowK ?? CTRL_ROW.map(() => 0);
+    this.glowK = this.glowK.map((v, i) => ease(v, i === idx && u < 0.94 ? 1 : 0, 140));
+    // LED ad anello attorno alla vaschetta centrale: premendo un tasto si accende del suo colore
+    // (luce giallo, acqua azzurro, aria bianco-grigio, temperatura il colore scelto con la manopola)
+    const kv = act.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0;
+    // a riposo (e con PLAY) il LED resta bianco; con gli altri tasti prende il colore del comando
+    const WHITE = 0xf4f5f7;
+    const ledCol = after && u < 0.95 ? { light: 0xf6c94c, water: 0x6fc3ff, air: 0xd9dee6, temp: mixCol(0x5f8fd0, 0xd0864f, kv), play: WHITE }[act.id] : WHITE;
+    const lit = after && u < 0.95 && act.id !== "play";
+    this.ledK = ease(this.ledK ?? 0.55, lit ? 1 : 0.55, 150);
+    this.ledC = this.ledC == null ? ledCol : mixCol(this.ledC, ledCol, Math.min(1, dt / 120));
+    {
+      const H0 = MG.H + 1;
+      // anello rotondo sul coperchio, attorno alla vaschetta (in prospettiva diventa un'ellisse);
+      // la metà dietro le piante è coperta dalle foglie, quindi appena accennata
+      // il LED corre lungo il bordo che circonda la terra (rettangolo dagli angoli tondi)
+      const a0 = 69;
+      const a1 = MG.L - 29;
+      const b0 = 43;
+      const b1 = MG.Sd - 27;
+      const rr = 16;
+      const outline = [];
+      const arc = (ca2, cb2, from) => {
+        for (let j = 0; j <= 6; j++) {
+          const t2 = from + (j / 6) * (Math.PI / 2);
+          outline.push([ca2 + Math.cos(t2) * rr, cb2 + Math.sin(t2) * rr]);
+        }
+      };
+      // ordine: angolo davanti-sinistra → davanti → davanti-destra → dietro
+      arc(a0 + rr, b1 - rr, Math.PI / 2);
+      arc(a0 + rr, b0 + rr, Math.PI);
+      arc(a1 - rr, b0 + rr, -Math.PI / 2);
+      arc(a1 - rr, b1 - rr, 0);
+      const pts2 = outline.map(([a2, b2]) => ms(a2, b2, H0));
+      // davanti: i due lati vicini a chi guarda (primi tre angoli); dietro: il resto, coperto dalle foglie
+      const front = pts2.slice(0, 21);
+      const back = [pts2[20], ...pts2.slice(21), pts2[0]];
+      const k = this.ledK * (lit ? 0.85 + 0.15 * Math.sin(t / 140) : 1);
+      const draw = (pts, alpha) => {
+        if (pts.length < 2) return;
+        const sorted = pts;
+        [[16, 0.08], [10, 0.16], [5, 0.5], [2.5, 1]].forEach(([w2, a2]) => {
+          g.lineStyle(w2, this.ledC, a2 * k * alpha);
+          g.strokePoints(sorted, false);
+        });
+      };
+      // scanalatura del LED (si vede anche quando è bianco sul coperchio chiaro)
+      [[back, 0.35], [front, 1]].forEach(([pts, al]) => {
+        if (pts.length < 2) return;
+        g.lineStyle(5, 0xc9c4b9, al);
+        g.strokePoints(pts, false);
+      });
+      draw(back, 0.25);
+      draw(front, 1);
     }
     // tasto illuminato anche sulla macchina
-    const mk = M.btn[idx];
-    g.fillStyle(act.glow, 0.25 + 0.2 * Math.sin(t / 120));
-    g.fillCircle(mk.x, mk.y, 20);
-    g.lineStyle(3, act.glow, 1);
-    g.strokeCircle(mk.x, mk.y, 14);
+    // i tasti della macchina: chiari, quello attivo acceso col suo colore
+    M.btn.forEach((b, i) => {
+      const k = CTRL_ROW[i];
+      const on = i === idx;
+      const gk = this.glowK[i];
+      if (gk > 0.02) {
+        g.fillStyle(k.glow, gk * (0.25 + 0.15 * Math.sin(t / 120)));
+        g.fillCircle(b.x, b.y, 20);
+      }
+      // tasto sul piano del lato: ellisse in prospettiva, con un bordino e la luce in alto
+      const r = i === 4 ? 13 : 10.5;
+      const down = on && press ? -1.5 : 0;
+      const disc = (rr, dz = 0) => {
+        const pts = [];
+        for (let j = 0; j < 28; j++) {
+          const t2 = (j / 28) * Math.PI * 2;
+          pts.push(ms(BTN_A[i] + Math.cos(t2) * rr, -down, BTN_Z + dz + Math.sin(t2) * rr));
+        }
+        return pts;
+      };
+      g.fillStyle(0xb9b4aa, 1);
+      g.fillPoints(disc(r + 1, -1.5), true);
+      g.fillStyle(i === 4 ? 0x24344b : on && press ? 0xe4e1d9 : 0xf9f8f4, 1);
+      g.fillPoints(disc(r), true);
+      if (i !== 4) {
+        g.fillStyle(0xffffff, 0.8);
+        g.fillPoints(disc(r * 0.55, r * 0.35), true);
+      }
+      g.lineStyle(on ? 2.5 : 1.5, on ? k.glow : 0xc9c5bb, 1);
+      g.strokePoints(disc(r + 0.5), true);
+      // simbolo del comando sul tasto (e tacca sulla manopola)
+      miniIcon(g, k.id, b.x, b.y, on ? k.glow : 0x8a99b0, on && k.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0.3);
+    });
     // --- fila dei comandi grandi (come sul dispositivo)
     CTRL_ROW.forEach((k, i) => {
       const on = i === idx;
-      drawCtrl(g, k, on, on && press, t, on && act.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0.3);
+      drawCtrl(g, k, this.glowK[i], on && press, t, on && act.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0.3);
     });
     // --- mano che preme il tasto acceso (o gira la manopola)
-    const reach = Phaser.Math.Clamp(Math.min((u - 0.08) / 0.2, (0.95 - u) / 0.15), 0, 1);
-    if (reach > 0) {
-      const tx = act.x + 8;
-      const ty = act.y + 14 + (press ? 6 : 0);
-      drawHand(hand, tx + (1 - reach) * 160, ty + (1 - reach) * 220, act.id === "temp");
-    }
+    // la mano scivola dal tasto precedente a quello nuovo, senza sparire
+    const tx = act.x + 8;
+    const ty = act.y + 14 + (press ? 6 : 0) + (u < 0.2 ? 18 * (1 - u / 0.2) : u > 0.8 ? 18 * ((u - 0.8) / 0.2) : 0);
+    this.handPos = this.handPos ?? { x: tx, y: ty + 60 };
+    this.handPos.x = ease(this.handPos.x, tx, 170);
+    this.handPos.y = ease(this.handPos.y, ty, 120);
+    drawHand(hand, this.handPos.x, this.handPos.y, act.id === "temp");
+    hand.setAlpha(1);
   }
 
   updateTile(tile, t) {
@@ -626,13 +722,29 @@ export class TutorialScene extends Phaser.Scene {
   pageBreath() {
     this.badge("O₂", "L'OSSIGENO CALA DA SOLO · A ZERO SVIENI");
     this.frame(140, 130, 1000, 520);
+    // sfondo: la città del gioco (come nella pagina del movimento), dentro la scheda
+    const city = this.add.tileSprite(150, 140, 980, 420, "menu_bg").setOrigin(0).setTileScale(0.59);
+    city.tilePositionX = 1300;
+    this.bCity = city;
+    this.bPhase = 0;
+    this.bLast = null;
+    careFrames(this, this.op);
+    const m = this.make.graphics({ add: false });
+    m.fillStyle(0xffffff, 1);
+    m.fillRoundedRect(150, 140, 980, 500, 14);
+    city.setMask(m.createGeometryMask());
     const street = this.add.graphics();
-    street.fillStyle(C.c1, 1);
-    street.fillRect(142, 560, 996, 88);
+    street.fillStyle(0xd5dae2, 1);
+    street.fillRoundedRect(150, 560, 980, 80, { tl: 0, tr: 0, bl: 14, br: 14 });
+    this.bDash = this.add.graphics();
     dieFrames(this, this.op);
     this.walker = this.add.image(640, 590, `${this.op}_idle`).setOrigin(0.5, 1);
     this.breathG = this.add.graphics();
-    this.layer.add([street, this.walker, this.breathG]);
+    // l'indicatore del respiro vero del gioco (pillola in alto)
+    this.o2 = o2Hud(this);
+    this.o2.c.setPosition(640 - 150, 166).setDepth(0);
+    this.faintTxt = txt(this, 640, 362, "SVENUTO · O₂ 0%", { size: 20, weight: "500", origin: 0.5 }).setVisible(false);
+    this.layer.add([city, street, this.bDash, this.walker, this.breathG, this.o2.c, this.faintTxt]);
   }
 
   updateBreath(t) {
@@ -643,30 +755,46 @@ export class TutorialScene extends Phaser.Scene {
     else v = Math.max(0, 0.9 - ((t - 3500) / 1500) * 0.9);
     const g = this.breathG;
     g.clear();
-    const n = Math.ceil(v * 10 - 0.001);
-    const blink = v < 0.3 && Math.floor(t / 200) % 2;
-    for (let i = 0; i < 10; i++) {
-      const sx = 640 - 10 * 34 / 2 + i * 34;
-      if (i < n && !blink) {
-        g.fillStyle(C.c4, 1);
-        g.fillRect(sx, 200, 28, 32);
-      } else {
-        g.lineStyle(2, C.c3, 1);
-        g.strokeRect(sx + 1, 201, 26, 30);
-      }
-    }
-    // gesto di cura: bollicine dallo zaino
+    this.o2?.set(v, t);
+    // gesto di cura: bollicine di ossigeno tonde che salgono dallo zaino
     if (t > 2500 && t < 3500) {
       for (let i = 0; i < 8; i++) {
-        g.fillStyle(C.c4, 1);
-        g.fillRect(610 + (i % 4) * 10, 430 - ((t / 5 + i * 20) % 120), 4, 4);
+        g.fillStyle(0xffffff, 0.85);
+        g.fillCircle(614 + (i % 4) * 10, 470 - ((t / 5 + i * 20) % 120), 3 + (i % 3));
       }
     }
     // svenimento con la stessa animazione del gioco: mano alla maschera, ginocchia, caduta
     const tf = t - 5000; // istante in cui l'ossigeno arriva a zero
     const w = this.walker;
-    if (tf < 0) w.setTexture(`${this.op}_idle`).setAngle(0).setX(640).setY(590).setAlpha(1).clearTint();
-    else if (tf < 700) w.setTexture(`${this.op}_d0`).setX(640 + Math.sin(tf / 45) * 3);
+    // il personaggio cammina per la città; si ferma a curare la pianta; poi con poco ossigeno
+    // rallenta, barcolla e infine sviene
+    const dt = this.bLast == null || t < this.bLast ? 16 : Math.min(50, t - this.bLast);
+    this.bLast = t;
+    let speed = 0;
+    if (t < 2500) speed = 1;
+    else if (t >= 3500 && tf < 0) speed = Math.max(0.25, v * 1.1);
+    if (this.bCity) this.bCity.tilePositionX += speed * 240 * (dt / 1000);
+    this.bPhase = (this.bPhase + speed * 1.1 * (dt / 1000)) % 1;
+    const d = this.bDash;
+    if (d) {
+      d.clear();
+      d.fillStyle(0xffffff, 0.6);
+      const off = (((this.bCity?.tilePositionX ?? 0) * 1.7) % 90 + 90) % 90;
+      for (let x = 170 - off; x < 1110; x += 90) if (x > 152) d.fillRect(x, 600, Math.min(44, 1128 - x), 3);
+    }
+    if (tf < 0) {
+      w.setAngle(0).setY(590).setAlpha(1).clearTint();
+      if (t >= 2500 && t < 3500) {
+        // cura: la mano va allo zaino e picchietta
+        const ct = t - 2500;
+        const f = ct < 300 ? Math.min(2, Math.floor(ct / 100)) : 3 + (Math.floor(ct / 120) % 3);
+        w.setTexture(`${this.op}_c${f}`).setX(640);
+      } else {
+        w.setTexture(`${this.op}_${Math.floor(this.bPhase * WALK_FRAMES) % WALK_FRAMES}`);
+        // con poco ossigeno barcolla
+        w.setX(640 + (v < 0.3 ? Math.sin(t / 140) * 4 : 0)).setAngle(v < 0.3 ? Math.sin(t / 190) * 3 : 0);
+      }
+    } else if (tf < 700) w.setTexture(`${this.op}_d0`).setX(640 + Math.sin(tf / 45) * 3);
     else if (tf < 900) w.setTexture(`${this.op}_d1`);
     else if (tf < 1100) w.setTexture(`${this.op}_d2`);
     else w.setTexture(`${this.op}_d3`);
@@ -677,10 +805,13 @@ export class TutorialScene extends Phaser.Scene {
     }
     const fainted = v <= 0 && tf > 2100;
     if (fainted) {
-      g.lineStyle(6, C.c4, 1);
-      g.lineBetween(600, 290, 680, 370);
-      g.lineBetween(680, 290, 600, 370);
+      // velo scuro e scritta, come il game over del gioco
+      g.fillStyle(0x1c2839, 0.45);
+      g.fillRoundedRect(150, 140, 980, 500, 14);
+      g.fillStyle(0xf4f5f7, 1);
+      g.fillRoundedRect(640 - 150, 330, 300, 64, 32);
     }
+    this.faintTxt.setVisible(fainted);
   }
 
   // ---------- avanzamento come le storie: barra a segmenti in basso
@@ -688,13 +819,13 @@ export class TutorialScene extends Phaser.Scene {
   update(time, delta) {
     this.t += delta;
     if (this.page === 0) this.updateMove(this.t % PAGE_MS, delta);
-    else if (this.page === 3) this.updateBreath(this.t % pageMs(3));
+    else if (this.page === LAST) this.updateBreath(this.t % pageMs(LAST));
     else this.tiles.forEach((tile) => (tile.anim ? this.animTile(tile, this.t) : this.updateTile(tile, this.t % PAGE_MS)));
     const b = this.bar;
     b.clear();
     const segW = 180;
-    const x0 = VIEW.w / 2 - (segW * 4 + 12 * 3) / 2;
-    for (let i = 0; i < 4; i++) {
+    const x0 = VIEW.w / 2 - (segW * (LAST + 1) + 12 * LAST) / 2;
+    for (let i = 0; i <= LAST; i++) {
       const sx = x0 + i * (segW + 12);
       b.fillStyle(C.c3, 1);
       b.fillRect(sx, 740, segW, 6);
@@ -704,170 +835,343 @@ export class TutorialScene extends Phaser.Scene {
     }
     if (this.t >= pageMs(this.page)) {
       // alla fine dell'ultimo video parte il gioco
-      if (this.page < 3) this.showPage(this.page + 1);
+      if (this.page < LAST) this.showPage(this.page + 1);
       else goTo(this, this.next);
     }
   }
 }
 
 // ---------------------------------------------------------------- la macchina BIONOMAD
-const MACHINE = { x: 70, y: 190, sx: 340, sy: 430 };
-// tasti sul dispositivo (coordinate sullo schermo): luce, acqua, aria, play, manopola
-MACHINE.btn = [
-  { x: MACHINE.x + 210, y: MACHINE.y + 158 },
-  { x: MACHINE.x + 250, y: MACHINE.y + 152 },
-  { x: MACHINE.x + 290, y: MACHINE.y + 146 },
-  { x: MACHINE.x + 330, y: MACHINE.y + 140 },
-  { x: MACHINE.x + 378, y: MACHINE.y + 132 }
-];
+// geometria in prospettiva (come nelle immagini del dispositivo): F = spigolo frontale in basso,
+// A = direzione del lato lungo (verso destra e in alto), B = lato corto (verso sinistra e in alto)
+const MG = { ox: 40, oy: 140, k: 0.86, F: [290, 520], A: [0.93, -0.37], B: [-0.86, -0.4], L: 250, Sd: 175, H: 230 };
+const mp = (a, b, z) => [MG.F[0] + a * MG.A[0] + b * MG.B[0], MG.F[1] + a * MG.A[1] + b * MG.B[1] - z];
+const ms = (a, b, z) => {
+  const [x, y] = mp(a, b, z);
+  return { x: MG.ox + x * MG.k, y: MG.oy + y * MG.k };
+};
+// tasti sul lato con il display, in fila subito sopra lo schermo: luce, acqua, aria, play, manopola
+const BTN_A = [52, 86, 120, 154, 206];
+const BTN_Z = 200;
+const MACHINE = {
+  btn: BTN_A.map((a) => ms(a, 0, BTN_Z)),
+  soil: ms(150, 100, 230), // centro dell'apertura con le piante
+  disp: ms(140, 0, 95) // centro del display
+};
 const CTRL_ROW = [
-  { id: "light", label: "LUCE", x: 700, y: 360, glow: 0xe2b33c, cap: "Premi il tasto: accende la luce interna dello zaino." },
-  { id: "water", label: "ACQUA", x: 810, y: 360, glow: 0x3f8fe0, cap: "Premi una volta, in tempo: parte l'irrigazione interna." },
-  { id: "air", label: "ARIA", x: 920, y: 360, glow: 0x9aa7ba, cap: "Premi una volta, in tempo: soffia aria pulita." },
-  { id: "play", label: "PLAY", x: 1030, y: 360, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
-  { id: "temp", label: "TEMP", x: 1150, y: 360, glow: 0xd0864f, cap: "Gira la manopola: tra 18 e 24 °C." }
+  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0xe2b33c, cap: "Premi il tasto: il LED diventa giallo e nel gioco si accende la luce dello zaino." },
+  { id: "water", label: "ACQUA", x: 810, y: 380, glow: 0x3f8fe0, cap: "Premi una volta, in tempo: LED azzurro, nel gioco parte l'irrigazione." },
+  { id: "air", label: "ARIA", x: 920, y: 380, glow: 0x9aa7ba, cap: "Premi una volta, in tempo: LED bianco, nel gioco la ventola soffia aria pulita." },
+  { id: "play", label: "PLAY", x: 1030, y: 380, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
+  { id: "temp", label: "TEMP", x: 1150, y: 380, glow: 0xd0864f, cap: "Gira la manopola: il LED segue il colore scelto. Tieni tra 17 e 25 °C." }
 ];
 
-// illustrazione vettoriale del dispositivo: scatola bianca con le agavi, vasi laterali, display e tasti
+// illustrazione vettoriale del dispositivo, come il prototipo: blocco bianco dagli spigoli
+// morbidi, vaschetta con le sansevierie sul coperchio, provetta NFC, tasti e grande display sul
+// lato destro, due vasi agganciati (uno davanti a sinistra, uno dietro a destra)
 export function machineArt(scene) {
-  const key = "tut_machine";
+  const key = "tut_machine5";
   if (scene.textures.exists(key)) return key;
   const S = 2;
-  const W = 560;
-  const H = 480;
+  const W = 640;
+  const H = 600;
   const c = document.createElement("canvas");
   c.width = W * S;
   c.height = H * S;
   const X = c.getContext("2d");
   X.scale(S, S);
   X.lineJoin = "round";
-  const agave = (cx, base, h, n, spread) => {
-    for (let i = 0; i < n; i++) {
-      const lean = (i - (n - 1) / 2) * spread;
-      const hh = h * (0.7 + ((i * 37) % 10) / 30);
-      X.fillStyle = ["#2F5A48", "#3C6B55", "#28503F"][i % 3];
-      X.strokeStyle = "#C9B98A";
-      X.lineWidth = 1.5;
+  X.lineCap = "round";
+  const P = (a, b, z) => mp(a, b, z);
+  const { L, Sd } = MG;
+  const Hh = MG.H;
+  // poligono con gli angoli arrotondati
+  const round = (pts, r) => {
+    X.beginPath();
+    const n = pts.length;
+    const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    X.moveTo(...mid(pts[n - 1], pts[0]));
+    for (let i = 0; i < n; i++) X.arcTo(pts[i][0], pts[i][1], ...mid(pts[i], pts[(i + 1) % n]), r);
+    X.closePath();
+  };
+  // lato bombato: il bordo inferiore si curva un po' verso l'esterno
+  const face = (p0, p1, p2, p3, fill, bulge) => {
+    X.beginPath();
+    X.moveTo(...p3);
+    X.lineTo(...p0);
+    X.quadraticCurveTo((p0[0] + p1[0]) / 2 + bulge[0], (p0[1] + p1[1]) / 2 + bulge[1], ...p1);
+    X.lineTo(...p2);
+    X.closePath();
+    X.fillStyle = fill;
+    X.fill();
+  };
+  // sansevieria: foglie larghe e appuntite, verde scuro con il bordo giallo e le striature chiare
+  const leaf = (bx, by, h, lean, w) => {
+    const path = new Path2D();
+    path.moveTo(bx - w, by);
+    path.quadraticCurveTo(bx - w * 1.1 + lean * 0.3, by - h * 0.55, bx + lean, by - h);
+    path.quadraticCurveTo(bx + w * 1.1 + lean * 0.3, by - h * 0.55, bx + w, by);
+    path.closePath();
+    X.fillStyle = "#2E5B4B";
+    X.fill(path);
+    X.save();
+    X.clip(path);
+    X.strokeStyle = "rgba(160,196,170,0.45)";
+    X.lineWidth = 1.2;
+    for (let y = by - 8; y > by - h; y -= 9) {
       X.beginPath();
-      X.moveTo(cx - 9 + i * 2 - n, base);
-      X.quadraticCurveTo(cx + lean * 0.3 - 8, base - hh * 0.6, cx + lean, base - hh);
-      X.quadraticCurveTo(cx + lean * 0.3 + 10, base - hh * 0.6, cx + 9 + i * 2 - n, base);
-      X.closePath();
-      X.fill();
-      X.stroke();
-      X.strokeStyle = "rgba(201,185,138,0.5)";
-      X.beginPath();
-      X.moveTo(cx + i * 2 - n, base);
-      X.quadraticCurveTo(cx + lean * 0.3, base - hh * 0.6, cx + lean, base - hh + 6);
+      X.moveTo(bx - w * 1.4, y + 3);
+      X.quadraticCurveTo(bx, y - 2, bx + w * 1.4, y + 3);
       X.stroke();
     }
+    X.fillStyle = "rgba(0,0,0,0.12)";
+    X.fillRect(bx + lean * 0.4, by - h, w * 2, h);
+    X.restore();
+    X.strokeStyle = "#D9C98F";
+    X.lineWidth = 1.6;
+    X.stroke(path);
   };
-  const pot = (x, y, w, h, plants) => {
-    agave(x + w / 2, y + 6, plants, 6, 7);
+  const tuft = (bx, by, h, n, sc = 1) => {
+    for (let i = 0; i < n; i++) {
+      const u = n === 1 ? 0.5 : i / (n - 1);
+      const lean = (u - 0.5) * 60 * sc;
+      leaf(bx + (u - 0.5) * 40 * sc, by + Math.abs(u - 0.5) * 4, h * (0.72 + 0.28 * Math.sin(u * Math.PI)) * (0.9 + ((i * 7) % 3) * 0.06), lean, 7 * sc);
+    }
+  };
+  // vaso cilindrico agganciato (cx,cy = centro del bordo)
+  const pot = (cx, cy, r, h, plantH) => {
+    X.save();
+    X.filter = "blur(5px)";
+    X.fillStyle = "rgba(36,52,75,0.2)";
+    X.beginPath();
+    X.ellipse(cx + 6, cy + h + 4, r * 0.95, r * 0.28, 0, 0, 7);
+    X.fill();
+    X.restore();
     X.fillStyle = "#E9E6DE";
-    X.fillRect(x, y, w, h);
     X.beginPath();
-    X.ellipse(x + w / 2, y + h, w / 2, 10, 0, 0, 7);
+    X.moveTo(cx - r, cy);
+    X.lineTo(cx - r, cy + h);
+    X.ellipse(cx, cy + h, r, r * 0.34, 0, Math.PI, 0, true);
+    X.lineTo(cx + r, cy);
+    X.closePath();
     X.fill();
-    X.fillStyle = "#D7D3CA";
-    X.fillRect(x + w - 16, y, 16, h);
-    X.fillStyle = "#4E3E33";
+    const g = X.createLinearGradient(cx - r, 0, cx + r, 0);
+    g.addColorStop(0, "rgba(255,255,255,0.5)");
+    g.addColorStop(0.5, "rgba(255,255,255,0)");
+    g.addColorStop(1, "rgba(150,140,125,0.35)");
+    X.fillStyle = g;
+    X.fill();
+    X.fillStyle = "#F6F4EF";
     X.beginPath();
-    X.ellipse(x + w / 2, y, w / 2, 9, 0, 0, 7);
+    X.ellipse(cx, cy, r, r * 0.34, 0, 0, 7);
     X.fill();
-    X.fillStyle = "#F2F0EA";
+    X.fillStyle = "#4A3A2F";
     X.beginPath();
-    X.ellipse(x + w / 2, y, w / 2, 9, 0, Math.PI, 0);
-    X.lineTo(x + w, y);
+    X.ellipse(cx, cy + 1, r * 0.82, r * 0.25, 0, 0, 7);
     X.fill();
+    tuft(cx, cy + 4, plantH, 7, 0.75);
   };
-  // ombra a terra
-  X.fillStyle = "rgba(36,52,75,0.16)";
+
+  // ombra a terra: segue la pianta della scatola (non un'ellisse), morbida e sfumata
+  X.save();
+  X.filter = "blur(10px)";
+  X.fillStyle = "rgba(36,52,75,0.22)";
   X.beginPath();
-  X.ellipse(290, 440, 250, 34, 0, 0, 7);
-  X.fill();
-  // vaso a sinistra (dietro)
-  pot(20, 300, 96, 110, 110);
-  // corpo: faccia superiore, faccia frontale, fianco
-  X.fillStyle = "#F4F2EC";
-  X.beginPath();
-  X.moveTo(110, 120);
-  X.lineTo(420, 80);
-  X.lineTo(500, 130);
-  X.lineTo(190, 172);
+  [P(-6, -10, 0), P(MG.L + 14, -10, 0), P(MG.L + 26, MG.Sd + 6, 0), P(-6, MG.Sd + 6, 0)].forEach(([x, y], i) => (i ? X.lineTo(x + 10, y + 4) : X.moveTo(x + 10, y + 4)));
   X.closePath();
   X.fill();
-  // apertura con la terra e le agavi
-  X.fillStyle = "#4E3E33";
+  // contatto: ombra più scura proprio sotto gli spigoli
+  X.filter = "blur(4px)";
+  X.fillStyle = "rgba(36,52,75,0.18)";
   X.beginPath();
-  X.moveTo(150, 124);
-  X.lineTo(400, 92);
-  X.lineTo(452, 124);
-  X.lineTo(200, 158);
+  [P(0, 0, 0), P(MG.L, 0, 0), P(MG.L, 6, 0), P(0, 6, 0)].forEach(([x, y], i) => (i ? X.lineTo(x, y + 2) : X.moveTo(x, y + 2)));
   X.closePath();
   X.fill();
-  agave(300, 140, 150, 14, 12);
-  X.fillStyle = "#ECEAE4";
-  X.beginPath();
-  X.moveTo(110, 120);
-  X.lineTo(190, 172);
-  X.lineTo(204, 420);
-  X.quadraticCurveTo(140, 400, 112, 380);
-  X.closePath();
-  X.fill();
+  X.restore();
+
+  // vaso destro: dietro, agganciato al fianco destro a metà altezza
+  const rp = P(L + 30, 60, 90);
+  pot(rp[0] + 26, rp[1] - 40, 40, 74, 100);
+
+  // corpo: silhouette unica con spigoli morbidi
+  const base = [P(0, 0, 0), P(L, 0, 0), P(L, Sd, 0), P(0, Sd, 0)];
+  const top = [P(0, 0, Hh), P(L, 0, Hh), P(L, Sd, Hh), P(0, Sd, Hh)];
+  round([base[3], base[0], base[1], top[1], top[2], top[3]], 34);
   X.fillStyle = "#E4E1D9";
-  X.beginPath();
-  X.moveTo(190, 172);
-  X.lineTo(500, 130);
-  X.lineTo(492, 372);
-  X.quadraticCurveTo(470, 392, 204, 420);
-  X.closePath();
   X.fill();
-  // display sulla faccia frontale
-  X.fillStyle = "#22324A";
-  X.beginPath();
-  X.moveTo(250, 220);
-  X.lineTo(460, 196);
-  X.lineTo(456, 330);
-  X.lineTo(248, 356);
-  X.closePath();
+  // lato sinistro (corto), più chiaro e bombato
+  face(P(0, Sd, 8), P(0, 0, 8), P(0, 0, Hh - 10), P(0, Sd, Hh - 10), "#EEEBE4", [-6, 16]);
+  // lato destro (con il display), in leggera ombra
+  face(P(0, 0, 8), P(L, 0, 8), P(L, 0, Hh - 10), P(0, 0, Hh - 10), "#E2DED5", [8, 14]);
+  // spigolo frontale arrotondato: una fascia di luce
+  const eg = X.createLinearGradient(P(-14, 14, 0)[0], 0, P(14, -14, 0)[0], 0);
+  eg.addColorStop(0, "rgba(255,255,255,0)");
+  eg.addColorStop(0.5, "rgba(255,255,255,0.75)");
+  eg.addColorStop(1, "rgba(255,255,255,0)");
+  X.fillStyle = eg;
+  X.fillRect(P(-14, 14, 0)[0], P(0, 0, Hh)[1] + 14, 28, Hh - 34);
+  // coperchio con gli angoli arrotondati
+  round(top, 30);
+  const tg = X.createLinearGradient(0, P(L, Sd, Hh)[1], 0, P(0, 0, Hh)[1]);
+  tg.addColorStop(0, "#F1EEE8");
+  tg.addColorStop(1, "#FBFAF7");
+  X.fillStyle = tg;
   X.fill();
-  X.fillStyle = "#3F5677";
-  X.fillRect(266, 300, 176, 30);
+  // smusso morbido sugli spigoli frontali del coperchio
+  X.strokeStyle = "rgba(255,255,255,0.95)";
+  X.lineWidth = 3;
+  X.beginPath();
+  X.moveTo(...P(0, Sd - 30, Hh - 2));
+  X.lineTo(...P(0, 26, Hh - 2));
+  X.quadraticCurveTo(...P(0, 0, Hh - 2), ...P(26, 0, Hh - 2));
+  X.lineTo(...P(L - 30, 0, Hh - 2));
+  X.stroke();
+  X.strokeStyle = "rgba(150,140,125,0.25)";
+  X.lineWidth = 2;
+  X.beginPath();
+  X.moveTo(...P(0, Sd - 30, Hh - 8));
+  X.lineTo(...P(0, 26, Hh - 8));
+  X.quadraticCurveTo(...P(0, 0, Hh - 8), ...P(26, 0, Hh - 8));
+  X.lineTo(...P(L - 30, 0, Hh - 8));
+  X.stroke();
+  // vaschetta con la terra (verso il fondo del coperchio) e le sansevierie
+  const tub = [P(66, 40, Hh), P(L - 26, 40, Hh), P(L - 26, Sd - 24, Hh), P(66, Sd - 24, Hh)];
+  // vaschetta: bordo chiaro rialzato, poi la terra con un'ombra interna
+  round(tub, 14);
+  X.fillStyle = "#FBFAF7";
+  X.fill();
+  const tubIn = [P(72, 46, Hh + 2), P(L - 32, 46, Hh + 2), P(L - 32, Sd - 30, Hh + 2), P(72, Sd - 30, Hh + 2)];
+  round(tubIn, 10);
+  X.fillStyle = "#4A3A2F";
+  X.fill();
+  X.save();
+  X.clip();
+  X.strokeStyle = "rgba(0,0,0,0.25)";
+  X.lineWidth = 8;
+  round(tubIn, 10);
+  X.stroke();
+  X.restore();
+  // le piante escono SOLO dalla terra: si ritagliano lungo i bordi vicini della vaschetta,
+  // così le basi delle foglie non finiscono sul coperchio bianco
+  X.save();
+  const n0 = P(74, Sd - 32, Hh);
+  const n1 = P(74, 48, Hh);
+  const n2 = P(L - 34, 48, Hh);
+  X.beginPath();
+  X.moveTo(n0[0], n0[1]);
+  X.lineTo(n1[0], n1[1]);
+  X.lineTo(n2[0], n2[1]);
+  X.lineTo(n2[0], -10);
+  X.lineTo(n0[0], -10);
+  X.closePath();
+  X.clip();
+  for (let row = 2; row >= 0; row--) {
+    for (let k = 0; k < 2; k++) {
+      const [bx, by] = P(100 + k * 66 + row * 6, 66 + row * 28, Hh);
+      tuft(bx, by, 190 - row * 22 - k * 10, 9, 1.0);
+    }
+  }
+  X.restore();
+  // provetta NFC con l'anello verde, sul coperchio davanti a sinistra
+  const [vx, vy] = P(34, 54, Hh);
+  X.fillStyle = "#1F2B3D";
+  X.beginPath();
+  X.ellipse(vx, vy, 16, 7, -0.25, 0, 7);
+  X.fill();
+  X.strokeStyle = "#5FD39A";
+  X.lineWidth = 2.5;
+  X.stroke();
+  X.fillStyle = "rgba(220,236,242,0.95)";
+  X.beginPath();
+  X.roundRect(vx - 6, vy - 40, 12, 40, 5);
+  X.fill();
+  X.fillStyle = "#4FA36E";
+  X.fillRect(vx - 6, vy - 16, 12, 14);
+  X.fillStyle = "#B88A5A";
+  X.fillRect(vx - 7, vy - 44, 14, 7);
+  // display grande sul lato destro, con il gioco acceso (città di notte, luna, operatore)
+  const d0 = P(38, 0, 30);
+  const d1 = P(L - 22, 0, 30);
+  const d2 = P(L - 22, 0, 168);
+  const d3 = P(38, 0, 168);
+  round([d0, d1, d2, d3], 8);
+  X.fillStyle = "#1A2434";
+  X.fill();
+  const i0 = P(46, 0, 38);
+  const i2 = P(L - 30, 0, 160);
+  X.save();
+  round([i0, P(L - 30, 0, 38), i2, P(46, 0, 160)], 5);
+  X.clip();
+  const sky = X.createLinearGradient(0, i2[1], 0, i0[1]);
+  sky.addColorStop(0, "#3D5272");
+  sky.addColorStop(1, "#1E2B40");
+  X.fillStyle = sky;
+  X.fillRect(0, 0, W, H);
+  // disegno del gioco sullo schermo, inclinato come il lato
+  const [sx0, sy0] = P(46, 0, 160);
+  X.translate(0, 0);
+  X.translate(sx0, sy0);
+  X.transform(1, MG.A[1] / MG.A[0], 0, 1, 0, 0);
+  const sw = (L - 76) * MG.A[0];
+  X.fillStyle = "#E9ECF2";
+  X.beginPath();
+  X.arc(sw * 0.62, 18, 7, 0, 7);
+  X.fill();
+  X.fillStyle = "#2A3A55";
+  [[0.45, 50, 0.1], [0.56, 38, 0.12], [0.7, 58, 0.1], [0.82, 44, 0.18]].forEach(([x, hh, bw]) => X.fillRect(sw * x, 112 - hh, sw * bw, hh));
+  X.fillStyle = "#33465F";
+  X.fillRect(0, 104, sw, 18);
   X.fillStyle = "#E9ECEF";
-  X.font = "bold 18px monospace";
-  X.fillText("O₂RIGIN", 268, 252);
-  X.fillStyle = "#C9D3E0";
+  X.font = "bold 13px monospace";
+  X.fillText("O₂RIGIN", 8, 22);
+  X.fillStyle = "rgba(233,236,239,0.35)";
+  [34, 46, 58].forEach((y) => X.fillRect(8, y, 60, 6));
+  // operatore piccolino
+  X.fillStyle = "#9AA3AF";
+  X.fillRect(sw * 0.66, 76, 8, 28);
+  X.fillStyle = "#E8CFB8";
   X.beginPath();
-  X.arc(420, 230, 7, 0, 7);
+  X.arc(sw * 0.66 + 4, 71, 5, 0, 7);
   X.fill();
-  // tasti sul bordo (vuoti: si accendono nell'animazione)
-  [[210, 158], [250, 152], [290, 146], [330, 140]].forEach(([bx, by]) => {
-    X.fillStyle = "#D9D5CC";
+  X.fillStyle = "#E2B33C";
+  X.fillRect(sw * 0.66, 78, 8, 3);
+  X.restore();
+  // incavi dei tasti in fila sopra il display (i tasti si accendono nell'animazione)
+  // incavi dei tasti: cerchi disegnati SUL piano del lato (quindi ellissi inclinate)
+  const faceDisc = (a0, z0, r) => {
     X.beginPath();
-    X.arc(bx, by + 2, 12, 0, 7);
+    for (let i = 0; i <= 32; i++) {
+      const t = (i / 32) * Math.PI * 2;
+      const [x, y] = P(a0 + Math.cos(t) * r, 0, z0 + Math.sin(t) * r);
+      i ? X.lineTo(x, y) : X.moveTo(x, y);
+    }
+    X.closePath();
+  };
+  BTN_A.forEach((a, i) => {
+    const r = i === 4 ? 18 : 14;
+    faceDisc(a, BTN_Z, r + 1.5);
+    X.fillStyle = "#CBC6BC";
     X.fill();
-    X.fillStyle = "#F7F6F2";
-    X.beginPath();
-    X.arc(bx, by, 11, 0, 7);
+    faceDisc(a, BTN_Z + 1, r);
+    X.fillStyle = "#D8D4CB";
     X.fill();
   });
-  X.fillStyle = "#24344B";
-  X.beginPath();
-  X.arc(378, 132, 13, 0, 7);
-  X.fill();
-  // vaso a destra (davanti)
-  pot(440, 220, 90, 100, 100);
+  // vaso sinistro: davanti, agganciato in basso al lato sinistro
+  const lp = P(-26, Sd - 50, 20);
+  pot(lp[0], lp[1] - 30, 52, 90, 110);
   addHiRes(scene, key, c, S);
   return key;
 }
 
 // un comando grande nello stile del dispositivo: cerchio chiaro, icona, alone colorato se acceso
-function drawCtrl(g, k, on, pressed, t, knob) {
+function drawCtrl(g, k, onK, pressed, t, knob) {
   const { x, y, glow } = k;
-  if (on) {
+  // onK: intensità 0..1 dell'accensione (sfuma tra un comando e l'altro)
+  const lvl = typeof onK === "number" ? onK : onK ? 1 : 0;
+  const on = lvl > 0.5;
+  if (lvl > 0.02) {
     for (let i = 4; i >= 1; i--) {
-      g.fillStyle(glow, 0.08 * (5 - i) + (pressed ? 0.06 : 0));
+      g.fillStyle(glow, (0.08 * (5 - i) + (pressed ? 0.06 : 0)) * lvl);
       g.fillCircle(x, y, 44 + i * 9 + Math.sin(t / 160) * 2);
     }
   }
@@ -893,9 +1197,9 @@ function drawCtrl(g, k, on, pressed, t, knob) {
   g.fillCircle(x, y + 4, 44);
   g.fillStyle(pressed ? 0xe4e1d9 : 0xf4f2ec, 1);
   g.fillCircle(x, y + (pressed ? 3 : 0), 44);
-  g.lineStyle(on ? 4 : 2, on ? glow : 0xd3dbe6, 1);
+  g.lineStyle(2 + 2 * lvl, mixCol(0xd3dbe6, glow, lvl), 1);
   g.strokeCircle(x, y + (pressed ? 3 : 0), 44);
-  const col = on ? glow : 0x9aa7ba;
+  const col = mixCol(0x9aa7ba, glow, lvl);
   const cy = y + (pressed ? 3 : 0);
   if (k.id === "light") {
     g.fillStyle(col, 1);
@@ -926,22 +1230,256 @@ function drawCtrl(g, k, on, pressed, t, knob) {
   }
 }
 
-// mano del tutorial: indice teso (punta in x,y), manica del cappotto dal basso a destra
+// mano del tutorial: indice teso (punta in x,y), solo mano e polsino (niente braccio lungo
+// che passa sopra le scritte)
 function drawHand(h, x, y, grip) {
   h.fillStyle(0x9aa3af, 1);
-  h.fillPoints([{ x: x + 26, y: y + 40 }, { x: x + 110, y: y + 150 }, { x: x + 62, y: y + 178 }, { x: x - 6, y: y + 66 }], true);
+  h.fillRoundedRect(x - 2, y + 58, 40, 30, 8);
   h.fillStyle(0xe2b33c, 1);
-  h.fillPoints([{ x: x + 20, y: y + 50 }, { x: x + 36, y: y + 78 }, { x: x + 4, y: y + 92 }, { x: x - 8, y: y + 64 }], true);
+  h.fillRect(x - 2, y + 56, 40, 7);
+  h.fillStyle(0xd6b89e, 1);
+  h.fillEllipse(x + 20, y + 42, 44, 36);
   h.fillStyle(0xe8cfb8, 1);
-  h.fillEllipse(x + 12, y + 40, 46, 38);
+  h.fillEllipse(x + 18, y + 40, 42, 34);
   if (grip) {
     h.fillStyle(0xd6b89e, 1);
-    h.fillEllipse(x - 4, y + 22, 18, 26);
-    h.fillEllipse(x + 22, y + 18, 18, 26);
+    h.fillEllipse(x + 4, y + 24, 16, 24);
+    h.fillEllipse(x + 30, y + 22, 16, 24);
   } else {
-    h.lineStyle(13, 0xe8cfb8, 1);
-    h.lineBetween(x + 4, y + 26, x, y);
+    h.lineStyle(12, 0xe8cfb8, 1);
+    h.lineBetween(x + 4, y + 28, x, y + 4);
     h.fillStyle(0xf3dfcd, 1);
-    h.fillCircle(x, y + 2, 4);
+    h.fillCircle(x, y + 5, 4);
   }
+}
+
+// vaso con la sansevieria nello stile vettoriale (foglie larghe, bordo giallo, striature)
+function potPlantArt(scene) {
+  const key = "tut_potplant";
+  if (scene.textures.exists(key)) return key;
+  const S = 2;
+  const W = 300;
+  const H = 330;
+  const c = document.createElement("canvas");
+  c.width = W * S;
+  c.height = H * S;
+  const X = c.getContext("2d");
+  X.scale(S, S);
+  const cx = W / 2;
+  const potTop = 220;
+  // foglie: [base x, punta x, punta y, larghezza]
+  const leaves = [
+    [-30, -96, 30, 13], [-16, -58, 0, 14], [0, -8, -2, 15], [16, 44, 10, 14], [30, 84, 26, 13], [-6, -30, 40, 12], [10, 22, 34, 12]
+  ];
+  leaves.forEach(([b, tx, ty, w], i) => {
+    const bx = cx + b;
+    const by = potTop + 6;
+    const px = cx + tx;
+    const path = new Path2D();
+    path.moveTo(bx - w, by);
+    path.quadraticCurveTo(bx - w + (px - bx) * 0.3, by - (by - ty) * 0.6, px, ty);
+    path.quadraticCurveTo(bx + w + (px - bx) * 0.3, by - (by - ty) * 0.6, bx + w, by);
+    path.closePath();
+    X.fillStyle = i % 2 ? "#3C6B55" : "#2E5B4B";
+    X.fill(path);
+    X.save();
+    X.clip(path);
+    X.strokeStyle = "rgba(170,205,180,0.45)";
+    X.lineWidth = 1.6;
+    for (let y = by - 10; y > ty; y -= 11) {
+      X.beginPath();
+      X.moveTo(cx - 140, y + 4);
+      X.quadraticCurveTo(cx, y - 3, cx + 140, y + 4);
+      X.stroke();
+    }
+    X.restore();
+    X.strokeStyle = "#D9C98F";
+    X.lineWidth = 2;
+    X.stroke(path);
+  });
+  // vaso: corpo che si stringe verso il fondo, base arrotondata, bordo spesso e terra
+  const rT = 64; // raggio in alto
+  const rB = 50; // raggio in basso
+  const yB = H - 16;
+  const body = new Path2D();
+  body.moveTo(cx - rT + 4, potTop + 14);
+  body.lineTo(cx - rB, yB - 6);
+  body.quadraticCurveTo(cx - rB, yB + 10, cx, yB + 10);
+  body.quadraticCurveTo(cx + rB, yB + 10, cx + rB, yB - 6);
+  body.lineTo(cx + rT - 4, potTop + 14);
+  body.closePath();
+  X.fillStyle = "#E9E6DE";
+  X.fill(body);
+  const g = X.createLinearGradient(cx - rT, 0, cx + rT, 0);
+  g.addColorStop(0, "rgba(255,255,255,0.6)");
+  g.addColorStop(0.35, "rgba(255,255,255,0.1)");
+  g.addColorStop(0.75, "rgba(150,140,125,0.12)");
+  g.addColorStop(1, "rgba(120,110,98,0.4)");
+  X.fillStyle = g;
+  X.fill(body);
+  // bordo spesso arrotondato
+  X.fillStyle = "#F4F2EC";
+  X.beginPath();
+  X.roundRect(cx - rT, potTop - 4, rT * 2, 22, 11);
+  X.fill();
+  X.fillStyle = "rgba(120,110,98,0.18)";
+  X.fillRect(cx - rT + 6, potTop + 15, rT * 2 - 12, 3);
+  // terra con le piante che escono
+  X.fillStyle = "#4A3A2F";
+  X.beginPath();
+  X.ellipse(cx, potTop - 3, rT - 8, 7, 0, 0, 7);
+  X.fill();
+  addHiRes(scene, key, c, S);
+  return key;
+}
+
+// simbolo piccolo per i tasti della macchina (stesso disegno dei comandi grandi, in piccolo)
+function miniIcon(g, id, x, y, col, knob = 0.3) {
+  if (id === "light") {
+    g.fillStyle(col, 1);
+    g.fillCircle(x, y, 2.6);
+    g.lineStyle(1.6, col, 1);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g.lineBetween(x + Math.cos(a) * 4.3, y + Math.sin(a) * 4.3, x + Math.cos(a) * 6.6, y + Math.sin(a) * 6.6);
+    }
+  } else if (id === "water") {
+    g.fillStyle(col, 1);
+    g.fillCircle(x, y + 1.8, 3.4);
+    g.fillTriangle(x - 3.2, y + 0.8, x + 3.2, y + 0.8, x, y - 6);
+  } else if (id === "air") {
+    g.lineStyle(1.8, col, 1);
+    g.lineBetween(x - 5.5, y - 3, x + 3.5, y - 3);
+    g.lineBetween(x - 5.5, y, x + 5.5, y);
+    g.lineBetween(x - 5.5, y + 3, x + 1.5, y + 3);
+  } else if (id === "play") {
+    g.fillStyle(col, 1);
+    g.fillTriangle(x - 3, y - 5, x - 3, y + 5, x + 5, y);
+  } else {
+    // manopola: tacca che indica la temperatura scelta
+    const a = -Math.PI * 1.25 + knob * Math.PI * 1.5;
+    g.lineStyle(2.4, col === 0x8a99b0 ? 0xd0864f : col, 1);
+    g.lineBetween(x + Math.cos(a) * 3, y + Math.sin(a) * 3, x + Math.cos(a) * 10, y + Math.sin(a) * 10);
+  }
+}
+
+// schermata del display della macchina per ogni comando (stessa prospettiva del lato destro)
+function screenArt(scene, id) {
+  const key = `tut_screen_${id}`;
+  if (scene.textures.exists(key)) return key;
+  const S = 2;
+  const W = 640;
+  const H = 600;
+  const c = document.createElement("canvas");
+  c.width = W * S;
+  c.height = H * S;
+  const X = c.getContext("2d");
+  X.scale(S, S);
+  const P = (a, b, z) => mp(a, b, z);
+  const { L } = MG;
+  const pts = [P(46, 0, 38), P(L - 30, 0, 38), P(L - 30, 0, 160), P(46, 0, 160)];
+  X.beginPath();
+  pts.forEach(([x, y], i) => (i ? X.lineTo(x, y) : X.moveTo(x, y)));
+  X.closePath();
+  X.clip();
+  const bg = { light: ["#5A4E2E", "#2A2A2A"], water: ["#264A73", "#16263D"], air: ["#3C4E66", "#1E2B40"], play: ["#3D5272", "#1E2B40"], temp: ["#6A3F2E", "#2A1F28"] }[id];
+  const gr = X.createLinearGradient(0, pts[2][1], 0, pts[0][1]);
+  gr.addColorStop(0, bg[0]);
+  gr.addColorStop(1, bg[1]);
+  X.fillStyle = gr;
+  X.fillRect(0, 0, W, H);
+  const [sx0, sy0] = P(46, 0, 160);
+  X.translate(sx0, sy0);
+  X.transform(1, MG.A[1] / MG.A[0], 0, 1, 0, 0);
+  const sw = (L - 76) * MG.A[0];
+  const T = (t, x, y, size, col = "#E9ECEF", weight = "bold") => {
+    X.fillStyle = col;
+    X.font = `${weight} ${size}px monospace`;
+    X.fillText(t, x, y);
+  };
+  if (id === "light") {
+    X.fillStyle = "#F6D36B";
+    X.beginPath();
+    X.arc(sw / 2, 48, 16, 0, 7);
+    X.fill();
+    X.strokeStyle = "#F6D36B";
+    X.lineWidth = 4;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      X.beginPath();
+      X.moveTo(sw / 2 + Math.cos(a) * 22, 48 + Math.sin(a) * 22);
+      X.lineTo(sw / 2 + Math.cos(a) * 30, 48 + Math.sin(a) * 30);
+      X.stroke();
+    }
+    T("LUCE ON", sw / 2 - 34, 104, 15);
+  } else if (id === "water") {
+    X.fillStyle = "#6FA8E8";
+    X.beginPath();
+    X.arc(sw / 2, 52, 13, 0, 7);
+    X.fill();
+    X.beginPath();
+    X.moveTo(sw / 2 - 12, 47);
+    X.lineTo(sw / 2 + 12, 47);
+    X.lineTo(sw / 2, 22);
+    X.fill();
+    T("IRRIGAZIONE", sw / 2 - 52, 88, 13);
+    X.fillStyle = "rgba(233,236,239,0.25)";
+    X.fillRect(20, 98, sw - 40, 8);
+    X.fillStyle = "#6FA8E8";
+    X.fillRect(20, 98, (sw - 40) * 0.62, 8);
+  } else if (id === "air") {
+    X.strokeStyle = "#C9D3E0";
+    X.lineWidth = 5;
+    X.lineCap = "round";
+    [[-26, 18, 30], [-26, 26, 42], [-26, 12, 54]].forEach(([a, b, y]) => {
+      X.beginPath();
+      X.moveTo(sw / 2 + a, y);
+      X.lineTo(sw / 2 + b, y);
+      X.stroke();
+    });
+    T("ARIA PULITA", sw / 2 - 50, 92, 13);
+    T("ventola attiva", sw / 2 - 52, 110, 11, "rgba(233,236,239,0.7)", "normal");
+  } else if (id === "play") {
+    // il gioco parte: città di notte, luna, operatore e START
+    X.fillStyle = "#E9ECF2";
+    X.beginPath();
+    X.arc(sw * 0.62, 18, 7, 0, 7);
+    X.fill();
+    X.fillStyle = "#2A3A55";
+    [[0.45, 50, 0.1], [0.56, 38, 0.12], [0.7, 58, 0.1], [0.82, 44, 0.18]].forEach(([x, hh, bw]) => X.fillRect(sw * x, 112 - hh, sw * bw, hh));
+    X.fillStyle = "#33465F";
+    X.fillRect(0, 104, sw, 18);
+    T("O₂RIGIN", 8, 22, 13);
+    X.fillStyle = "#4CBF72";
+    X.beginPath();
+    X.moveTo(14, 44);
+    X.lineTo(14, 66);
+    X.lineTo(32, 55);
+    X.fill();
+    T("START", 38, 61, 13, "#8FD0A6");
+    X.fillStyle = "#9AA3AF";
+    X.fillRect(sw * 0.66, 76, 8, 28);
+    X.fillStyle = "#E8CFB8";
+    X.beginPath();
+    X.arc(sw * 0.66 + 4, 71, 5, 0, 7);
+    X.fill();
+  } else {
+    T("21.0°C", sw / 2 - 52, 62, 26);
+    T("FUORI 12°C", sw / 2 - 42, 90, 12, "rgba(233,236,239,0.75)", "normal");
+    const g2 = X.createLinearGradient(20, 0, sw - 20, 0);
+    g2.addColorStop(0, "#5F8FD0");
+    g2.addColorStop(1, "#D0864F");
+    X.fillStyle = g2;
+    X.fillRect(20, 102, sw - 40, 6);
+    X.fillStyle = "#FFFFFF";
+    X.fillRect(20 + (sw - 40) * 0.55 - 2, 98, 4, 14);
+  }
+  addHiRes(scene, key, c, S);
+  return key;
+}
+
+// mescola due colori (0..1): serve alle dissolvenze dei tasti
+function mixCol(a, b, k) {
+  const m = (sh) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * k));
+  return (m(16) << 16) | (m(8) << 8) | m(0);
 }
