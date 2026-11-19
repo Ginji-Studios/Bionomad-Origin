@@ -1,7 +1,8 @@
 import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { paint } from "../world/skyline.js";
-import { crewBust, TEAM_LOOK } from "../art/people.js";
+import { TEAM_LOOK } from "../art/people.js";
+import { productArt, teamBust } from "../art/creditsArt.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { brackets, button, C, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 import { plantNav } from "../input/plantNav.js";
@@ -229,14 +230,15 @@ export class CreditsScene extends Phaser.Scene {
   }
 
   // riquadro del fascicolo: linee sottili e un nodo a ogni angolo
-  frame(x, y, w, h, { fill = 0.86 } = {}) {
+  // scheda piatta: carta chiara con angoli arrotondati e ombra leggera
+  frame(x, y, w, h, { fill = 0.96 } = {}) {
     const g = this.add.graphics();
-    g.fillStyle(C.c0, fill);
-    g.fillRect(x, y, w, h);
-    g.lineStyle(2, C.c3, 1);
-    g.strokeRect(x, y, w, h);
-    g.fillStyle(C.c4, 1);
-    // (angoli a quadratino rimossi: stile vettoriale pulito)
+    if (fill) {
+      g.fillStyle(C.c4, 0.1);
+      g.fillRoundedRect(x, y + 4, w, h, 18);
+      g.fillStyle(C.c0, fill);
+      g.fillRoundedRect(x, y, w, h, 18);
+    }
     this.page.add(g);
     return g;
   }
@@ -248,7 +250,7 @@ export class CreditsScene extends Phaser.Scene {
       const ry = y + i * step;
       this.page.add(txt(this, x + 10, ry + 7, label, { size, color: HEX.c3 }));
       this.page.add(txt(this, x + w - 10, ry + 7, value, { size, origin: [1, 0] }));
-      g.strokeRect(x, ry, w, step);
+      if (i < list.length - 1) g.lineBetween(x, ry + step, x + w, ry + step);
     });
     this.page.add(g);
   }
@@ -279,9 +281,13 @@ export class CreditsScene extends Phaser.Scene {
       this.frame(x, y, cw, 582);
       this.page.add(txt(this, x + 16, y + 14, p.code, { size: 16, color: HEX.c3 }));
       this.page.add(txt(this, x + cw - 16, y + 14, p.name, { size: 18, weight: "500", origin: [1, 0] }));
-      const img = this.add.image(x + 16, y + 44, deviceArt(this, p.art, cw - 32, 340)).setOrigin(0);
+      const img = this.add.image(x + 16, y + 44, productArt(this, p.art, cw - 32, 340)).setOrigin(0);
       this.page.add(img);
-      this.frame(x + 16, y + 44, cw - 32, 340, { fill: 0 });
+      // angoli arrotondati dell'illustrazione
+      const m = this.make.graphics({ add: false });
+      m.fillStyle(0xffffff, 1);
+      m.fillRoundedRect(x + 16, y + 44, cw - 32, 340, 12);
+      img.setMask(m.createGeometryMask());
       this.rows(x + 16, y + 400, cw - 32, p.rows, { size: 18, step: 42 });
     });
   }
@@ -295,12 +301,14 @@ export class CreditsScene extends Phaser.Scene {
     TEAM_LOOK.forEach((_, k) => {
       const x = Math.round(40 + k * (cw + gap));
       const y = 130;
-      // numero sopra la scheda, come le schede del personale
-      this.page.add(txt(this, x + cw / 2, y - 12, `+_0${k + 1}`, { size: 16, color: HEX.c3, origin: 0.5 }));
       const g = this.add.graphics();
       this.page.add(g);
-      const img = this.add.image(x + cw / 2, y + 184, crewBust(this, k)).setOrigin(0.5, 1);
-      const label = txt(this, x + cw / 2, y + 204, TEAM_NAMES[k], { size: 18, origin: 0.5 });
+      const img = this.add.image(x + cw / 2, y + 186, teamBust(this, k, cw, 186)).setOrigin(0.5, 1);
+      const m = this.make.graphics({ add: false });
+      m.fillStyle(0xffffff, 1);
+      m.fillRoundedRect(x, y, cw, 186, { tl: 16, tr: 16, bl: 0, br: 0 });
+      img.setMask(m.createGeometryMask());
+      const label = txt(this, x + cw / 2, y + 205, TEAM_NAMES[k], { size: 18, weight: "500", origin: 0.5 });
       this.page.add([img, label]);
       this.crew.push({ g, img, label, x, y, cw });
     });
@@ -319,13 +327,10 @@ export class CreditsScene extends Phaser.Scene {
   }
 
   drawCrew({ g, x, y, cw, label }) {
-    g.fillStyle(C.c0, 0.88);
-    g.fillRect(x, y, cw, 220);
-    g.lineStyle(2, C.c3, 1);
-    g.strokeRect(x + 1, y + 1, cw - 2, 218);
-    g.lineBetween(x, y + 188, x + cw, y + 188);
-    g.fillStyle(C.c4, 1);
-    // (angoli a quadratino rimossi: stile vettoriale pulito)
+    g.fillStyle(C.c4, 0.1);
+    g.fillRoundedRect(x, y + 4, cw, 222, 16);
+    g.fillStyle(C.c0, 0.97);
+    g.fillRoundedRect(x, y, cw, 222, 16);
     label.setColor(HEX.c4);
   }
 }

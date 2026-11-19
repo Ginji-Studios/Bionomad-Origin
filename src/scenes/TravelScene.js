@@ -95,6 +95,7 @@ export class TravelScene extends Phaser.Scene {
     Bionomad.setOutside(cityTemp(this.run, this.time_ === "night" ? 8 : 13));
     this.bio = new BioPanel(this);
     this.bioContext = { kind: "street", night: this.time_ === "night" };
+    this.tasks?.setDark(this.bioContext.night);
     this.bioKeys = bioKeys(this);
     this.mode = "play";
     // a volte, durante il tragitto, il BIONOMAD chiede qualcosa (irrigazione o aria)

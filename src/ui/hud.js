@@ -170,10 +170,11 @@ export function o2Hud(scene) {
   };
 }
 
-// colori del HUD "da mappa": verde bosco su crema
-export const GREEN = { dark: 0x2e4a37, mid: 0x6f8f77, light: 0xa9bfae, cream: 0xf2efe4 };
-export const GREEN_HEX = { dark: "#2E4A37", mid: "#6F8F77", cream: "#F2EFE4" };
-const softGlow = (t) => t.setShadow(0, 0, "rgba(242,239,228,0.9)", 10, false, true);
+// colori del HUD: blu notte su chiaro (nessun verde)
+export const GREEN = { dark: 0x24344b, mid: 0x6b7b93, light: 0xb3bccb, cream: 0xf4f5f7 };
+export const GREEN_HEX = { dark: "#24344B", mid: "#6B7B93", cream: "#F4F5F7" };
+// testo pulito, senza bordi né ombre: i colori cambiano con lo sfondo (setDark)
+const softGlow = (t) => t;
 
 // TASK in alto a sinistra, senza riquadro: CITTÀ in grassetto spaziato, coordinate sotto,
 // poi la task attuale e i passi come trattini
@@ -188,9 +189,24 @@ export function taskPanel(scene, { x = 40, y = 30 } = {}) {
   const fx = scene.add.graphics();
   c.add([fx, place, co, task]);
   let lastKey = "";
+  let dark = false;
+  let last = null;
+  const paintText = () => {
+    place.setColor(dark ? "#F4F5F7" : GREEN_HEX.dark);
+    co.setColor(dark ? "#B3BCCB" : GREEN_HEX.mid);
+    task.setColor(dark ? "#F4F5F7" : HEX.c4);
+  };
   return {
     c,
-    set(title, steps, current, { progress = null } = {}) {
+    // sfondo scuro (sera, interni bui): testo crema; sfondo chiaro: verde bosco
+    setDark(v) {
+      dark = Boolean(v);
+      paintText();
+      if (last) this.set(...last);
+    },
+    set(title, steps, current, opts = {}) {
+      last = [title, steps, current, opts];
+      const { progress = null } = opts;
       const cut = title.indexOf(" · ");
       const name = cut > 0 ? title.slice(cut + 3) : title;
       place.setText((PLACE || name).toUpperCase());
@@ -204,7 +220,7 @@ export function taskPanel(scene, { x = 40, y = 30 } = {}) {
       const n = steps.length;
       if (n > 1) {
         steps.forEach((_, i) => {
-          fx.fillStyle(i < current ? GREEN.dark : i === current ? Y_ACCENT : GREEN.light, 1);
+          fx.fillStyle(i < current ? (dark ? GREEN.cream : GREEN.dark) : i === current ? Y_ACCENT : dark ? GREEN.mid : GREEN.light, 1);
           fx.fillRoundedRect(i * 31, hgt - 4, 26, 4, 2);
         });
       }

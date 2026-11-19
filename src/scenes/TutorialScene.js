@@ -4,6 +4,7 @@ import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/PlantPanel.js";
 import { bionomadArt } from "../ui/BioPanel.js";
 import { dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
+import { addHiRes } from "../art/hires.js";
 import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
 import { plantNav } from "../input/plantNav.js";
 
@@ -12,7 +13,8 @@ import { plantNav } from "../input/plantNav.js";
 // 1 · muoversi e agire   2 · gesti di cura (+O₂)   3 · negligenze (−O₂)   4 · il respiro finisce → svieni
 const PAGE_MS = 6500;
 // l'ultimo video è più lungo: deve mostrare tutto lo svenimento
-const pageMs = (i) => (i === 3 ? 8800 : PAGE_MS);
+const CTRL_MS = 2000; // ogni comando del BIONOMAD resta acceso 2 secondi
+const pageMs = (i) => (i === 3 ? 8800 : i === 1 ? CTRL_MS * 5 + 400 : PAGE_MS);
 const TILE_W = 270;
 const TILE_H = 480;
 
@@ -293,27 +295,27 @@ export class TutorialScene extends Phaser.Scene {
     return g;
   }
 
+  // la macchina BIONOMAD vera (il dispositivo fisico) e i suoi comandi: a turno ogni tasto
+  // si illumina, la mano lo preme e la macchina reagisce
   pageControls() {
-    this.badge("I COMANDI DEL BIONOMAD", "OGNI TASK USA UNO DI QUESTI");
-    const items = [
-      ["START", "AVVIA · PAUSA", "start"],
-      ["LUCE", "INTERRUTTORE", "light"],
-      ["TEMPERATURA", "MANOPOLA", "knob"],
-      ["IRRIGAZIONE", "UNA PRESSIONE, IN TEMPO", "water"],
-      ["ARIA", "UNA PRESSIONE, IN TEMPO", "air"]
-    ];
-    const n = items.length;
-    const w = Math.floor((VIEW.w - 80 - (n - 1) * 16) / n);
-    items.forEach(([name, cap, kind], i) => {
-      const x = 40 + i * (w + 16);
-      const y = 150;
-      this.card(x, y, w, 470);
-      const g = this.add.graphics();
-      this.layer.add(g);
-      this.layer.add(txt(this, x + w / 2, y + 380, name, { size: 20, weight: "500", origin: 0.5 }));
-      this.layer.add(txt(this, x + w / 2, y + 412, cap, { size: 14, color: HEX.c3, origin: 0.5 }));
-      this.tiles.push({ kind, x, y, w, g, anim: true, delay: i * 300 });
+    this.badge("I COMANDI DEL BIONOMAD", "OGNI TASTO SI ILLUMINA QUANDO VA USATO");
+    this.card(40, 140, VIEW.w - 80, 560);
+    this.layer.add(this.add.image(70, 190, machineArt(this)).setOrigin(0));
+    const g = this.add.graphics();
+    const hand = this.add.graphics();
+    this.layer.add([g, hand]);
+    const name = txt(this, 900, 560, "", { size: 30, weight: "500", origin: 0.5 });
+    const cap = txt(this, 900, 604, "", { size: 18, color: HEX.c3, origin: 0.5, align: "center", wrap: 520 });
+    this.layer.add([name, cap]);
+    // pillole con il nome sotto ogni tasto
+    CTRL_ROW.forEach((k) => {
+      const pg = this.add.graphics();
+      pg.lineStyle(2, C.c4, 1);
+      pg.strokeRoundedRect(k.x - 44, 470, 88, 30, 15);
+      this.layer.add(pg);
+      this.layer.add(txt(this, k.x, 485, k.label, { size: 14, origin: 0.5 }));
     });
+    this.tiles.push({ kind: "machine", g, hand, name, cap, anim: true, delay: 0 });
   }
 
   pageNotify() {
@@ -334,6 +336,7 @@ export class TutorialScene extends Phaser.Scene {
   animTile(tile, t) {
     const { kind, x, y, w, g } = tile;
     g.clear();
+    if (kind === "machine") return this.animMachine(tile, t);
     const u = ((t - tile.delay) % 3000) / 3000;
     const on = u > 0 && u < 0.5;
     const cx = x + (w ?? 0) / 2;
@@ -413,6 +416,64 @@ export class TutorialScene extends Phaser.Scene {
       g.fillRoundedRect(x + 460, y + 200, Math.max(10, 360 * lvl), 16, 8);
       if (p > 0.65) ok.setText("✓  +O₂").setColor(HEX.c4);
       else ok.setText("");
+    }
+  }
+
+  // un comando alla volta: si illumina, la mano lo preme, la macchina reagisce
+  animMachine(tile, t) {
+    const { g, hand, name, cap } = tile;
+    hand.clear();
+    const idx = Math.floor(t / CTRL_MS) % CTRL_ROW.length;
+    const u = (t % CTRL_MS) / CTRL_MS;
+    const act = CTRL_ROW[idx];
+    const press = u > 0.3 && u < 0.55;
+    const after = u >= 0.3;
+    name.setText(act.label === "PLAY" ? "START" : act.label === "TEMP" ? "TEMPERATURA" : act.label === "ACQUA" ? "IRRIGAZIONE" : act.label);
+    cap.setText(act.cap);
+    // --- reazione della macchina (sopra l'illustrazione)
+    const M = MACHINE;
+    if (act.id === "light" && after) {
+      g.fillStyle(0xf6e7a8, 0.35);
+      // luce interna: striscia LED sopra le agavi e cono caldo sulla terra
+      g.fillTriangle(M.x + 300, M.y + 10, M.x + 160, M.y + 140, M.x + 440, M.y + 110);
+      g.fillStyle(0xfff3c4, 0.95);
+      g.fillRoundedRect(M.x + 250, M.y + 4, 100, 10, 5);
+    }
+    if (act.id === "water" && after) {
+      g.fillStyle(0x5f8fd0, 0.9);
+      for (let i = 0; i < 7; i++) {
+        const k = ((u - 0.3) * 3 + i / 7) % 1;
+        g.fillCircle(M.x + 190 + i * 34, M.y + 50 + k * 80, 4.5);
+      }
+    }
+    if (act.id === "air" && after) {
+      for (let i = 0; i < 5; i++) {
+        const k = ((u - 0.3) * 2.5 + i / 5) % 1;
+        g.lineStyle(4, 0x8a99b0, 1 - k);
+        g.lineBetween(M.x + 120 + k * 280, M.y + 30 + i * 20, M.x + 170 + k * 280, M.y + 26 + i * 20);
+      }
+    }
+    if (act.id === "play" && after) {
+      g.fillStyle(0x8fd0a6, 1);
+      g.fillTriangle(M.sx + 66, M.sy + 30, M.sx + 66, M.sy + 70, M.sx + 100, M.sy + 50);
+    }
+    // tasto illuminato anche sulla macchina
+    const mk = M.btn[idx];
+    g.fillStyle(act.glow, 0.25 + 0.2 * Math.sin(t / 120));
+    g.fillCircle(mk.x, mk.y, 20);
+    g.lineStyle(3, act.glow, 1);
+    g.strokeCircle(mk.x, mk.y, 14);
+    // --- fila dei comandi grandi (come sul dispositivo)
+    CTRL_ROW.forEach((k, i) => {
+      const on = i === idx;
+      drawCtrl(g, k, on, on && press, t, on && act.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0.3);
+    });
+    // --- mano che preme il tasto acceso (o gira la manopola)
+    const reach = Phaser.Math.Clamp(Math.min((u - 0.08) / 0.2, (0.95 - u) / 0.15), 0, 1);
+    if (reach > 0) {
+      const tx = act.x + 8;
+      const ty = act.y + 14 + (press ? 6 : 0);
+      drawHand(hand, tx + (1 - reach) * 160, ty + (1 - reach) * 220, act.id === "temp");
     }
   }
 
@@ -646,5 +707,241 @@ export class TutorialScene extends Phaser.Scene {
       if (this.page < 3) this.showPage(this.page + 1);
       else goTo(this, this.next);
     }
+  }
+}
+
+// ---------------------------------------------------------------- la macchina BIONOMAD
+const MACHINE = { x: 70, y: 190, sx: 340, sy: 430 };
+// tasti sul dispositivo (coordinate sullo schermo): luce, acqua, aria, play, manopola
+MACHINE.btn = [
+  { x: MACHINE.x + 210, y: MACHINE.y + 158 },
+  { x: MACHINE.x + 250, y: MACHINE.y + 152 },
+  { x: MACHINE.x + 290, y: MACHINE.y + 146 },
+  { x: MACHINE.x + 330, y: MACHINE.y + 140 },
+  { x: MACHINE.x + 378, y: MACHINE.y + 132 }
+];
+const CTRL_ROW = [
+  { id: "light", label: "LUCE", x: 700, y: 360, glow: 0xe2b33c, cap: "Premi il tasto: accende la luce interna dello zaino." },
+  { id: "water", label: "ACQUA", x: 810, y: 360, glow: 0x3f8fe0, cap: "Premi una volta, in tempo: parte l'irrigazione interna." },
+  { id: "air", label: "ARIA", x: 920, y: 360, glow: 0x9aa7ba, cap: "Premi una volta, in tempo: soffia aria pulita." },
+  { id: "play", label: "PLAY", x: 1030, y: 360, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
+  { id: "temp", label: "TEMP", x: 1150, y: 360, glow: 0xd0864f, cap: "Gira la manopola: tra 18 e 24 °C." }
+];
+
+// illustrazione vettoriale del dispositivo: scatola bianca con le agavi, vasi laterali, display e tasti
+export function machineArt(scene) {
+  const key = "tut_machine";
+  if (scene.textures.exists(key)) return key;
+  const S = 2;
+  const W = 560;
+  const H = 480;
+  const c = document.createElement("canvas");
+  c.width = W * S;
+  c.height = H * S;
+  const X = c.getContext("2d");
+  X.scale(S, S);
+  X.lineJoin = "round";
+  const agave = (cx, base, h, n, spread) => {
+    for (let i = 0; i < n; i++) {
+      const lean = (i - (n - 1) / 2) * spread;
+      const hh = h * (0.7 + ((i * 37) % 10) / 30);
+      X.fillStyle = ["#2F5A48", "#3C6B55", "#28503F"][i % 3];
+      X.strokeStyle = "#C9B98A";
+      X.lineWidth = 1.5;
+      X.beginPath();
+      X.moveTo(cx - 9 + i * 2 - n, base);
+      X.quadraticCurveTo(cx + lean * 0.3 - 8, base - hh * 0.6, cx + lean, base - hh);
+      X.quadraticCurveTo(cx + lean * 0.3 + 10, base - hh * 0.6, cx + 9 + i * 2 - n, base);
+      X.closePath();
+      X.fill();
+      X.stroke();
+      X.strokeStyle = "rgba(201,185,138,0.5)";
+      X.beginPath();
+      X.moveTo(cx + i * 2 - n, base);
+      X.quadraticCurveTo(cx + lean * 0.3, base - hh * 0.6, cx + lean, base - hh + 6);
+      X.stroke();
+    }
+  };
+  const pot = (x, y, w, h, plants) => {
+    agave(x + w / 2, y + 6, plants, 6, 7);
+    X.fillStyle = "#E9E6DE";
+    X.fillRect(x, y, w, h);
+    X.beginPath();
+    X.ellipse(x + w / 2, y + h, w / 2, 10, 0, 0, 7);
+    X.fill();
+    X.fillStyle = "#D7D3CA";
+    X.fillRect(x + w - 16, y, 16, h);
+    X.fillStyle = "#4E3E33";
+    X.beginPath();
+    X.ellipse(x + w / 2, y, w / 2, 9, 0, 0, 7);
+    X.fill();
+    X.fillStyle = "#F2F0EA";
+    X.beginPath();
+    X.ellipse(x + w / 2, y, w / 2, 9, 0, Math.PI, 0);
+    X.lineTo(x + w, y);
+    X.fill();
+  };
+  // ombra a terra
+  X.fillStyle = "rgba(36,52,75,0.16)";
+  X.beginPath();
+  X.ellipse(290, 440, 250, 34, 0, 0, 7);
+  X.fill();
+  // vaso a sinistra (dietro)
+  pot(20, 300, 96, 110, 110);
+  // corpo: faccia superiore, faccia frontale, fianco
+  X.fillStyle = "#F4F2EC";
+  X.beginPath();
+  X.moveTo(110, 120);
+  X.lineTo(420, 80);
+  X.lineTo(500, 130);
+  X.lineTo(190, 172);
+  X.closePath();
+  X.fill();
+  // apertura con la terra e le agavi
+  X.fillStyle = "#4E3E33";
+  X.beginPath();
+  X.moveTo(150, 124);
+  X.lineTo(400, 92);
+  X.lineTo(452, 124);
+  X.lineTo(200, 158);
+  X.closePath();
+  X.fill();
+  agave(300, 140, 150, 14, 12);
+  X.fillStyle = "#ECEAE4";
+  X.beginPath();
+  X.moveTo(110, 120);
+  X.lineTo(190, 172);
+  X.lineTo(204, 420);
+  X.quadraticCurveTo(140, 400, 112, 380);
+  X.closePath();
+  X.fill();
+  X.fillStyle = "#E4E1D9";
+  X.beginPath();
+  X.moveTo(190, 172);
+  X.lineTo(500, 130);
+  X.lineTo(492, 372);
+  X.quadraticCurveTo(470, 392, 204, 420);
+  X.closePath();
+  X.fill();
+  // display sulla faccia frontale
+  X.fillStyle = "#22324A";
+  X.beginPath();
+  X.moveTo(250, 220);
+  X.lineTo(460, 196);
+  X.lineTo(456, 330);
+  X.lineTo(248, 356);
+  X.closePath();
+  X.fill();
+  X.fillStyle = "#3F5677";
+  X.fillRect(266, 300, 176, 30);
+  X.fillStyle = "#E9ECEF";
+  X.font = "bold 18px monospace";
+  X.fillText("O₂RIGIN", 268, 252);
+  X.fillStyle = "#C9D3E0";
+  X.beginPath();
+  X.arc(420, 230, 7, 0, 7);
+  X.fill();
+  // tasti sul bordo (vuoti: si accendono nell'animazione)
+  [[210, 158], [250, 152], [290, 146], [330, 140]].forEach(([bx, by]) => {
+    X.fillStyle = "#D9D5CC";
+    X.beginPath();
+    X.arc(bx, by + 2, 12, 0, 7);
+    X.fill();
+    X.fillStyle = "#F7F6F2";
+    X.beginPath();
+    X.arc(bx, by, 11, 0, 7);
+    X.fill();
+  });
+  X.fillStyle = "#24344B";
+  X.beginPath();
+  X.arc(378, 132, 13, 0, 7);
+  X.fill();
+  // vaso a destra (davanti)
+  pot(440, 220, 90, 100, 100);
+  addHiRes(scene, key, c, S);
+  return key;
+}
+
+// un comando grande nello stile del dispositivo: cerchio chiaro, icona, alone colorato se acceso
+function drawCtrl(g, k, on, pressed, t, knob) {
+  const { x, y, glow } = k;
+  if (on) {
+    for (let i = 4; i >= 1; i--) {
+      g.fillStyle(glow, 0.08 * (5 - i) + (pressed ? 0.06 : 0));
+      g.fillCircle(x, y, 44 + i * 9 + Math.sin(t / 160) * 2);
+    }
+  }
+  if (k.id === "temp") {
+    // anello di puntini: freddo (blu) → caldo (arancio), si accendono fino alla posizione
+    for (let i = 0; i < 16; i++) {
+      const a = -Math.PI * 1.25 + (i / 15) * Math.PI * 1.5;
+      const u = i / 15;
+      const col = Phaser.Display.Color.GetColor(Math.round(0x5f + (0xd0 - 0x5f) * u), Math.round(0x8f + (0x86 - 0x8f) * u), Math.round(0xd0 + (0x4f - 0xd0) * u));
+      g.fillStyle(u <= knob ? col : 0xd3dbe6, 1);
+      g.fillCircle(x + Math.cos(a) * 60, y + Math.sin(a) * 60, 5);
+    }
+    g.fillStyle(0xd9d5cc, 1);
+    g.fillCircle(x, y, 46);
+    g.fillStyle(0x24344b, 1);
+    g.fillCircle(x, y, 38);
+    const a = -Math.PI * 1.25 + knob * Math.PI * 1.5;
+    g.lineStyle(6, 0xd0864f, 1);
+    g.lineBetween(x + Math.cos(a) * 14, y + Math.sin(a) * 14, x + Math.cos(a) * 32, y + Math.sin(a) * 32);
+    return;
+  }
+  g.fillStyle(0x24344b, 0.12);
+  g.fillCircle(x, y + 4, 44);
+  g.fillStyle(pressed ? 0xe4e1d9 : 0xf4f2ec, 1);
+  g.fillCircle(x, y + (pressed ? 3 : 0), 44);
+  g.lineStyle(on ? 4 : 2, on ? glow : 0xd3dbe6, 1);
+  g.strokeCircle(x, y + (pressed ? 3 : 0), 44);
+  const col = on ? glow : 0x9aa7ba;
+  const cy = y + (pressed ? 3 : 0);
+  if (k.id === "light") {
+    g.fillStyle(col, 1);
+    g.fillCircle(x, cy, 12);
+    g.lineStyle(5, col, 1);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g.lineBetween(x + Math.cos(a) * 18, cy + Math.sin(a) * 18, x + Math.cos(a) * 26, cy + Math.sin(a) * 26);
+    }
+  } else if (k.id === "water") {
+    g.lineStyle(5, col, 1);
+    g.beginPath();
+    g.arc(x, cy + 6, 13, -0.2, Math.PI + 0.2, false);
+    g.lineTo(x, cy - 22);
+    g.closePath();
+    g.strokePath();
+  } else if (k.id === "air") {
+    g.lineStyle(5, col, 1);
+    g.lineBetween(x - 20, cy - 10, x + 12, cy - 10);
+    g.lineBetween(x - 20, cy, x + 18, cy);
+    g.lineBetween(x - 20, cy + 10, x + 8, cy + 10);
+    g.beginPath();
+    g.arc(x + 12, cy - 16, 6, Math.PI / 2, -Math.PI / 2 - 1.2, true);
+    g.strokePath();
+  } else if (k.id === "play") {
+    g.lineStyle(5, col, 1);
+    g.strokeTriangle(x - 9, cy - 15, x - 9, cy + 15, x + 16, cy);
+  }
+}
+
+// mano del tutorial: indice teso (punta in x,y), manica del cappotto dal basso a destra
+function drawHand(h, x, y, grip) {
+  h.fillStyle(0x9aa3af, 1);
+  h.fillPoints([{ x: x + 26, y: y + 40 }, { x: x + 110, y: y + 150 }, { x: x + 62, y: y + 178 }, { x: x - 6, y: y + 66 }], true);
+  h.fillStyle(0xe2b33c, 1);
+  h.fillPoints([{ x: x + 20, y: y + 50 }, { x: x + 36, y: y + 78 }, { x: x + 4, y: y + 92 }, { x: x - 8, y: y + 64 }], true);
+  h.fillStyle(0xe8cfb8, 1);
+  h.fillEllipse(x + 12, y + 40, 46, 38);
+  if (grip) {
+    h.fillStyle(0xd6b89e, 1);
+    h.fillEllipse(x - 4, y + 22, 18, 26);
+    h.fillEllipse(x + 22, y + 18, 18, 26);
+  } else {
+    h.lineStyle(13, 0xe8cfb8, 1);
+    h.lineBetween(x + 4, y + 26, x, y);
+    h.fillStyle(0xf3dfcd, 1);
+    h.fillCircle(x, y + 2, 4);
   }
 }

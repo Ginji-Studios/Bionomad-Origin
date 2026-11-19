@@ -1,14 +1,14 @@
 // eventi della giornata con i nuovi controlli del BIONOMAD:
-//   luce (interruttore), temperatura (manopola + display zaino/esterno),
-//   irrigazione (pulsante: né troppo né troppo poco), arieggiamento (pulsante da tenere premuto).
+//   LUCE (tasto: luce interna dello zaino), TEMP (manopola + display zaino/esterno),
+//   ACQUA (una pressione = irrigazione interna; due = troppa), ARIA (una pressione = ventola).
 //
 // tipi di step:
 //   notify    arriva una notifica sul telefono / dal BIONOMAD (si completa da sola)
 //   bio       pannello del BIONOMAD con un obiettivo: goal = light | temp | water | air
 //             light: qteMs = tempo per accenderla (quick time event)
 //             temp:  out = °C fuori, holdMs = quanto restare nella fascia giusta
-//             water: portare l'acqua nella fascia giusta senza esagerare
-//             air:   tenere premuto finché l'aria è pulita
+//             water: una pressione in tempo (quick time event); due allagano la terra
+//             air:   una pressione in tempo (quick time event)
 //   place     appoggiare il BIONOMAD sul tavolo (in ufficio si usa l'hub dell'ufficio)
 //   take      riprendere il BIONOMAD dal tavolo
 //   reach     raggiungere un punto      exit  uscire      talk  parlare con qualcuno
@@ -25,7 +25,7 @@ export const EVENTS = {
     description: "Il bus è pieno e le persone coprono il tuo BIONOMAD: accendi la luce in tempo.",
     steps: [
       { type: "notify", ms: 1600, text: "SALI SUL BUS", line: "Il bus è pieno: le persone coprono il BIONOMAD, la pianta è al buio!" },
-      { type: "bio", goal: "light", qteMs: 6000, text: "ACCENDI LA LUCE IN TEMPO", hint: "Gira l'interruttore della luce prima che scada il tempo." }
+      { type: "bio", goal: "light", qteMs: 6000, text: "LA PIANTA È AL BUIO", hint: "Le persone coprono lo zaino: premi LUCE prima che finisca il tempo." }
     ]
   },
   bus_perso: {
@@ -36,7 +36,7 @@ export const EVENTS = {
     description: "Perdi il bus e fuori fa freddo: porta la temperatura dello zaino al valore giusto.",
     steps: [
       { type: "busLeaves", text: "ASPETTA IL BUS" },
-      { type: "bio", goal: "temp", out: 3, holdMs: 3000, text: "FA FREDDO: ALZA LA TEMPERATURA", hint: "Gira la manopola finché lo zaino resta tra 18 e 24 °C." }
+      { type: "bio", goal: "temp", out: 3, holdMs: 3000, text: "FA FREDDO: SCALDA LO ZAINO", hint: "Fuori ci sono 3 °C: gira TEMP verso il caldo finché il display resta tra 18 e 24 °C." }
     ]
   },
   // ---------------------------------------------------------------- UFFICIO
@@ -52,7 +52,7 @@ export const EVENTS = {
       { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
       { type: "notify", ms: 2600, text: "AL LAVORO", line: "NOTIFICA · Riscaldamento dell'ufficio spento: il BIONOMAD ha freddo", out: 12 },
       { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
-      { type: "bio", goal: "temp", out: 12, holdMs: 3000, text: "ALZA LA TEMPERATURA", hint: "Gira la manopola: lo zaino deve restare tra 18 e 24 °C." },
+      { type: "bio", goal: "temp", out: 12, holdMs: 3000, text: "IL BIONOMAD HA FREDDO", hint: "Riscaldamento spento: gira TEMP verso il caldo e tieni il display tra 18 e 24 °C." },
       { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
       { type: "exit", target: "door", text: "ESCI DALL'UFFICIO" }
     ]
@@ -68,7 +68,7 @@ export const EVENTS = {
       { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
       { type: "notify", ms: 2600, text: "AL LAVORO", line: "NOTIFICA · Il capo ti aspetta: il BIONOMAD deve essere smagliante" },
       { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
-      { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", hint: "Premi UNA volta il pulsante dell'aria, prima che scada il tempo." },
+      { type: "bio", goal: "air", text: "PULISCI IL BIONOMAD", hint: "C'è polvere sulle foglie: premi ARIA una volta, in tempo, e la ventola la soffia via." },
       { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
       { type: "talk", target: "boss", text: "PARLA CON IL CAPO", line: "Ottimo lavoro: sembra appena uscito dalla serra!" }
     ]
@@ -85,7 +85,7 @@ export const EVENTS = {
       { type: "place", target: "hub", text: "APPOGGIA IL BIONOMAD SUL TAVOLO" },
       { type: "notify", ms: 2400, text: "ULTIME MAIL", line: "Fine della giornata: fuori è già buio" },
       { type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" },
-      { type: "bio", goal: "light", text: "ACCENDI LA LUCE DEL BIONOMAD", hint: "Accendi l'interruttore della luce: fuori è buio." },
+      { type: "bio", goal: "light", text: "ACCENDI LA LUCE PRIMA DI USCIRE", hint: "Fuori è buio: premi LUCE per accendere la luce interna dello zaino." },
       { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
       { type: "exit", target: "door", text: "ESCI DALL'UFFICIO" }
     ]
@@ -101,7 +101,7 @@ export const EVENTS = {
     description: "Entri in casa e il riscaldamento è acceso: abbassa la temperatura del BIONOMAD.",
     steps: [
       { type: "notify", ms: 1800, text: "ENTRA IN CASA", line: "Il riscaldamento di casa è acceso: 28 °C", out: 28 },
-      { type: "bio", goal: "temp", out: 28, holdMs: 3000, text: "ABBASSA LA TEMPERATURA", hint: "Gira la manopola verso il freddo: tra 18 e 24 °C." }
+      { type: "bio", goal: "temp", out: 28, holdMs: 3000, text: "FA CALDO: RAFFREDDA LO ZAINO", hint: "In casa ci sono 28 °C: gira TEMP verso il freddo e tieni il display tra 18 e 24 °C." }
     ]
   },
   casa_notte: {
@@ -115,7 +115,7 @@ export const EVENTS = {
     steps: [
       { type: "sleep", target: "sofa", duration: 1800, text: "VAI A DORMIRE" },
       { type: "notify", ms: 2200, text: "DORMI…", line: "03:12 · Il BIONOMAD ti sveglia: ha bisogno di cure", wake: true },
-      { type: "bio", goal: "need", text: "DAI AL BIONOMAD QUELLO CHE SERVE", hint: "Leggi il display: acqua o aria?" }
+      { type: "bio", goal: "need", text: "IL BIONOMAD TI HA SVEGLIATO", hint: "Guarda la pianta: acqua o aria?" }
     ]
   },
   // ---------------------------------------------------------------- EMERGENZA (molto rara)
@@ -138,18 +138,18 @@ export const NIGHT_CHANCE = [0.25, 0.5, 0.8];
 // notifiche a caso durante i tragitti
 export const TRAVEL_TASK_CHANCE = 0.5;
 export const TRAVEL_TASKS = [
-  { type: "bio", goal: "water", text: "IRRIGA IL BIONOMAD", line: "NOTIFICA · Il BIONOMAD ha bisogno di acqua", hint: "Premi UNA volta il pulsante dell'irrigazione, in tempo: due volte è troppa." },
-  { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", line: "NOTIFICA · Il BIONOMAD ha bisogno di aria", hint: "Premi UNA volta il pulsante dell'aria, prima che scada il tempo." }
+  { type: "bio", goal: "water", text: "IRRIGA IL BIONOMAD", line: "NOTIFICA · Il BIONOMAD ha bisogno di acqua", hint: "La terra è secca: premi ACQUA una sola volta, in tempo. Due volte la allaghi." },
+  { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", line: "NOTIFICA · Il BIONOMAD ha bisogno di aria", hint: "Smog e polvere nel vetro: premi ARIA una volta, in tempo." }
 ];
 
 export const EMERGENCY_CHANCE = 0.03;
 // cure a sorpresa durante la corsa verso casa (tre a caso)
 export const EMERGENCY_ACTIONS = [
-  { type: "bio", goal: "light", qteMs: 5000, text: "! ACCENDI LA LUCE", hint: "Subito: interruttore della luce." },
-  { type: "bio", goal: "temp", out: 4, holdMs: 2000, timeoutMs: 12000, text: "! ALZA LA TEMPERATURA", hint: "Manopola: tra 18 e 24 °C." },
-  { type: "bio", goal: "temp", out: 34, holdMs: 2000, timeoutMs: 12000, text: "! ABBASSA LA TEMPERATURA", hint: "Manopola: tra 18 e 24 °C." },
-  { type: "bio", goal: "water", timeoutMs: 12000, text: "! IRRIGA", hint: "Premi una volta il pulsante dell'acqua." },
-  { type: "bio", goal: "air", timeoutMs: 12000, text: "! ARIEGGIA", hint: "Premi una volta il pulsante dell'aria." }
+  { type: "bio", goal: "light", qteMs: 5000, text: "! ACCENDI LA LUCE", hint: "Subito: premi LUCE." },
+  { type: "bio", goal: "temp", out: 4, holdMs: 2000, timeoutMs: 12000, text: "! SCALDA LO ZAINO", hint: "Gira TEMP verso il caldo: 18–24 °C." },
+  { type: "bio", goal: "temp", out: 34, holdMs: 2000, timeoutMs: 12000, text: "! RAFFREDDA LO ZAINO", hint: "Gira TEMP verso il freddo: 18–24 °C." },
+  { type: "bio", goal: "water", timeoutMs: 12000, text: "! IRRIGA", hint: "Premi ACQUA una volta." },
+  { type: "bio", goal: "air", timeoutMs: 12000, text: "! ARIEGGIA", hint: "Premi ARIA una volta." }
 ];
 
 // compatibilità con il vecchio sistema (non più usato)

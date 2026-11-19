@@ -108,16 +108,16 @@ const PW = 480;
 const GLASS = { x: PX - 190, y: 150, w: 380, h: 410 }; // finestra di vetro con la pianta
 const SOIL_Y = 512;
 const TANK = { x: PX - 170, y: 578, w: 340, h: 30 }; // serbatoio d'acqua trasparente
-const SCREEN = { x: PX - 112, y: 640, w: 224, h: 84 }; // display della temperatura
+const SCREEN = { x: PX - 212, y: 640, w: 210, h: 84 }; // display della temperatura
 // oggetti reali con cui si interagisce
-const INLET = { x: PX - PW / 2 - 4, y: 330 }; // imbuto per l'acqua sul fianco sinistro
-const CAN = { x: INLET.x - 162, y: INLET.y - 112 }; // annaffiatoio (punto della maniglia)
-const LAMP_K = 1.45;
-const LAMP = { x: PX + 228, y: 262 }; // lampada a pinza agganciata alla spalla destra
-const LAMP_HEAD = { x: LAMP.x - 82 * LAMP_K, y: LAMP.y - 80 * LAMP_K };
-const LAMP_SW = { x: LAMP.x + 46, y: LAMP.y + 2 }; // interruttore sulla pinza
-const DIAL = { x: PX + 330, y: 640, r: 66 }; // ghiera della temperatura sul fianco
-const FAN = { x: 236, y: 370 }; // ventilatore a mano (centro della griglia)
+// tasti sullo zaino (come sul dispositivo vero): luce interna, irrigazione interna, aria
+const BTN = {
+  light: { x: PX + 52, y: 690, col: 0xe2b33c },
+  water: { x: PX + 124, y: 690, col: 0x3f8fe0 },
+  air: { x: PX + 196, y: 690, col: 0x8a99b0 }
+};
+const PIPE_X = GLASS.x + GLASS.w - 22; // tubo dell'irrigazione interna (sale dal serbatoio)
+const SPRAY_Y = GLASS.y + 120; // barra con gli ugelli sopra le piante
 const GREENS = [0x5f8f62, 0x76a574, 0x4e7c55, 0x6a9a69];
 
 // sfondo ravvicinato del posto in cui si è (sfocato, come in primo piano)
@@ -288,22 +288,10 @@ function packTextures(scene) {
     X.beginPath();
     X.ellipse(PX, TOP - 20, 50, 9, 0, 0, 7);
     X.fill();
-    // imbuto dell'acqua sul fianco sinistro
-    X.fillStyle = "#AEB6C2";
+    // pannello dei tasti a destra del display
+    X.fillStyle = "#D9D6CE";
     X.beginPath();
-    X.moveTo(INLET.x - 40, INLET.y - 30);
-    X.lineTo(INLET.x + 30, INLET.y - 30);
-    X.lineTo(INLET.x + 30, INLET.y + 26);
-    X.lineTo(INLET.x + 8, INLET.y + 26);
-    X.closePath();
-    X.fill();
-    X.fillStyle = "#C9CDD3";
-    X.beginPath();
-    X.ellipse(INLET.x - 5, INLET.y - 30, 36, 9, 0, 0, 7);
-    X.fill();
-    X.fillStyle = "#2B3D56";
-    X.beginPath();
-    X.ellipse(INLET.x - 5, INLET.y - 30, 28, 6, 0, 0, 7);
+    X.roundRect(PX + 14, 640, 222, 100, 18);
     X.fill();
     // cornice del vetro
     X.fillStyle = "#D9D6CE";
@@ -412,135 +400,9 @@ function packTextures(scene) {
     H.fill();
     addHiRes(scene, "bv_grip", c, SSZ);
   }
-  // annaffiatoio: corpo blu-grigio, beccuccio lungo con la rosetta a sinistra, maniglia in alto
-  // (origine sulla maniglia: 200,40)
-  {
-    const [c, X] = hiCanvas(280, 190);
-    X.strokeStyle = "#556C88";
-    X.lineWidth = 12;
-    X.beginPath();
-    X.moveTo(150, 74);
-    X.quadraticCurveTo(200, 0, 252, 80);
-    X.stroke();
-    X.fillStyle = "#6E86A4";
-    X.beginPath();
-    X.moveTo(150, 70);
-    X.lineTo(70, 120);
-    X.lineTo(20, 46);
-    X.lineTo(34, 38);
-    X.lineTo(84, 104);
-    X.lineTo(150, 82);
-    X.closePath();
-    X.fill();
-    X.fillStyle = "#556C88";
-    X.beginPath();
-    X.ellipse(22, 40, 18, 9, -0.95, 0, 7);
-    X.fill();
-    X.fillStyle = "#7F97B5";
-    X.beginPath();
-    X.roundRect(130, 70, 140, 110, 18);
-    X.fill();
-    X.fillStyle = "#6E86A4";
-    X.fillRect(250, 74, 20, 104);
-    X.fillStyle = "rgba(255,255,255,0.35)";
-    X.fillRect(144, 84, 8, 80);
-    X.fillStyle = "#E2B33C";
-    X.fillRect(130, 150, 140, 8);
-    addHiRes(scene, "bv_can", c, SSZ);
-  }
-  // lampada a pinza: pinza sul bordo, collo flessibile, testa che guarda dentro il vetro
-  {
-    const [c, X] = hiCanvas(200, 200);
-    X.strokeStyle = "#3A4B63";
-    X.lineWidth = 9;
-    X.beginPath();
-    X.moveTo(130, 140);
-    X.bezierCurveTo(130, 60, 90, 30, 50, 60);
-    X.stroke();
-    X.save();
-    X.translate(48, 70);
-    X.rotate(0.5);
-    X.fillStyle = "#24344B";
-    X.beginPath();
-    X.moveTo(-34, 30);
-    X.lineTo(-18, -12);
-    X.lineTo(18, -12);
-    X.lineTo(34, 30);
-    X.closePath();
-    X.fill();
-    X.fillStyle = "#3A4B63";
-    X.fillRect(-18, -20, 36, 10);
-    X.restore();
-    // pinza
-    X.fillStyle = "#2F3D52";
-    X.beginPath();
-    X.roundRect(104, 130, 70, 36, 10);
-    X.fill();
-    X.fillStyle = "#24344B";
-    X.fillRect(112, 160, 14, 34);
-    X.fillRect(152, 160, 14, 34);
-    addHiRes(scene, "bv_lamp", c, SSZ);
-  }
-  // ventilatore a mano: griglia rotonda e manico (centro griglia 90,90)
-  {
-    const [c, X] = hiCanvas(180, 300);
-    X.fillStyle = "#3A4B63";
-    X.beginPath();
-    X.roundRect(76, 150, 28, 140, 12);
-    X.fill();
-    X.fillStyle = "#E2B33C";
-    X.fillRect(78, 196, 24, 8);
-    X.fillStyle = "#24344B";
-    X.beginPath();
-    X.arc(90, 90, 84, 0, 7);
-    X.fill();
-    X.fillStyle = "#C6D3E3";
-    X.beginPath();
-    X.arc(90, 90, 74, 0, 7);
-    X.fill();
-    addHiRes(scene, "bv_fan", c, SSZ);
-  }
-  // pala del ventilatore (ruota attorno a 70,70)
-  {
-    const [c, X] = hiCanvas(140, 140);
-    X.fillStyle = "#7F97B5";
-    for (let i = 0; i < 4; i++) {
-      X.save();
-      X.translate(70, 70);
-      X.rotate((i * Math.PI) / 2);
-      X.beginPath();
-      X.ellipse(0, -34, 18, 32, 0.35, 0, 7);
-      X.fill();
-      X.restore();
-    }
-    X.fillStyle = "#24344B";
-    X.beginPath();
-    X.arc(70, 70, 12, 0, 7);
-    X.fill();
-    addHiRes(scene, "bv_blade", c, SSZ);
-  }
-  // griglia davanti alle pale
-  {
-    const [c, X] = hiCanvas(180, 180);
-    X.strokeStyle = "rgba(36,52,75,0.85)";
-    X.lineWidth = 2;
-    [24, 44, 64].forEach((r) => {
-      X.beginPath();
-      X.arc(90, 90, r, 0, 7);
-      X.stroke();
-    });
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      X.beginPath();
-      X.moveTo(90, 90);
-      X.lineTo(90 + Math.cos(a) * 74, 90 + Math.sin(a) * 74);
-      X.stroke();
-    }
-    addHiRes(scene, "bv_guard", c, SSZ);
-  }
 }
 
-const GOAL_NAME = { light: "LUCE", temp: "TEMPERATURA", water: "IRRIGAZIONE", air: "ARIEGGIAMENTO" };
+const GOAL_NAME = { light: "TASTO LUCE", temp: "MANOPOLA TEMP", water: "TASTO ACQUA", air: "TASTO ARIA" };
 
 export class BioPanel {
   constructor(scene) {
@@ -561,7 +423,7 @@ export class BioPanel {
     let hint = step.hint;
     if (goal === "need") {
       goal = Math.random() < 0.5 ? "water" : "air";
-      hint = goal === "water" ? "Ha sete: premi UNA volta il pulsante dell'acqua, in tempo." : "Ha bisogno d'aria: premi UNA volta il pulsante dell'aria, in tempo.";
+      hint = goal === "water" ? "La terra è secca: premi ACQUA una volta, parte l'irrigazione interna." : "L'aria nel vetro è viziata: premi ARIA una volta, in tempo.";
     }
     this.step = { ...step, goal, hint };
     this.emergency = emergency;
@@ -573,9 +435,6 @@ export class BioPanel {
     this.drops = [];
     this.puffs = [];
     this.litAt = null;
-    this.tilt = 0;
-    this.spin = 0;
-    this.fanPush = 0;
     this.dust = goal === "air" ? Array.from({ length: 30 }, () => [GLASS.x + 24 + Math.random() * (GLASS.w - 48), 230 + Math.random() * 260]) : [];
     if (step.out != null) Bionomad.setOutside(step.out);
     const s = Bionomad.state;
@@ -587,6 +446,7 @@ export class BioPanel {
     this.qte = step.qteMs ?? step.timeoutMs ?? (goal === "water" || goal === "air" ? 7000 : null);
 
     const ctx = scene.bioContext ?? { kind: "street", night: false };
+    scene.tasks?.setDark?.(ctx.night || (goal === "light" && step.qteMs));
     const c = scene.add.container(0, 0).setDepth(1400).setScrollFactor(0);
     c.add(scene.add.image(0, 0, placeBackdrop(scene, ctx.kind, ctx.night)).setOrigin(0));
     this.back = scene.add.graphics();
@@ -613,28 +473,14 @@ export class BioPanel {
     this.arm = scene.add.graphics();
     this.props.add(this.arm);
     this.hand = null;
-    if (goal === "water") {
-      // girato: il beccuccio punta a destra, verso l'imbuto dello zaino
-      this.can = scene.add.image(CAN.x, CAN.y, "bv_can").setOrigin(80 / 280, 40 / 190).setFlipX(true);
-      this.hand = scene.add.image(CAN.x, CAN.y, "bv_grip").setOrigin(60 / 140, 60 / 140);
-      this.props.add([this.can, this.hand]);
-    } else if (goal === "light") {
-      this.props.add(scene.add.image(LAMP.x, LAMP.y, "bv_lamp").setOrigin(130 / 200, 150 / 200).setScale(LAMP_K));
-      this.sw = scene.add.graphics();
-      this.props.add(this.sw);
-      this.hand = scene.add.image(LAMP_SW.x, LAMP_SW.y, "bv_hand2").setOrigin(22 / 140, 22 / 140);
-      this.props.add(this.hand);
-    } else if (goal === "air") {
-      this.fan = scene.add.container(FAN.x, FAN.y);
-      this.blade = scene.add.image(0, 0, "bv_blade");
-      this.fan.add([scene.add.image(0, 0, "bv_fan").setOrigin(0.5, 90 / 300), this.blade, scene.add.image(0, 0, "bv_guard")]);
-      this.fan.setRotation(0.12);
-      this.hand = scene.add.image(FAN.x + 18, FAN.y + 150, "bv_grip").setOrigin(60 / 140, 60 / 140);
-      this.props.add([this.fan, this.hand]);
-    } else if (goal === "temp") {
+    if (goal === "temp") {
       this.hand = scene.add.image(DIAL.x, DIAL.y, "bv_grip").setOrigin(60 / 140, 60 / 140);
-      this.props.add(this.hand);
+    } else {
+      // il dito preme il tasto dello zaino
+      const k = BTN[goal];
+      this.hand = scene.add.image(k.x + 6, k.y + 8, "bv_hand2").setOrigin(22 / 140, 22 / 140);
     }
+    this.props.add(this.hand);
     // la mano entra dal basso a destra
     if (this.hand) {
       const hx = this.hand.x;
@@ -646,14 +492,16 @@ export class BioPanel {
     this.fx = scene.add.graphics();
     c.add(this.fx);
     // scheda con l'indicazione (a destra in alto)
+    const label = txt(scene, VIEW.w - 352, 112, GOAL_NAME[goal], { size: 13, color: HEX.c3 });
+    const hintT = txt(scene, VIEW.w - 352, 134, hint ?? "", { size: 16, color: HEX.c4, wrap: 300 });
+    const ch = Math.max(128, hintT.height + 80);
+    this.barY = 96 + ch - 22;
     const card = scene.add.graphics();
     card.fillStyle(C.c4, 0.12);
-    card.fillRoundedRect(VIEW.w - 372, 100, 340, 128, 18);
+    card.fillRoundedRect(VIEW.w - 372, 100, 340, ch, 18);
     card.fillStyle(C.c0, 0.96);
-    card.fillRoundedRect(VIEW.w - 372, 96, 340, 128, 18);
-    c.add(card);
-    c.add(txt(scene, VIEW.w - 352, 112, GOAL_NAME[goal], { size: 13, color: HEX.c3 }));
-    c.add(txt(scene, VIEW.w - 352, 134, hint ?? "", { size: 16, color: HEX.c4, wrap: 300 }));
+    card.fillRoundedRect(VIEW.w - 372, 96, 340, ch, 18);
+    c.add([card, label, hintT]);
     this.bar = scene.add.graphics();
     c.add(this.bar);
     this.makeTouch(c);
@@ -677,9 +525,9 @@ export class BioPanel {
       c.add(z);
     };
     const g = this.step.goal;
-    if (g === "light" && PlantSensors.simulated("LU")) zone(LAMP.x - 60, LAMP.y - 90, 260, 220, () => (Bionomad.sim.light = !Bionomad.sim.light));
-    if (g === "water" && PlantSensors.simulated("IR")) zone(CAN.x + 60, CAN.y + 60, 300, 220, () => (scene._simIrr = true), () => (scene._simIrr = false));
-    if (g === "air" && PlantSensors.simulated("AR")) zone(FAN.x, FAN.y + 40, 200, 320, () => (scene._simAir = true), () => (scene._simAir = false));
+    if (g === "light" && PlantSensors.simulated("LU")) zone(BTN.light.x, BTN.light.y, 76, 90, () => (Bionomad.sim.light = !Bionomad.sim.light));
+    if (g === "water" && PlantSensors.simulated("IR")) zone(BTN.water.x, BTN.water.y, 76, 90, () => (scene._simIrr = true), () => (scene._simIrr = false));
+    if (g === "air" && PlantSensors.simulated("AR")) zone(BTN.air.x, BTN.air.y, 76, 90, () => (scene._simAir = true), () => (scene._simAir = false));
     if (g === "temp" && PlantSensors.simulated("TK"))
       [-1, 1].forEach((d) => zone(DIAL.x + d * 60, DIAL.y, 120, 180, () => (this.knobDir = d), () => (this.knobDir = 0)));
   }
@@ -809,33 +657,19 @@ export class BioPanel {
     const handFree = this.hand && !this.scene.tweens.isTweening(this.hand);
 
     // ---------- oggetti reali mossi dai comandi veri
-    let spout = null;
-    if (goal === "water") {
-      // annaffiatoio: si inclina e versa davvero quando si tiene premuto il pulsante dell'acqua
-      this.tilt = ease(this.tilt, s.irrigating ? 0.56 : 0.04 + Math.sin(t * 1.4) * 0.02, 180);
-      this.can.setRotation(this.tilt);
-      if (handFree) this.hand.setPosition(CAN.x, CAN.y).setRotation(this.tilt * 0.5);
-      // punta del beccuccio (girato: 258,40 nella texture) ruotata attorno alla maniglia (80,40)
-      const dx = 258 - 80;
-      const dy = 0;
-      spout = { x: CAN.x + dx * Math.cos(this.tilt) - dy * Math.sin(this.tilt), y: CAN.y + dx * Math.sin(this.tilt) + dy * Math.cos(this.tilt) };
-    } else if (goal === "light") {
-      if (s.light !== this.prev.light) this.tapUntil = this.t + 280;
+    // il dito preme il tasto quando nella realtà si preme il comando
+    const presses = Bionomad.pulse.irrPresses + Bionomad.pulse.airPresses;
+    if (s.light !== this.prev.light || presses !== this.prev.presses) this.tapUntil = this.t + 300;
+    if (goal !== "temp") {
+      const k = BTN[goal];
       const press = this.t < (this.tapUntil ?? 0) ? 1 : 0;
       this.handPress = ease(this.handPress ?? 0, press, 60);
-      if (handFree) this.hand.setPosition(LAMP_SW.x + 8 + 22 * (1 - this.handPress), LAMP_SW.y + 10 + 26 * (1 - this.handPress));
-    } else if (goal === "air") {
-      this.spin += (s.venting ? 0.05 : 0.002) * delta;
-      this.blade.setRotation(this.spin);
-      this.fanPush = ease(this.fanPush, s.venting ? 1 : 0, 200);
-      const fx = FAN.x + this.fanPush * 40 + (s.venting ? Math.sin(t * 30) * 1.5 : 0);
-      this.fan.setPosition(fx, FAN.y);
-      if (handFree) this.hand.setPosition(fx + 18, FAN.y + 150);
+      if (handFree) this.hand.setPosition(k.x + 6 + 20 * (1 - this.handPress), k.y + 8 + 24 * (1 - this.handPress));
     } else if (goal === "temp") {
       const ang = -Math.PI * 0.75 + s.knob * Math.PI * 1.5;
       if (handFree) this.hand.setPosition(DIAL.x + Math.sin(ang) * 30, DIAL.y - Math.cos(ang) * 30).setRotation(ang * 0.5);
     }
-    this.prev = { light: s.light, knob: s.knob };
+    this.prev = { light: s.light, knob: s.knob, presses };
     this.drawArm();
 
     // ---------- dietro il vetro: aria interna e luce
@@ -852,7 +686,7 @@ export class BioPanel {
     if (lit) {
       // luce accesa: il cono caldo della lampada sulle piante
       G.fillStyle(0xf6e7a8, 0.45 + 0.08 * Math.sin(t * 4));
-      G.fillTriangle(LAMP_HEAD.x - 8, LAMP_HEAD.y + 26, GLASS.x + 10, SOIL_Y, GLASS.x + GLASS.w - 10, SOIL_Y);
+      G.fillTriangle(PX, GLASS.y + 14, GLASS.x + 10, SOIL_Y, GLASS.x + GLASS.w - 10, SOIL_Y);
     }
 
     // ---------- piante: agave che ondeggia con l'aria, si piega col freddo/caldo
@@ -897,30 +731,29 @@ export class BioPanel {
     F.clear();
     F.fillStyle(0xffffff, 0.35);
     F.fillRect(GLASS.x + 22, GLASS.y + 80, 12, 240);
-    if (spout && this.tilt > 0.36) {
-      // getto vero: dall'annaffiatoio cade nell'imbuto, poi scorre lungo il vetro fino alla terra
-      const k = Phaser.Math.Clamp((this.tilt - 0.36) / 0.18, 0, 1);
-      F.lineStyle(7 * k, 0x6f9fdc, 0.9);
-      F.beginPath();
-      F.moveTo(spout.x, spout.y);
-      const steps = 10;
-      for (let i = 1; i <= steps; i++) {
-        const u = i / steps;
-        // piccola parabola: esce in avanti e cade
-        const x = spout.x + (INLET.x - 4 - spout.x) * u + Math.sin(u * Math.PI) * 6;
-        const y = spout.y + (INLET.y - 34 - spout.y) * u * u + Math.sin(t * 22 + u * 9) * 1.2;
-        F.lineTo(x, y);
+    // irrigazione interna: tubo che sale dal serbatoio e barra con gli ugelli sopra le piante
+    const flowing = s.irrigating;
+    F.lineStyle(9, 0xaeb6c2, 1);
+    F.lineBetween(PIPE_X, TANK.y, PIPE_X, SPRAY_Y);
+    F.lineBetween(PIPE_X, SPRAY_Y, GLASS.x + 40, SPRAY_Y);
+    for (let i = 0; i < 6; i++) {
+      F.fillStyle(0x8f99a8, 1);
+      F.fillRect(GLASS.x + 52 + i * 52, SPRAY_Y + 3, 8, 8);
+    }
+    if (flowing) {
+      // l'acqua scorre nel tubo (trattini che salgono) ed esce a pioggia dagli ugelli
+      F.lineStyle(4, 0x5f8fd0, 1);
+      for (let y = TANK.y - ((t * 260) % 24); y > SPRAY_Y; y -= 24) F.lineBetween(PIPE_X, y, PIPE_X, Math.max(SPRAY_Y, y - 12));
+      for (let x = PIPE_X - ((t * 260) % 24); x > GLASS.x + 40; x -= 24) F.lineBetween(x, SPRAY_Y, Math.max(GLASS.x + 40, x - 12), SPRAY_Y);
+      for (let i = 0; i < 6; i++) {
+        F.fillStyle(0x6f9fdc, 0.35);
+        F.fillTriangle(GLASS.x + 56 + i * 52, SPRAY_Y + 10, GLASS.x + 40 + i * 52, SOIL_Y, GLASS.x + 72 + i * 52, SOIL_Y);
       }
-      F.strokePath();
-      // dentro: un filo d'acqua scende lungo la parete sinistra del vetro fino alla terra
-      F.lineStyle(6 * k, 0x6f9fdc, 0.85);
-      F.beginPath();
-      F.moveTo(GLASS.x + 4, INLET.y);
-      F.lineTo(GLASS.x + 12, INLET.y + 40);
-      F.lineTo(GLASS.x + 24 + Math.sin(t * 18) * 2, SOIL_Y);
-      F.strokePath();
-      if (Math.random() < delta / 22) this.drops.push({ x: GLASS.x + 24 + Math.random() * 30, y: SOIL_Y - 4, vx: Math.random() * 0.15, vy: -0.22 - Math.random() * 0.2 });
-      if (Math.random() < delta / 50) this.drops.push({ x: INLET.x - 4 + (Math.random() - 0.5) * 30, y: INLET.y - 36, vx: (Math.random() - 0.5) * 0.12, vy: -0.15, free: true });
+      if (Math.random() < delta / 8) {
+        const i = Math.floor(Math.random() * 6);
+        this.drops.push({ x: GLASS.x + 56 + i * 52, y: SPRAY_Y + 12, vx: (Math.random() - 0.5) * 0.1, vy: 0.1, fall: true });
+      }
+      if (Math.random() < delta / 30) this.drops.push({ x: GLASS.x + 40 + Math.random() * (GLASS.w - 80), y: SOIL_Y - 4, vx: (Math.random() - 0.5) * 0.15, vy: -0.22 - Math.random() * 0.2 });
     }
     this.drops = this.drops.filter((d) => {
       d.vy += delta * 0.0012;
@@ -928,17 +761,18 @@ export class BioPanel {
       d.y += d.vy * delta;
       F.fillStyle(0x5f8fd0, 0.9);
       F.fillCircle(d.x, d.y, 3.5);
-      return d.free ? d.y < INLET.y - 26 : d.y < SOIL_Y + 2;
+      return d.y < SOIL_Y + 2;
     });
     if (s.water > 0.92) {
       // troppa acqua: trabocca dal bocchettone e cola lungo il guscio fino a terra
       F.fillStyle(0x5f8fd0, 0.6);
       F.fillEllipse(PX, BOT - 18, 460 + Math.sin(t * 2) * 20, 26);
       for (let i = 0; i < 5; i++) F.fillCircle(PX - 200 + i * 100, ((t * 170 + i * 70) % 200) + 600, 5);
-      F.fillRect(INLET.x - 30, INLET.y - 30, 6, 160 + Math.sin(t * 3) * 12);
-      F.fillRect(INLET.x + 14, INLET.y - 30, 6, 120 + Math.cos(t * 3) * 12);
+      F.fillRect(GLASS.x + 30, SOIL_Y - 10, GLASS.w - 60, 14);
+      F.fillRect(PX - 120, GLASS.y + GLASS.h + 10, 6, 220 + Math.sin(t * 3) * 12);
+      F.fillRect(PX + 80, GLASS.y + GLASS.h + 10, 6, 180 + Math.cos(t * 3) * 12);
     }
-    if (s.venting && Math.random() < delta / 20) this.puffs.push({ x: FAN.x + 70 + this.fanPush * 40, y: FAN.y - 60 + Math.random() * 120, a: 1 });
+    if (s.venting && Math.random() < delta / 20) this.puffs.push({ x: GLASS.x + 6, y: GLASS.y + 180 + Math.random() * 220, a: 1 });
     this.puffs = this.puffs.filter((p) => {
       p.x += delta * 0.8;
       p.a -= delta / 1000;
@@ -973,22 +807,51 @@ export class BioPanel {
     // ---------- lampada accesa, ghiera della temperatura, display
     const D = this.dev;
     D.clear();
-    if (goal === "light") {
-      // interruttore a levetta sulla pinza (sopra la lampada, sotto la mano)
-      const W2 = this.sw;
-      W2.clear();
-      W2.fillStyle(0x56657b, 1);
-      W2.fillRoundedRect(LAMP_SW.x - 20, LAMP_SW.y - 13, 40, 26, 8);
-      W2.fillStyle(lit ? Y_ACCENT : 0xc9ced6, 1);
-      W2.fillRoundedRect(lit ? LAMP_SW.x : LAMP_SW.x - 17, LAMP_SW.y - 10, 17, 20, 6);
-      if (lit) {
-        // la lampadina brilla
-        D.fillStyle(0xfff3c4, 0.9);
-        D.fillCircle(LAMP_HEAD.x - 8, LAMP_HEAD.y + 26, 18);
-        D.fillStyle(0xfff3c4, 0.22 + 0.05 * Math.sin(t * 5));
-        D.fillCircle(LAMP_HEAD.x - 8, LAMP_HEAD.y + 26, 48);
-      }
+    // luce interna: striscia LED in cima al vetro (accesa calda, spenta scura)
+    D.fillStyle(lit ? 0xfff3c4 : 0x2b3d56, 1);
+    D.fillRoundedRect(PX - 70, GLASS.y + 6, 140, 12, 6);
+    if (lit) {
+      D.fillStyle(0xfff3c4, 0.25 + 0.05 * Math.sin(t * 5));
+      D.fillEllipse(PX, GLASS.y + 14, 240, 40);
     }
+    // feritoie dell'aria sul fianco del vetro
+    D.fillStyle(0x9aa7ba, 1);
+    for (let i = 0; i < 5; i++) D.fillRoundedRect(GLASS.x - 8, GLASS.y + 200 + i * 40, 14, 22, 4);
+    // tasti dello zaino: luce, irrigazione, aria (il tasto dell'obiettivo si illumina)
+    Object.entries(BTN).forEach(([id, k]) => {
+      const on = id === goal;
+      const pressed = (id === "water" && s.irrigating) || (id === "air" && s.venting) || (id === "light" && lit);
+      if (on) {
+        for (let i = 3; i >= 1; i--) {
+          D.fillStyle(k.col, 0.1 * (4 - i));
+          D.fillCircle(k.x, k.y, 30 + i * 7 + Math.sin(t * 5) * 2);
+        }
+      }
+      D.fillStyle(0xc9c6be, 1);
+      D.fillCircle(k.x, k.y + 3, 29);
+      D.fillStyle(pressed ? 0xe4e1d9 : 0xf4f2ec, 1);
+      D.fillCircle(k.x, k.y + (pressed ? 2 : 0), 27);
+      const col = on || pressed ? k.col : 0x9aa7ba;
+      const cy = k.y + (pressed ? 2 : 0);
+      if (id === "light") {
+        D.fillStyle(col, 1);
+        D.fillCircle(k.x, cy, 7);
+        D.lineStyle(3.5, col, 1);
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          D.lineBetween(k.x + Math.cos(a) * 11, cy + Math.sin(a) * 11, k.x + Math.cos(a) * 16, cy + Math.sin(a) * 16);
+        }
+      } else if (id === "water") {
+        D.fillStyle(col, 1);
+        D.fillCircle(k.x, cy + 4, 8);
+        D.fillTriangle(k.x - 7.5, cy + 1, k.x + 7.5, cy + 1, k.x, cy - 14);
+      } else {
+        D.lineStyle(3.5, col, 1);
+        D.lineBetween(k.x - 12, cy - 6, k.x + 8, cy - 6);
+        D.lineBetween(k.x - 12, cy, k.x + 12, cy);
+        D.lineBetween(k.x - 12, cy + 6, k.x + 4, cy + 6);
+      }
+    });
     if (goal === "temp" || step.out != null) {
       // ghiera sul fianco: scala dal blu (freddo) al rosso (caldo), indice, zigrinatura
       const a0 = -Math.PI * 0.75 - Math.PI / 2;
@@ -1045,12 +908,12 @@ export class BioPanel {
     const pressed = goal === "water" ? Bionomad.pulse.irrPresses > this.presses0.irr : goal === "air" ? Bionomad.pulse.airPresses > this.presses0.air : false;
     // ---------- quick time event: anello che si svuota attorno all'oggetto finché non si preme
     if ((goal === "water" || goal === "air") && !pressed && this.qte) {
-      const at = goal === "water" ? { x: CAN.x + 60, y: CAN.y + 50 } : { x: FAN.x, y: FAN.y };
+      const at = BTN[goal];
       const left = Math.max(0, 1 - this.elapsed / this.qte);
-      const pulseR = 118 + Math.sin(t * 8) * 5;
-      X.lineStyle(10, 0xffffff, 0.35);
+      const pulseR = 46 + Math.sin(t * 8) * 3;
+      X.lineStyle(6, 0xffffff, 0.5);
       X.strokeCircle(at.x, at.y, pulseR);
-      X.lineStyle(10, left < 0.3 ? 0xb4553f : Y_ACCENT, 1);
+      X.lineStyle(6, left < 0.3 ? 0xb4553f : Y_ACCENT, 1);
       X.beginPath();
       X.arc(at.x, at.y, pulseR, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2, false);
       X.strokePath();
@@ -1060,14 +923,14 @@ export class BioPanel {
     const B = this.bar;
     B.clear();
     B.fillStyle(C.c1, 1);
-    B.fillRoundedRect(VIEW.w - 352, 204, 300, 8, 4);
+    B.fillRoundedRect(VIEW.w - 352, this.barY, 300, 8, 4);
     B.fillStyle(C.c4, 1);
-    B.fillRoundedRect(VIEW.w - 352, 204, Math.max(8, 300 * progress), 8, 4);
+    B.fillRoundedRect(VIEW.w - 352, this.barY, Math.max(8, 300 * progress), 8, 4);
     const limit = pressed ? null : this.qte;
     if (limit) {
       const left = Math.max(0, 1 - this.elapsed / limit);
       B.fillStyle(left < 0.3 ? 0xb4553f : Y_ACCENT, 1);
-      B.fillRoundedRect(VIEW.w - 352, 216, 300 * left, 4, 2);
+      B.fillRoundedRect(VIEW.w - 352, this.barY + 12, 300 * left, 4, 2);
     }
   }
 }

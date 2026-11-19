@@ -965,7 +965,7 @@ function front(T, o) {
   X.fillRect(cx - 19, 193, 18, 2);
   X.fillRect(cx + 1, 193, 18, 2);
   // busto
-  X.fillStyle = shade(cx - 24, cx + 24, topT + 0.14, topT - 0.12);
+  X.fillStyle = o.sweaterColor ?? (o.jacket ? shade(cx - 24, cx + 24, 0.34, 0.2) : shade(cx - 24, cx + 24, topT + 0.14, topT - 0.12));
   X.beginPath();
   X.moveTo(cx - 18, 64);
   X.lineTo(cx + 18, 64);
@@ -994,12 +994,44 @@ function front(T, o) {
     X.fillRect(cx + 8, 70, 14, 58);
   }
   // braccia lungo i fianchi
-  X.fillStyle = shade(cx - 34, cx - 20, topT + 0.1, topT - 0.05);
+  X.fillStyle = o.sweaterColor ?? (o.jacket ? shade(cx - 34, cx - 20, 0.3, 0.16) : shade(cx - 34, cx - 20, topT + 0.1, topT - 0.05));
   X.fillRect(cx - 32, 70, 10, 50);
-  X.fillStyle = shade(cx + 20, cx + 34, topT, topT - 0.15);
+  X.fillStyle = o.sweaterColor ?? (o.jacket ? shade(cx + 20, cx + 34, 0.24, 0.12) : shade(cx + 20, cx + 34, topT, topT - 0.15));
   X.fillRect(cx + 22, 70, 10, 50);
   ell(cx - 27, 124, 5.5, 6, G(skin));
   ell(cx + 27, 124, 5.5, 6, G(skin - 0.1));
+  if (o.jacket) {
+    // giacca corta con reversi, cucitura centrale e taschini
+    X.fillStyle = G(0.48);
+    X.beginPath();
+    X.moveTo(cx - 15, 65);
+    X.lineTo(cx - 3, 74);
+    X.lineTo(cx - 10, 88);
+    X.lineTo(cx - 20, 76);
+    X.closePath();
+    X.fill();
+    X.beginPath();
+    X.moveTo(cx + 15, 65);
+    X.lineTo(cx + 3, 74);
+    X.lineTo(cx + 10, 88);
+    X.lineTo(cx + 20, 76);
+    X.closePath();
+    X.fill();
+    X.strokeStyle = G(0.08);
+    X.lineWidth = 1.5;
+    X.beginPath();
+    X.moveTo(cx, 74);
+    X.lineTo(cx, 130);
+    X.stroke();
+    X.fillStyle = G(0.72);
+    X.fillRect(cx - 15, 108, 8, 2);
+    X.fillRect(cx + 7, 108, 8, 2);
+    X.fillStyle = G(0.9);
+    X.beginPath();
+    X.arc(cx, 91, 1.8, 0, 7);
+    X.arc(cx, 101, 1.8, 0, 7);
+    X.fill();
+  }
   // collo e testa
   X.fillStyle = G(skin - 0.15);
   X.fillRect(cx - 6, 52, 12, 14);
@@ -1380,9 +1412,9 @@ export function npcKey(scene, city, i) {
 
 // il team nei crediti, di fronte
 export const TEAM_LOOK = [
-  { hair: "long", hairTone: 0.86, top: 0.22, legs: 0.08, earrings: true },
+  { hair: "long", hairTone: 0.86, sweaterColor: "#8FB8D4", top: 0.3, legs: 0.08, earrings: true },
   { hair: "manbun", hairTone: 0.3, top: 0.9, legs: 0.75, beard: true, glasses: "round" },
-  { hair: "long", hairTone: 0.3, hat: "cap", vest: true, top: 0.35, legs: 0.08, tuft: true },
+  { hair: "long", hairTone: 0.3, hat: "cap", jacket: true, top: 0.35, legs: 0.08, tuft: true },
   { hair: "long", hairTone: 0.36, top: 0.12, legs: 0.3, skirt: true, earLocks: true, glasses: "round" },
   { hair: "long", hairTone: 0.55, balayage: true, frontLocks: true, glasses: "round", top: 0.2, stripes: true, legs: 0.3 },
   { hair: "long", hairTone: 0.14, top: 0.78, legs: 0.4, overalls: true }
@@ -1392,10 +1424,10 @@ const RUST = "#B4553F";
 function tuft(x, P) {
   x.fillStyle = RUST;
   x.beginPath();
-  x.moveTo(...P(44, 30));
-  x.quadraticCurveTo(...P(52, 25), ...P(62, 29));
-  x.quadraticCurveTo(...P(55, 31), ...P(51, 37));
-  x.quadraticCurveTo(...P(48, 32), ...P(44, 30));
+  x.moveTo(...P(43, 24));
+  x.quadraticCurveTo(...P(52, 18), ...P(63, 23));
+  x.quadraticCurveTo(...P(56, 25), ...P(51, 30));
+  x.quadraticCurveTo(...P(47, 26), ...P(43, 24));
   x.fill();
 }
 

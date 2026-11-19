@@ -109,6 +109,7 @@ export class EventScene extends Phaser.Scene {
     this.bio = new BioPanel(this);
     // sfondo ravvicinato delle task: il posto in cui si è, di giorno o di sera
     this.bioContext = { kind: ["bus", "office", "home"].includes(loc) ? loc : "street", night: this.time_ === "night" };
+    this.tasks.setDark(this.bioContext.night);
     this.bioKeys = bioKeys(this);
     this.night = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0x0e1626, 0).setOrigin(0).setScrollFactor(0).setDepth(1300);
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));

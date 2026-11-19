@@ -1,4 +1,5 @@
 import Phaser from "../phaser.js";
+import { addHiRes } from "../art/hires.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { paint, setDayMode } from "../world/skyline.js";
@@ -130,50 +131,99 @@ export class MenuScene extends Phaser.Scene {
     this.cycle = 0;
     brackets(this);
 
-    // pannello a sinistra a tutta altezza, chiaro e semitrasparente: titolo, voci, piè di pagina
-    const panel = this.add.graphics().setDepth(20);
-    panel.fillStyle(C.c0, 0.9);
-    panel.fillRect(0, 0, 470, VIEW.h);
-    panel.fillStyle(C.c4, 0.06);
-    panel.fillRect(470, 0, 4, VIEW.h);
-    txt(this, 64, 92, "BIONOMAD · BIODOM+", { size: 13, color: HEX.c3 }).setDepth(21).setLetterSpacing?.(3);
-    if (!this.textures.exists("menu_title")) this.textures.addCanvas("menu_title", titleCanvas());
-    this.add.image(60, 112, "menu_title").setOrigin(0).setScale(0.52).setDepth(21);
-    txt(this, 64, 222, "Respira con la tua pianta.", { size: 17, color: HEX.c3 }).setDepth(21);
+    // colonna a sinistra: velo crema che sfuma verso la città (niente blocco grigio)
+    // velo freddo (stesso tono della città, niente stacco caldo/freddo) e sfumatura lunga e
+    // morbida: pieno fino a dopo il titolo, poi scende con una curva dolce fino a sparire.
+    // Due versioni (giorno chiara, notte più scura) che si incrociano con il ciclo giorno/notte
+    // un solo velo, sempre uguale di giorno e di notte (nessun cambio di colore del menu).
+    // Il velo cambia colore e trasparenza insieme: parte chiaro dietro al testo e mentre
+    // svanisce prende il colore del cielo, così si fonde con la città senza bordo visibile
+    const veil = (key, from, to) => {
+      if (this.textures.exists(key)) return;
+      const W = 1280;
+      const c = document.createElement("canvas");
+      c.width = W;
+      c.height = 8;
+      const x = c.getContext("2d");
+      const g = x.createLinearGradient(0, 0, W, 0);
+      const ease = (u) => u * u * (3 - 2 * u);
+      for (let i = 0; i <= 48; i++) {
+        const u = i / 48;
+        // pieno fino a ~400 px, poi cala dolcemente fino a ~1150 px
+        const k = u < 0.32 ? 1 : Math.max(0, 1 - (u - 0.32) / 0.58);
+        const a = 0.96 * (0.5 * k + 0.5 * ease(k));
+        const m = ease(Math.min(1, Math.max(0, (u - 0.28) / 0.4)));
+        const col = from.map((v, j) => Math.round(v + (to[j] - v) * m));
+        g.addColorStop(u, `rgba(${col.join(",")},${a.toFixed(3)})`);
+      }
+      x.fillStyle = g;
+      x.fillRect(0, 0, W, 8);
+      this.textures.addCanvas(key, c);
+    };
+    veil("menu_veil2", [236, 239, 244], [212, 218, 228]);
+    this.veilDay = this.add.image(0, 0, "menu_veil2").setOrigin(0).setDisplaySize(VIEW.w, VIEW.h).setDepth(20);
+    // logo biodom+ vettoriale e firma
+    this.add.image(72, 78, "logo_biodom_l").setOrigin(0, 0.5).setTint(0x24344b).setDepth(21);
+    txt(this, 72, 112, "PRESENTA", { size: 12, color: HEX.c3 }).setDepth(21).setLetterSpacing?.(4);
+    // titolo vettoriale
+    if (!this.textures.exists("menu_title2")) addHiRes(this, "menu_title2", titleVector(), 3);
+    this.add.image(68, 158, "menu_title2").setOrigin(0).setScale(0.8).setDepth(21);
+    txt(this, 72, 268, "Respira con la tua pianta.", { size: 19, color: HEX.c4 }).setDepth(21);
+    this.add.rectangle(72, 306, 46, 4, Y_ACCENT).setOrigin(0, 0.5).setDepth(21);
 
-    // voci del menu: righe di testo con un trattino giallo che compare a sinistra al passaggio
+    // voci del menu: numero, nome grande, freccia; la voce attiva ha la pillola scura
     const items = [
-      ["Gioca", () => goTo(this, "SetupScene")],
-      [PlantSensors.state.connected ? "Pianta collegata ✓" : "Collega pianta", () => this.connect()],
-      ["Crediti", () => goTo(this, "CreditsScene")]
+      ["GIOCA", () => goTo(this, "SetupScene")],
+      [PlantSensors.state.connected ? "PIANTA COLLEGATA" : "COLLEGA LA PIANTA", () => this.connect()],
+      ["CREDITI", () => goTo(this, "CreditsScene")]
     ];
+    this.sel = 0;
     this.buttons = items.map(([label, fn], i) => {
-      const y = 330 + i * 76;
-      const mark = this.add.rectangle(64, y, 4, 34, Y_ACCENT).setOrigin(0, 0.5).setDepth(21).setScale(1, i === 0 ? 1 : 0);
-      const t = txt(this, 84, y, label, { size: i === 0 ? 30 : 24, weight: i === 0 ? "500" : "400", origin: [0, 0.5], color: i === 0 ? HEX.c4 : HEX.c3 }).setDepth(21);
-      const line = this.add.rectangle(64, y + 38, 340, 1, C.c3, 0.35).setOrigin(0, 0.5).setDepth(21);
-      const z = this.add.zone(56, y - 34, 380, 68).setOrigin(0).setInteractive({ useHandCursor: true }).setDepth(22);
-      const hl = (on) => {
-        this.tweens.add({ targets: mark, scaleY: on || i === 0 ? 1 : 0, duration: 160 });
-        t.setColor(on || i === 0 ? HEX.c4 : HEX.c3);
+      const y = 400 + i * 80;
+      const pill = this.add.graphics().setDepth(21);
+      const num = txt(this, 96, y, `0${i + 1}`, { size: 14, color: HEX.c3, origin: [0, 0.5] }).setDepth(22);
+      const t = txt(this, 140, y, label, { size: i === 0 ? 30 : 22, weight: "500", origin: [0, 0.5], color: HEX.c4 }).setDepth(22);
+      const arrow = this.add.graphics().setDepth(22);
+      const z = this.add.zone(72, y - 34, 470, 68).setOrigin(0).setInteractive({ useHandCursor: true }).setDepth(23);
+      const draw = (on) => {
+        pill.clear();
+        arrow.clear();
+        if (on) {
+          pill.fillStyle(0x24344b, 1);
+          pill.fillRoundedRect(72, y - 32, Math.max(330, t.width + 150), 64, 32);
+          arrow.fillStyle(Y_ACCENT, 1);
+          const ax = 72 + Math.max(330, t.width + 150) - 44;
+          arrow.fillTriangle(ax, y - 9, ax, y + 9, ax + 14, y);
+        }
+        t.setColor(on ? "#F4F5F7" : HEX.c4);
+        num.setColor(on ? "#E2B33C" : HEX.c3);
       };
-      z.on("pointerover", () => hl(true));
-      z.on("pointerout", () => hl(false));
       const press = () => {
         Sfx.blip?.();
         fn();
       };
+      z.on("pointerover", () => this.select(i));
       z.on("pointerup", press);
-      return { press, setLabel: (l) => t.setText(l), line };
+      return { press, draw, setLabel: (l) => t.setText(l) };
     });
-    txt(this, 64, VIEW.h - 64, "Premi START o tocca una foglia", { size: 14, color: HEX.c3 }).setDepth(21);
+    this.select = (i) => {
+      this.sel = i;
+      this.buttons.forEach((b, k) => b.draw(k === i));
+    };
+    this.select(0);
+    // piè di pagina: il tasto START del dispositivo
+    const foot = this.add.graphics().setDepth(21);
+    foot.lineStyle(2, 0x24344b, 1);
+    foot.strokeCircle(92, VIEW.h - 70, 18);
+    foot.fillStyle(Y_ACCENT, 1);
+    foot.fillTriangle(86, VIEW.h - 80, 86, VIEW.h - 60, 102, VIEW.h - 70);
+    txt(this, 124, VIEW.h - 70, "Premi START o tocca una foglia", { size: 15, color: HEX.c4, origin: [0, 0.5] }).setDepth(21);
     this.plantBtn = this.buttons[1];
     this.plantLabel = (s) => this.plantBtn.setLabel(s);
+    this.input.keyboard.on("keydown-UP", () => this.select((this.sel + 2) % 3));
+    this.input.keyboard.on("keydown-DOWN", () => this.select((this.sel + 1) % 3));
 
-    // logo piccolo, allineato al margine destro (stesso margine dei pulsanti a sinistra)
-    this.add.image(VIEW.w - 64, VIEW.h - 34, "logo_biodom").setOrigin(1, 1).setScale(2).setTint(0xf4f5f7).setDepth(1500);
-
-    this.input.keyboard.on("keydown-ENTER", () => this.buttons[0].press());
+    this.input.keyboard.on("keydown-ENTER", () => this.buttons[this.sel].press());
     // pianta: destra = GIOCA
     plantNav(this, { right: () => this.buttons[0].press() });
   }
@@ -296,4 +346,30 @@ export class MenuScene extends Phaser.Scene {
       toast(this, error?.message ?? "Collegamento non riuscito", { duration: 3200 });
     }
   }
+}
+
+// titolo O₂RIGIN vettoriale (canvas 3x): lettere grandi blu notte, il 2 in giallo
+function titleVector() {
+  const S = 3;
+  const W = 460;
+  const H = 120;
+  const c = document.createElement("canvas");
+  c.width = W * S;
+  c.height = H * S;
+  const X = c.getContext("2d");
+  X.scale(S, S);
+  X.fillStyle = "#24344B";
+  X.font = '800 104px "Helvetica Neue", "Inter", Arial, sans-serif';
+  X.textBaseline = "alphabetic";
+  X.fillText("O", 0, 100);
+  const ow = X.measureText("O").width;
+  X.fillStyle = "#E2B33C";
+  X.font = '800 52px "Helvetica Neue", "Inter", Arial, sans-serif';
+  X.fillText("2", ow + 2, 116);
+  const tw = X.measureText("2").width;
+  X.fillStyle = "#24344B";
+  X.font = '800 104px "Helvetica Neue", "Inter", Arial, sans-serif';
+  if ("letterSpacing" in X) X.letterSpacing = "-2px";
+  X.fillText("RIGIN", ow + tw + 6, 100);
+  return c;
 }
