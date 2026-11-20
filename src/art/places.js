@@ -89,75 +89,144 @@ function wall(T, w, windows, { tone = 0.3 } = {}) {
   });
 }
 
-// hub BIONOMAD (come il dispositivo vero): blocco bianco dagli spigoli morbidi, sansevierie
-// in cima, tasti e display sul davanti, appoggiato su un mobiletto
-function hub(T, cx, base, s = 1) {
+// HOME HUB: teca di vetro su una base d'acciaio, con un bonsai dentro, la plafoniera di luce
+// in alto (ventole, tubicini della nebulizzazione) e il pannello di controllo sul davanti.
+// Il BIONOMAD si aggancia sul piano della base, davanti alla teca.
+export function hub(T, cx, base, s = 1) {
   const { X } = T;
-  // mobiletto
-  X.fillStyle = "#56667E";
-  X.beginPath();
-  X.roundRect(cx - 40 * s, base - 62 * s, 80 * s, 62 * s, 4 * s);
-  X.fill();
-  X.fillStyle = "#6B7B93";
-  X.fillRect(cx - 40 * s, base - 62 * s, 80 * s, 6 * s);
-  const top = base - 62 * s;
-  // piante (dietro al bordo del blocco)
-  const leaf = (bx, by, h, lean, w) => {
-    X.beginPath();
-    X.moveTo(bx - w, by);
-    X.quadraticCurveTo(bx - w + lean * 0.3, by - h * 0.55, bx + lean, by - h);
-    X.quadraticCurveTo(bx + w + lean * 0.3, by - h * 0.55, bx + w, by);
-    X.closePath();
-    X.fillStyle = "#2E5B4B";
-    X.fill();
-    X.strokeStyle = "rgba(217,201,143,0.7)";
-    X.lineWidth = 0.5 * s;
-    X.stroke();
+  const steel = (x0, x1) => {
+    const g = X.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, "#7E8A9C");
+    g.addColorStop(0.35, "#C9D0DA");
+    g.addColorStop(0.6, "#A7B1BF");
+    g.addColorStop(1, "#6F7B8E");
+    return g;
   };
-  // tante sansevierie: tre ciuffi che riempiono tutta la vaschetta
-  [-20, 0, 20].forEach((dx, k) => {
-    for (let i = 0; i < 9; i++) {
-      const u = i / 8;
-      leaf(cx + dx * s + (u - 0.5) * 26 * s, top - 52 * s, (34 + Math.sin(u * Math.PI) * (k === 1 ? 34 : 22)) * s, (u - 0.5) * 26 * s, 3.4 * s);
-    }
-  });
-  // blocco bianco
-  X.fillStyle = "#E4E1D9";
+  const W = 96 * s;
+  const BH = 80 * s; // base
+  const GH = 124 * s; // teca
+  const LH = 14 * s; // plafoniera
+  const x0 = cx - W / 2;
+  const bTop = base - BH;
+  const gTop = bTop - GH;
+  // ombra a terra
+  X.fillStyle = "rgba(14,22,36,0.25)";
   X.beginPath();
-  X.roundRect(cx - 36 * s, top - 56 * s, 72 * s, 56 * s, 10 * s);
+  X.ellipse(cx, base, W * 0.6, 6 * s, 0, 0, 7);
   X.fill();
-  X.fillStyle = "#F4F2EC";
+  // ---- base d'acciaio arrotondata
+  X.fillStyle = steel(x0, x0 + W);
   X.beginPath();
-  X.roundRect(cx - 36 * s, top - 56 * s, 72 * s, 12 * s, 6 * s);
+  X.roundRect(x0, bTop, W, BH, 8 * s);
+  X.fill();
+  X.fillStyle = "rgba(255,255,255,0.35)";
+  X.fillRect(x0 + 4 * s, bTop + 3 * s, W - 8 * s, 2 * s);
+  // pannello di controllo: placca scura, due display ambra, manopole e interruttori
+  const px0 = cx - 26 * s;
+  const py0 = bTop + 26 * s;
+  X.fillStyle = "#3A4558";
+  X.beginPath();
+  X.roundRect(px0, py0, 52 * s, 40 * s, 4 * s);
+  X.fill();
+  X.fillStyle = "#1A2230";
+  X.fillRect(px0 + 6 * s, py0 + 5 * s, 16 * s, 7 * s);
+  X.fillRect(px0 + 30 * s, py0 + 5 * s, 16 * s, 7 * s);
+  X.fillStyle = "#E2B33C";
+  X.fillRect(px0 + 8 * s, py0 + 7 * s, 10 * s, 3 * s);
+  X.fillRect(px0 + 32 * s, py0 + 7 * s, 8 * s, 3 * s);
+  [[10, 20], [26, 20], [42, 20], [10, 31], [26, 31], [42, 31]].forEach(([kx, ky], i) => {
+    X.fillStyle = i % 3 === 1 ? "#C9D0DA" : "#E9ECEF";
+    X.beginPath();
+    X.arc(px0 + kx * s, py0 + ky * s, 3 * s, 0, 7);
+    X.fill();
+    X.fillStyle = "#3A4558";
+    X.fillRect(px0 + kx * s - 0.6 * s, py0 + ky * s - 3 * s, 1.2 * s, 3 * s);
+  });
+  // ---- teca di vetro: interno con l'aria leggermente azzurra
+  X.fillStyle = "rgba(196,214,234,0.55)";
+  X.beginPath();
+  X.roundRect(x0 + 4 * s, gTop, W - 8 * s, GH, 6 * s);
+  X.fill();
+  // piano interno e bonsai
+  X.fillStyle = "#AEB6C2";
+  X.fillRect(x0 + 8 * s, bTop - 6 * s, W - 16 * s, 6 * s);
+  X.fillStyle = "#3E3631";
+  X.beginPath();
+  X.moveTo(cx - 22 * s, bTop - 18 * s);
+  X.lineTo(cx + 22 * s, bTop - 18 * s);
+  X.lineTo(cx + 18 * s, bTop - 6 * s);
+  X.lineTo(cx - 18 * s, bTop - 6 * s);
+  X.closePath();
   X.fill();
   X.fillStyle = "#4A3A2F";
+  X.fillRect(cx - 22 * s, bTop - 20 * s, 44 * s, 3 * s);
+  // tronco contorto
+  X.strokeStyle = "#3B2F27";
+  X.lineCap = "round";
+  X.lineWidth = 6 * s;
   X.beginPath();
-  X.roundRect(cx - 26 * s, top - 54 * s, 52 * s, 5 * s, 2 * s);
-  X.fill();
-  // tasti
-  ["#E2B33C", "#3F8FE0", "#9AA7BA", "#4CBF72"].forEach((col, i) => {
-    X.fillStyle = "#F9F8F4";
+  X.moveTo(cx + 2 * s, bTop - 19 * s);
+  X.bezierCurveTo(cx - 14 * s, bTop - 40 * s, cx + 16 * s, bTop - 54 * s, cx - 2 * s, bTop - 76 * s);
+  X.stroke();
+  X.lineWidth = 3.5 * s;
+  X.beginPath();
+  X.moveTo(cx + 2 * s, bTop - 48 * s);
+  X.quadraticCurveTo(cx - 20 * s, bTop - 52 * s, cx - 30 * s, bTop - 60 * s);
+  X.moveTo(cx - 1 * s, bTop - 66 * s);
+  X.quadraticCurveTo(cx + 16 * s, bTop - 72 * s, cx + 26 * s, bTop - 82 * s);
+  X.stroke();
+  // chioma a nuvole (come il bonsai vero), due toni di verde
+  const cloud = (x, y, w, h) => {
+    X.fillStyle = "#2E5B4B";
     X.beginPath();
-    X.arc(cx - 22 * s + i * 10 * s, top - 38 * s, 3.6 * s, 0, 7);
+    X.ellipse(x, y, w, h, 0, 0, 7);
     X.fill();
-    X.fillStyle = col;
+    X.fillStyle = "#3C6B55";
     X.beginPath();
-    X.arc(cx - 22 * s + i * 10 * s, top - 38 * s, 1.6 * s, 0, 7);
+    X.ellipse(x - w * 0.15, y - h * 0.35, w * 0.75, h * 0.55, 0, 0, 7);
+    X.fill();
+  };
+  cloud(cx - 30 * s, bTop - 62 * s, 16 * s, 7 * s);
+  cloud(cx + 26 * s, bTop - 84 * s, 15 * s, 7 * s);
+  cloud(cx - 2 * s, bTop - 82 * s, 20 * s, 9 * s);
+  cloud(cx - 6 * s, bTop - 98 * s, 14 * s, 7 * s);
+  // tubicini della nebulizzazione e ventoline in alto dentro la teca
+  X.strokeStyle = "rgba(233,236,239,0.8)";
+  X.lineWidth = 1.2 * s;
+  X.beginPath();
+  X.moveTo(x0 + 10 * s, gTop + 14 * s);
+  X.lineTo(x0 + W - 10 * s, gTop + 14 * s);
+  X.moveTo(x0 + 14 * s, gTop + 14 * s);
+  X.lineTo(x0 + 14 * s, bTop - 8 * s);
+  X.moveTo(x0 + W - 14 * s, gTop + 14 * s);
+  X.lineTo(x0 + W - 14 * s, bTop - 8 * s);
+  X.stroke();
+  [x0 + 22 * s, x0 + W - 22 * s].forEach((fx) => {
+    X.fillStyle = "rgba(233,236,239,0.85)";
+    X.beginPath();
+    X.ellipse(fx, gTop + 22 * s, 5 * s, 6 * s, 0, 0, 7);
     X.fill();
   });
-  X.fillStyle = "#24344B";
+  // luce della plafoniera che scende sul bonsai
+  const lg = X.createLinearGradient(0, gTop, 0, bTop);
+  lg.addColorStop(0, "rgba(255,246,214,0.45)");
+  lg.addColorStop(1, "rgba(255,246,214,0)");
+  X.fillStyle = lg;
+  X.fillRect(x0 + 6 * s, gTop, W - 12 * s, GH * 0.8);
+  // montanti e riflessi del vetro
+  X.fillStyle = "#9AA5B4";
+  X.fillRect(x0 + 4 * s, gTop, 3 * s, GH);
+  X.fillRect(x0 + W - 7 * s, gTop, 3 * s, GH);
+  X.fillStyle = "rgba(255,255,255,0.35)";
+  X.fillRect(x0 + 12 * s, gTop + 30 * s, 3 * s, GH - 50 * s);
+  X.fillRect(x0 + W - 20 * s, gTop + 40 * s, 2 * s, GH - 70 * s);
+  // ---- plafoniera d'acciaio con la striscia di luce calda
+  X.fillStyle = steel(x0, x0 + W);
   X.beginPath();
-  X.arc(cx + 24 * s, top - 38 * s, 4.5 * s, 0, 7);
+  X.roundRect(x0, gTop - LH, W, LH, 6 * s);
   X.fill();
-  // display acceso
-  X.fillStyle = "#1A2434";
-  X.beginPath();
-  X.roundRect(cx - 28 * s, top - 30 * s, 56 * s, 24 * s, 3 * s);
-  X.fill();
-  X.fillStyle = "#3D5272";
-  X.fillRect(cx - 25 * s, top - 27 * s, 50 * s, 18 * s);
-  X.fillStyle = "#8FD0A6";
-  X.fillRect(cx - 21 * s, top - 14 * s, 26 * s, 2 * s);
+  X.fillStyle = "#FFF3C4";
+  X.fillRect(x0 + 10 * s, gTop - 3 * s, W - 20 * s, 3 * s);
 }
 
 function door(T, x, { lit = true } = {}) {
@@ -499,7 +568,7 @@ function home(T, city) {
     table(T, 300, 110, 50);
   }
   plantPot(T, 440);
-  hub(T, 590, GY, 1);
+  hub(T, 590, GY, 1.05);
   door(T, LW - 130);
   if (city !== "milano") {
     // lampada da terra
@@ -558,7 +627,7 @@ function office(T, city) {
   }
   desk(T, 40);
   desk(T, 230);
-  hub(T, 470, GY, 1);
+  hub(T, 470, GY, 1.05);
   // condizionatore a parete
   stone([[600, 120], [600, 70], [720, 70], [720, 120]], 0.75, 0.55, { rib: 4 });
   X.fillStyle = G(0.2);

@@ -127,13 +127,14 @@ export class TravelScene extends Phaser.Scene {
   // notifica del BIONOMAD durante il tragitto: ci si ferma e si fa la task
   travelTask() {
     const t = Phaser.Utils.Array.GetRandom(TRAVEL_TASKS);
+    // il personaggio rallenta da solo (niente stop secco) mentre arriva la notifica,
+    // poi lo zaino si apre quasi subito
     this.mode = "busy";
-    this.player.vx = 0;
     PlantSensors.send("N");
     Sfx.announce?.();
     notification(this, t.line);
     this.tasks.set(this.taskTitle, [t.text, this.goalLabel], 0);
-    this.time.delayedCall(1600, () => {
+    this.time.delayedCall(900, () => {
       this.mode = "bio";
       this.pad.setVisible(false);
       this.bio.show(t);

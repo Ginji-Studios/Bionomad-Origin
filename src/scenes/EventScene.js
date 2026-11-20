@@ -161,19 +161,22 @@ export class EventScene extends Phaser.Scene {
   // ---------- notifica (telefono / BIONOMAD) ----------
 
   notify(step) {
-    this.mode = "busy";
+    // niente attesa a gioco fermo: la notifica arriva subito e si può continuare a camminare.
+    // Se il passo dopo apre lo zaino si lascia appena il tempo di leggerla.
     if (step.wake) {
       // svegliato nel cuore della notte: la stanza si schiarisce appena
+      this.mode = "busy";
       this.tweens.add({ targets: this.night, fillAlpha: 0.35, duration: 600 });
       this.player.img.setTexture(`${this.player.key}_idle`);
     }
-    this.time.delayedCall(Math.round((step.ms ?? 1800) * 0.4), () => {
-      if (step.out != null) Bionomad.setOutside(cityTemp(this.run, step.out));
-      PlantSensors.send("N");
-      Sfx.announce?.();
-      notification(this, step.line ?? step.text);
-    });
-    this.time.delayedCall(step.ms ?? 1800, () => {
+    if (step.out != null) Bionomad.setOutside(cityTemp(this.run, step.out));
+    PlantSensors.send("N");
+    Sfx.announce?.();
+    notification(this, step.line ?? step.text);
+    const next = this.event.steps[this.stepIndex + 1];
+    const wait = next?.type === "bio" ? 1100 : step.wake ? 900 : 250;
+    this.time.delayedCall(wait, () => {
+      if (this.step !== step) return;
       this.mode = "play";
       this.completeStep({ quiet: true });
     });
@@ -287,7 +290,7 @@ export class EventScene extends Phaser.Scene {
         puff.remove();
         bus.destroy();
         toast(this, "IL BUS È PARTITO · FUORI FA FREDDO", { duration: 1800 });
-        this.time.delayedCall(800, () => {
+        this.time.delayedCall(250, () => {
           this.mode = "play";
           this.completeStep({ quiet: true });
         });
@@ -319,7 +322,7 @@ export class EventScene extends Phaser.Scene {
     if (step.type === "talk") {
       toast(this, step.line ?? "", { duration: 2400 });
       this.mode = "busy";
-      this.time.delayedCall(1400, () => {
+      this.time.delayedCall(900, () => {
         this.mode = "play";
         this.completeStep();
       });
@@ -349,7 +352,7 @@ export class EventScene extends Phaser.Scene {
     Sfx.task();
     toast(this, "EVENTO COMPLETATO", { duration: 1500 });
     PlantSensors.send("E0");
-    this.time.delayedCall(1700, () => {
+    this.time.delayedCall(1100, () => {
       const here = this.event.endsAt ?? this.event.location;
       const finished = completeEvent(this.registry, Math.min(1, this.oxygen));
       const run = getRun(this.registry);

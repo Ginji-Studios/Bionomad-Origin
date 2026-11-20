@@ -2,6 +2,7 @@
 // nello stesso stile piatto del gioco (cielo blu-grigio chiaro, forme pulite, niente pixel)
 import { addHiRes } from "./hires.js";
 import { TEAM_LOOK } from "./people.js";
+import { hub } from "./places.js";
 
 const S = 2;
 function canvas(w, h) {
@@ -165,35 +166,8 @@ export function productArt(scene, kind, w, h) {
     X.fillStyle = "#E2B33C";
     X.fillRect(cx - 18, y0 + mh + 4, 36, 5);
   } else if (kind === "hub") {
-    // HOME HUB: serra d'interno a casa (come la macchina BIONOMAD)
-    const hw = 220;
-    const y0 = base - 150;
-    X.fillStyle = "#C6D6EA";
-    X.beginPath();
-    X.roundRect(cx - hw / 2 + 10, y0 - 120, hw - 20, 130, 14);
-    X.fill();
-    X.save();
-    X.clip();
-    // serra piena: tante piante su due file (quelle dietro più chiare)
-    for (let i = 0; i < 6; i++) agave(X, cx - 88 + i * 35, y0 + 4, 92 + ((i * 23) % 26), 9, 7, ["#76A574", "#8DB98A", "#6A9A69"]);
-    for (let i = 0; i < 5; i++) agave(X, cx - 70 + i * 35, y0 + 6, 70 + ((i * 31) % 30), 10, 8);
-    X.restore();
-    X.fillStyle = "#AEB6C2";
-    X.fillRect(cx - hw / 2, y0 - 128, hw, 12);
-    X.fillStyle = "#ECEAE4";
-    X.beginPath();
-    X.roundRect(cx - hw / 2, y0, hw, 150, 16);
-    X.fill();
-    X.fillStyle = "#D8D5CD";
-    X.fillRect(cx + hw / 2 - 26, y0 + 8, 18, 134);
-    X.fillStyle = "#24344B";
-    X.beginPath();
-    X.roundRect(cx - 70, y0 + 36, 110, 50, 8);
-    X.fill();
-    X.fillStyle = "#8FD0A6";
-    X.fillRect(cx - 58, y0 + 72, 60, 4);
-    X.fillStyle = "#8FD0A6";
-    X.fillRect(cx - hw / 2 + 14, y0 + 118, hw - 52, 4);
+    // HOME HUB: la stessa teca con il bonsai che si vede nel gioco, più grande
+    hub({ X }, cx, base, Math.min(1.25, (h * 0.78) / 218));
   }
   addHiRes(scene, key, c, S);
   return key;

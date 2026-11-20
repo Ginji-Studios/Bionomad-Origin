@@ -569,7 +569,7 @@ export class BioPanel {
       this.animate(delta, o.ok ? 1 : this.shownProg);
       if (o.ok && Math.random() < delta / 30) this.sparks.push({ x: GLASS.x + 30 + Math.random() * (GLASS.w - 60), y: SOIL_Y - 40 - Math.random() * 200, a: 1 });
       this.drawSparks(delta);
-      if (o.t > 1300) {
+      if (o.t > 1000) {
         const r = o.res;
         this.outro = null;
         return { done: r.done, failed: r.failed, progress: 1 };
@@ -660,7 +660,7 @@ export class BioPanel {
     scene.tweens.add({ targets: pill, scale: 1, alpha: 1, duration: 260, ease: "Back.easeOut" });
     // la mano si ritira, poi il pannello sfuma via
     if (this.hand) scene.tweens.add({ targets: this.hand, x: this.hand.x + 220, y: this.hand.y + 300, duration: 420, delay: 250, ease: "Cubic.easeIn" });
-    scene.tweens.add({ targets: this.c, alpha: 0, duration: 320, delay: 980, ease: "Sine.easeIn" });
+    scene.tweens.add({ targets: this.c, alpha: 0, duration: 320, delay: 650, ease: "Sine.easeIn" });
   }
 
   // bollicine di ossigeno che salgono dalle piante quando la cura riesce

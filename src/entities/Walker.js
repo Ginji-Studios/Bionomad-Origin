@@ -187,8 +187,9 @@ export function smoothFollow(scene, walker, screenX = 460) {
     // posizione sullo schermo desiderata, tenendo conto dei bordi del mondo
     const want = walker.x - Phaser.Math.Clamp(walker.x - screenX, b.x, b.x + maxS);
     off += (want - off) * (1 - Math.exp(-dt * 4));
-    const px = Math.round(walker.x);
-    cam.scrollX = Phaser.Math.Clamp(px - Math.round(off), b.x, b.x + maxS);
+    // niente arrotondamenti: con lo stile vettoriale (non pixel art) la camera scorre in modo
+    // continuo; arrotondare la camera ma non il personaggio lo faceva tremolare di mezzo pixel
+    cam.scrollX = Phaser.Math.Clamp(walker.x - off, b.x, b.x + maxS);
   };
   step();
   scene.events.on("postupdate", step);
