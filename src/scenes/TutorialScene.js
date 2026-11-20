@@ -274,7 +274,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 1: si cammina toccando le foglie del vaso vero (o con le frecce)
 
   pageMove() {
-    this.badge("◀  TOCCA  ▶", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER CAMMINARE");
+    this.badge("◀  TOCCA  ▶", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER MUOVERTI");
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
     // due piante vere: toccare quella di sinistra fa andare a sinistra, quella di destra a destra
