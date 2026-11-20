@@ -271,7 +271,7 @@ export class SetupScene extends Phaser.Scene {
     }
     this.registry.set("operator", this.op);
     startRun(this.registry, this.city);
-    goTo(this, "TutorialScene", { next: "IntroScene" });
+    goTo(this, "IntroScene");
   }
 
   goBack() {

@@ -20,6 +20,72 @@ const pageMs = (i) => (i === LAST ? 8800 : i === 1 ? CTRL_MS * 5 + 400 : PAGE_MS
 const TILE_W = 270;
 const TILE_H = 480;
 
+// Il tutorial arriva subito dopo GIOCA: niente città o personaggi del gioco (niente spoiler).
+// Lo sfondo delle schede è uno "studio" astratto nei colori del brand e il personaggio
+// è un manichino neutro in duotono blu.
+function studioTex(scene) {
+  const key = "tut_studio";
+  if (scene.textures.exists(key)) return key;
+  const W = 480, H = 420;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const X = c.getContext("2d");
+  const gr = X.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, "#C6D6E6");
+  gr.addColorStop(0.65, "#DCE5EE");
+  gr.addColorStop(1, "#E6EAF0");
+  X.fillStyle = gr;
+  X.fillRect(0, 0, W, H);
+  // forme morbide che si ripetono senza giunture (disegnate anche a ±W)
+  const shapes = (dx) => {
+    X.fillStyle = "rgba(140,172,204,0.30)";
+    X.beginPath(); X.arc(90 + dx, 120, 70, 0, Math.PI * 2); X.fill();
+    X.fillStyle = "rgba(100,140,184,0.20)";
+    X.beginPath(); X.arc(330 + dx, 90, 46, 0, Math.PI * 2); X.fill();
+    // colonne arrotondate come pannelli astratti
+    X.fillStyle = "rgba(74,110,156,0.20)";
+    [[40, 250, 54, 170], [150, 300, 40, 120], [250, 210, 64, 210], [380, 280, 46, 140]].forEach(([x, y, w, h]) => {
+      X.beginPath(); X.roundRect(x + dx, y, w, h, [w / 2, w / 2, 0, 0]); X.fill();
+    });
+    X.fillStyle = "rgba(52,80,120,0.14)";
+    [[100, 340, 70, 80], [320, 330, 60, 90]].forEach(([x, y, w, h]) => {
+      X.beginPath(); X.roundRect(x + dx, y, w, h, [w / 2, w / 2, 0, 0]); X.fill();
+    });
+  };
+  [-W, 0, W].forEach(shapes);
+  scene.textures.addCanvas(key, c);
+  return key;
+}
+
+function silKey(scene, key) {
+  const out = `${key}_duo`;
+  if (scene.textures.exists(out)) return out;
+  const tex = scene.textures.get(key);
+  const src = tex.getSourceImage();
+  const fw = tex.get().width;
+  const ss = src.width / fw || 1;
+  const c = document.createElement("canvas");
+  c.width = src.width;
+  c.height = src.height;
+  const X = c.getContext("2d");
+  X.drawImage(src, 0, 0);
+  // duotono blu: le zone chiare (maschera, tubo) restano chiare, il resto va sui blu.
+  // Così si legge la maschera ma non i colori veri del personaggio.
+  const img = X.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  const lo = [0x24, 0x34, 0x4b], hi = [0xd4, 0xe4, 0xf2];
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    let l = (0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) / 255;
+    l = Math.pow(Math.min(1, Math.max(0, (l - 0.12) / 0.8)), 1.5);
+    for (let k = 0; k < 3; k++) d[i + k] = lo[k] + (hi[k] - lo[k]) * l;
+  }
+  X.putImageData(img, 0, 0);
+  addHiRes(scene, out, c, ss);
+  return out;
+}
+
 export class TutorialScene extends Phaser.Scene {
   constructor() {
     super("TutorialScene");
@@ -37,7 +103,8 @@ export class TutorialScene extends Phaser.Scene {
     plantArt(this, "plant_small", 0.5);
     plantArt(this, "plant_mid", 1);
     plantArt(this, "plant_tile", 0.75);
-    this.op = operatorKey(this, this.registry.get("operator") ?? "a", this.registry.get("origin") ?? "milano");
+    // manichino neutro: il personaggio e la città si scelgono dopo il tutorial
+    this.op = operatorKey(this, "a", "milano");
     this.page = 0;
     this.t = 0;
     this.layer = this.add.container(0, 0);
@@ -221,8 +288,7 @@ export class TutorialScene extends Phaser.Scene {
     this.layer.add(this.leafTag);
     // la città scorre dietro l'operatore, come nel gioco (lui resta al centro)
     // la città riempie la scheda fino in alto (niente fascia bianca), angoli arrotondati
-    this.city = this.add.tileSprite(550, 140, 660, 420, "menu_bg").setOrigin(0).setTileScale(0.6);
-    this.city.tilePositionX = 900;
+    this.city = this.add.tileSprite(550, 140, 660, 420, studioTex(this)).setOrigin(0);
     const cm = this.make.graphics({ add: false });
     cm.fillStyle(0xffffff, 1);
     cm.fillRoundedRect(550, 140, 660, 500, 12);
@@ -235,7 +301,7 @@ export class TutorialScene extends Phaser.Scene {
     this.layer.add([this.city, street]);
     this.dash = this.add.graphics();
     this.shadow = this.add.ellipse(880, 584, 64, 10, C.c0, 0.6);
-    this.walker = this.add.image(880, 590, `${this.op}_idle`).setOrigin(0.5, 1);
+    this.walker = this.add.image(880, 590, silKey(this, `${this.op}_idle`)).setOrigin(0.5, 1);
     this.moveG = this.add.graphics();
     this.layer.add([this.dash, this.shadow, this.walker, this.moveG]);
     this.walkPhase = 0;
@@ -272,8 +338,8 @@ export class TutorialScene extends Phaser.Scene {
     if (Math.abs(this.walkV) < 0.02 && !touching) this.walkV = 0;
     this.city.tilePositionX += this.walkV * 260 * dt;
     this.walkPhase = (this.walkPhase + Math.abs(this.walkV) * 1.1 * dt) % 1;
-    if (Math.abs(this.walkV) > 0.08) this.walker.setTexture(`${this.op}_${Math.floor(this.walkPhase * WALK_FRAMES)}`);
-    else this.walker.setTexture(`${this.op}_idle`);
+    if (Math.abs(this.walkV) > 0.08) this.walker.setTexture(silKey(this, `${this.op}_${Math.floor(this.walkPhase * WALK_FRAMES)}`));
+    else this.walker.setTexture(silKey(this, `${this.op}_idle`));
     if (target) this.walker.setFlipX(!right);
     // strisce della strada che scorrono, per sentire il movimento
     const d = this.dash;
@@ -723,8 +789,7 @@ export class TutorialScene extends Phaser.Scene {
     this.badge("O₂", "L'OSSIGENO CALA DA SOLO · A ZERO SVIENI");
     this.frame(140, 130, 1000, 520);
     // sfondo: la città del gioco (come nella pagina del movimento), dentro la scheda
-    const city = this.add.tileSprite(150, 140, 980, 420, "menu_bg").setOrigin(0).setTileScale(0.59);
-    city.tilePositionX = 1300;
+    const city = this.add.tileSprite(150, 140, 980, 420, studioTex(this)).setOrigin(0);
     this.bCity = city;
     this.bPhase = 0;
     this.bLast = null;
@@ -738,7 +803,7 @@ export class TutorialScene extends Phaser.Scene {
     street.fillRoundedRect(150, 560, 980, 80, { tl: 0, tr: 0, bl: 14, br: 14 });
     this.bDash = this.add.graphics();
     dieFrames(this, this.op);
-    this.walker = this.add.image(640, 590, `${this.op}_idle`).setOrigin(0.5, 1);
+    this.walker = this.add.image(640, 590, silKey(this, `${this.op}_idle`)).setOrigin(0.5, 1);
     this.breathG = this.add.graphics();
     // l'indicatore del respiro vero del gioco (pillola in alto)
     this.o2 = o2Hud(this);
@@ -788,16 +853,16 @@ export class TutorialScene extends Phaser.Scene {
         // cura: la mano va allo zaino e picchietta
         const ct = t - 2500;
         const f = ct < 300 ? Math.min(2, Math.floor(ct / 100)) : 3 + (Math.floor(ct / 120) % 3);
-        w.setTexture(`${this.op}_c${f}`).setX(640);
+        w.setTexture(silKey(this, `${this.op}_c${f}`)).setX(640);
       } else {
-        w.setTexture(`${this.op}_${Math.floor(this.bPhase * WALK_FRAMES) % WALK_FRAMES}`);
+        w.setTexture(silKey(this, `${this.op}_${Math.floor(this.bPhase * WALK_FRAMES) % WALK_FRAMES}`));
         // con poco ossigeno barcolla
         w.setX(640 + (v < 0.3 ? Math.sin(t / 140) * 4 : 0)).setAngle(v < 0.3 ? Math.sin(t / 190) * 3 : 0);
       }
-    } else if (tf < 700) w.setTexture(`${this.op}_d0`).setX(640 + Math.sin(tf / 45) * 3);
-    else if (tf < 900) w.setTexture(`${this.op}_d1`);
-    else if (tf < 1100) w.setTexture(`${this.op}_d2`);
-    else w.setTexture(`${this.op}_d3`);
+    } else if (tf < 700) w.setTexture(silKey(this, `${this.op}_d0`)).setX(640 + Math.sin(tf / 45) * 3);
+    else if (tf < 900) w.setTexture(silKey(this, `${this.op}_d1`));
+    else if (tf < 1100) w.setTexture(silKey(this, `${this.op}_d2`));
+    else w.setTexture(silKey(this, `${this.op}_d3`));
     if (tf >= 1500) {
       const u = Math.min(1, (tf - 1500) / 520);
       w.setAngle(82 * u * u).setX(640 + 30 * u).setY(590 + 8 * u);

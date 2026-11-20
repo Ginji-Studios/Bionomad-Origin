@@ -173,7 +173,7 @@ export class MenuScene extends Phaser.Scene {
 
     // voci del menu: numero, nome grande, freccia; la voce attiva ha la pillola scura
     const items = [
-      ["GIOCA", () => goTo(this, "SetupScene")],
+      ["GIOCA", () => goTo(this, "TutorialScene", { next: "SetupScene" })],
       [PlantSensors.state.connected ? "PIANTA COLLEGATA" : "COLLEGA LA PIANTA", () => this.connect()],
       ["CREDITI", () => goTo(this, "CreditsScene")]
     ];
