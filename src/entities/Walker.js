@@ -110,11 +110,6 @@ export class Walker {
     sc.tweens.add({ targets: c, alpha: 0, y: y - 46, duration: 700, delay: 900, ease: "Sine.easeIn", onComplete: () => c.destroy() });
   }
 
-  // piccolo saltello di soddisfazione
-  cheer() {
-    this.scene.tweens.add({ targets: this.img, y: this.img.y - 14, duration: 140, yoyo: true, repeat: 1, ease: "Quad.easeOut" });
-  }
-
   // svenimento quando l'ossigeno finisce: si porta la mano alla maschera, barcolla,
   // le ginocchia cedono e cade in avanti; la pianta dello zaino si spegne
   faint(onDone) {

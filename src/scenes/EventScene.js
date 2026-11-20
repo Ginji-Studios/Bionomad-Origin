@@ -11,7 +11,7 @@ import { snowfall } from "../world/snow.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey, holdFrames } from "../art/people.js";
 import { BioPanel, bioKeys } from "../ui/BioPanel.js";
-import { cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, Y_ACCENT, BRAND } from "../ui/hud.js";
+import { cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, BRAND } from "../ui/hud.js";
 
 const NEAR = 80;
 const STEP_BONUS = 0.04;

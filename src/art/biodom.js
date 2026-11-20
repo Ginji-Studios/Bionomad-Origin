@@ -4,9 +4,6 @@ import { grain } from "../world/city.js";
 import { addHiRes } from "./hires.js";
 import { drawBiodomLogo, LOGO_H, LOGO_W } from "./logoPath.js";
 
-const INK = "#24344B";
-const PAPER = "#F4F5F7";
-const YEL = "#E2B33C";
 const GREEN = ["#5F8F62", "#76A574", "#4E7C55"];
 
 function agave(X, cx, base, h, n = 9) {
@@ -235,23 +232,3 @@ export function biodomPoster(scene, v = 0) {
   return key;
 }
 
-// quadro da appendere in casa / in ufficio (senza pali)
-export function biodomFrame(scene, v = 0, w = 120, h = 160) {
-  const key = `biodom_frame_${v}_${w}_${h}`;
-  if (scene.textures.exists(key)) return key;
-  const S = 2;
-  const c = document.createElement("canvas");
-  c.width = (w + 12) * S;
-  c.height = (h + 12) * S;
-  const X = c.getContext("2d", { willReadFrequently: true });
-  X.scale(S, S);
-  X.fillStyle = "#2B3A50";
-  X.fillRect(0, 0, w + 12, h + 12);
-  X.save();
-  X.translate(6, 6);
-  posterBody(X, w, h, v);
-  X.restore();
-  grain(c, 4, 3 + v);
-  addHiRes(scene, key, c, S);
-  return key;
-}

@@ -152,5 +152,3 @@ export const EMERGENCY_ACTIONS = [
   { type: "bio", goal: "air", timeoutMs: 18000, text: "! ARIEGGIA", hint: "Premi ARIA una volta." }
 ];
 
-// compatibilità con il vecchio sistema (non più usato)
-export const EXTRA_TASKS = { care: [], fix: [] };

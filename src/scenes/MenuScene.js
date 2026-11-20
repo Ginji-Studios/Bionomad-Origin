@@ -2,33 +2,12 @@ import Phaser from "../phaser.js";
 import { addHiRes } from "../art/hires.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { PlantSensors } from "../input/PlantSensors.js";
-import { paint, setDayMode } from "../world/skyline.js";
+import { setDayMode } from "../world/skyline.js";
 import { buildCity } from "../world/city.js";
-import { K, operatorKey, careFrames, holdFrames } from "../art/people.js";
-import { brackets, button, C, canvasImage, fadeIn, goTo, HEX, toast, txt, VIEW, Y_ACCENT } from "../ui/hud.js";
+import { operatorKey, careFrames, holdFrames } from "../art/people.js";
+import { brackets, fadeIn, goTo, HEX, toast, txt, VIEW, Y_ACCENT } from "../ui/hud.js";
 import { Sfx } from "../systems/Sfx.js";
 import { plantNav } from "../input/plantNav.js";
-
-// titolo pulito, inchiostro blu notte (nessun retino)
-function titleCanvas() {
-  const c = document.createElement("canvas");
-  c.width = 720;
-  c.height = 170;
-  const x = c.getContext("2d", { willReadFrequently: true });
-  x.textBaseline = "alphabetic";
-  x.fillStyle = "#24344B";
-  x.font = 'bold 132px "Roboto Mono", ui-monospace, monospace';
-  x.fillText("O", 0, 130);
-  const ow = x.measureText("O").width;
-  x.font = 'bold 66px "Roboto Mono", ui-monospace, monospace';
-  x.fillStyle = "#E2B33C";
-  x.fillText("2", ow + 2, 150);
-  const tw = x.measureText("2").width;
-  x.fillStyle = "#24344B";
-  x.font = 'bold 132px "Roboto Mono", ui-monospace, monospace';
-  x.fillText("RIGIN", ow + tw + 8, 130);
-  return c;
-}
 
 export function ensureMenuBg(scene) {
   if (!scene.textures.exists("menu_bg")) scene.textures.addCanvas("menu_bg", menuBackdrop());

@@ -285,18 +285,6 @@ function wires(w, xs) {
     X.stroke();
   });
 }
-// passanti lontani sul marciapiede di fondo (piccole sagome con la sciarpa gialla)
-function tinyPeople(w) {
-  for (let x = 60; x < w; x += 70 + rnd() * 160) {
-    const c = rnd() < 0.5 ? "#2B3A50" : "#3C4D66";
-    const y = BASE + 6;
-    R(x - 1.5, y - 10, 1.5, 10, c);
-    R(x + 0.5, y - 10, 1.5, 10, c);
-    R(x - 2.5, y - 20, 5, 11, rnd() < 0.4 ? "#D9D6CF" : c);
-    ell(x, y - 23, 2.4, 2.6, "#D9C8B6");
-    R(x - 2.5, y - 20, 5, 2, V.yellow);
-  }
-}
 function frontLayer(w, buildings) {
   buildings(w);
   street(w);
@@ -667,12 +655,6 @@ const ZONE_NAMES = {
 export const ZONES = Object.fromEntries(
   Object.entries(CITY_DEF).map(([id, d]) => [id, ZONE_NAMES[id].map((name, i) => ({ name, labels: d.labels[i] }))])
 );
-// monumenti sui livelli lontani: [etichetta, parallasse, x, y]
-export const LANDMARKS = {
-  milano: [["Torre Velasca", 0.3, 140, 130], ["Pirellone", 0.3, 320, 130], ["Torre Unicredit", 0.3, 580, 40], ["Allianz", 0.3, 800, 90], ["Palazzo Lombardia", 0.3, 1150, 180], ["Bosco Verticale", 0.3, 1390, 180]],
-  delhi: [["Qutub Minar", 0.3, 480, 140], ["Tomba di Humayun", 0.3, 950, 310], ["Tempio del Loto", 0.3, 1440, 360], ["Akshardham", 0.3, 1760, 300]],
-  reykjavik: [["Perlan", 0.3, 640, 210], ["Harpa", 0.3, 1240, 310], ["Esja", 0.12, 600, 230]]
-};
 
 // grana leggera, come la carta del riferimento (solo sui pixel pieni)
 export function grain(c, amount = 7, seedValue = 3) {

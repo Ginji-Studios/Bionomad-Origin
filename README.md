@@ -48,9 +48,8 @@ Gli eventi sulla pianta leggono i sensori dell'Elegoo via USB con la Web Serial 
 il firmware può inviare una riga `DESTRA` o `SINISTRA` ogni 50 ms: il gioco la mantiene attiva per 150 ms.
 La riga `STOP` arresta immediatamente il movimento.
 
-1. Carica `arduino/o2rigin_plant/o2rigin_plant.ino` sull'Elegoo. Serve solo la libreria **Adafruit PN532** (con la dipendenza **Adafruit BusIO**, che l'IDE propone da sola): DHT11 e foglie capacitive sono letti direttamente dallo sketch. Lo schema dei collegamenti è in cima allo sketch.
+1. Carica sull'Elegoo lo sketch della pianta (non è incluso in questa repo). Serve la libreria **Adafruit PN532** (con la dipendenza **Adafruit BusIO**, che l'IDE propone da sola): DHT11 e foglie capacitive sono letti direttamente dallo sketch.
    - **Fiale NFC**: ogni fiala ha un adesivo NFC nel tappo. Apri il Monitor seriale, avvicina una fiala al PN532 e copia l'UID stampato (`# NFC sconosciuto, UID: {...}`) nella tabella `VIAL_TAGS` dello sketch, accanto al colore giusto.
-   - **VS Code**: `.vscode/c_cpp_properties.json` indica a IntelliSense dove si trovano il core Arduino e le librerie installate con l'IDE Arduino 2 (cartelle standard di Windows).
 2. Avvia il gioco con `npm run dev` e aprilo in **Chrome o Edge** (`http://localhost:...`).
 3. Nel menu scegli **COLLEGA PIANTA** e seleziona la porta dell'Elegoo.
 
@@ -72,10 +71,10 @@ Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** sc
 - `src/systems/RunManager.js`: stato della run (eventi estratti, ossigeno, risultati).
 - `src/art/places.js`: luoghi degli eventi (casa, ufficio, bus, fermata, food truck), diversi per città, con i punti interattivi.
 - `src/scenes`: Boot, Preload, Menu, Selezione città e operatore, Intro, Percorso, Evento, Outro, Fine, Tutorial, Crediti, Pausa.
-- `src/world/skyline.js`: skyline retinate delle città, quartieri con i monumenti veri, giorno e notte.
+- `src/world/skyline.js`: skyline vettoriali delle città, quartieri con i monumenti veri, giorno e notte.
 - `src/systems/Sfx.js`: effetti sonori e ambiente sintetizzati.
-- `src/ui/hud.js`: palette BIODOM, HUD del respiro, pannello task, pulsanti, titoli retinati, transizioni.
-- `src/art/people.js`: operatori, passanti e ritratti del team disegnati da codice nello stile a retino.
+- `src/ui/hud.js`: palette BIODOM, HUD del respiro, pannello task, pulsanti, titoli vettoriali, transizioni.
+- `src/art/people.js`: operatori, passanti e ritratti del team disegnati da codice nello stile illustrato vettoriale.
 - `src/input/PlantSensors.js`: lettura della pianta via Web Serial e simulazione da tastiera.
 
 Font: Roboto Mono (Google Fonts, caricato in `index.html`).

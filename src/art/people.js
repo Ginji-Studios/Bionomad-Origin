@@ -1206,51 +1206,6 @@ function front(T, o) {
 
 // ---------------------------------------------------------------- rifinitura
 
-// luce della luna sul bordo in alto a sinistra e contorno navy di un pixel
-// colori d'accento (unica eccezione alla palette): vetro della capsula azzurrino e foglie verdi
-// vetro della capsula: azzurro che vira all'indaco, per legarsi ai blu della palette BIODOM
-const ACC = { glass: ["#A3BDF0", "#7FA6E3"], leaf: ["#8FD07F", "#57A35E"] };
-function accentize(c, m) {
-  const x = c.getContext("2d", { willReadFrequently: true });
-  const a = x.getImageData(0, 0, c.width, c.height);
-  const b = m.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, m.width, m.height).data;
-  const d = a.data;
-  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-  const G1 = hex(ACC.glass[0]), G2 = hex(ACC.glass[1]), L1 = hex(ACC.leaf[0]), L2 = hex(ACC.leaf[1]);
-  // finish() allarga la tela di qualche pixel per il contorno: la maschera va spostata uguale
-  const ox = Math.round((c.width - m.width) / 2);
-  const oy = Math.round((c.height - m.height) / 2);
-  for (let i = 0; i < d.length; i += 4) {
-    const px = (i / 4) % c.width;
-    const py = Math.floor(i / 4 / c.width);
-    const mx = px - ox;
-    const my = py - oy;
-    if (mx < 0 || my < 0 || mx >= m.width || my >= m.height) continue;
-    const j = (my * m.width + mx) * 4;
-    if (d[i + 3] < 128 || b[j + 3] < 128) continue;
-    const r = b[j], g = b[j + 1], bl = b[j + 2];
-    // solo i pixel "puri" del marcatore: i bordi sfumati con altri oggetti non contano
-    const glass = r > 235 && g < 20 && bl < 20;
-    const leaf = g > 235 && r < 20 && bl < 20;
-    if (!glass && !leaf) continue;
-    // dove il retino è chiaro (luce, riflessi) resta chiaro; sul resto il colore pieno a due toni
-    const lum = d[i] + d[i + 1] + d[i + 2];
-    const p = i / 4;
-    const chk = ((p % c.width) + Math.floor(p / c.width)) % 2;
-    // dove il retino è chiaro (luce della lampada) il tono chiaro, altrove i due toni a scacchiera
-    const col = glass ? (lum > 500 ? G1 : G2) : lum > 400 ? L1 : L2;
-    d[i] = col[0];
-    d[i + 1] = col[1];
-    d[i + 2] = col[2];
-  }
-  x.putImageData(a, 0, 0);
-  return c;
-}
-
-// un fotogramma di profilo: disegno retinato + contorno + accenti di colore sulla capsula
-// curva dei toni dei personaggi: più contrasto, così usano tutta la palette BIODOM
-// (dal Dusk blue al Mineral white) invece di restare sui blu intermedi
-const TONE = (v) => Math.max(0, Math.min(1, (v - 0.45) * 1.4 + 0.55));
 // SS: i personaggi si disegnano 2 volte più grandi (vettoriale nitido), senza retino né grana
 export const SS = 2;
 function sideFrame(w, h, k, ph, o) {
@@ -1478,54 +1433,6 @@ function tuft(x, P) {
   x.quadraticCurveTo(...P(56, 25), ...P(51, 30));
   x.quadraticCurveTo(...P(47, 26), ...P(43, 24));
   x.fill();
-}
-
-export function crewKey(scene, i) {
-  const key = `crew_${i}`;
-  if (scene.textures.exists(key)) return key;
-  const o = TEAM_LOOK[i];
-  const c = finish(paint(BW * SS, BH * SS, SS, (T) => front(T, o), { seedValue: 31 + i, cell: 1 }), { rim: false, outline: false, pad: 3 * SS });
-  if (o.tuft) {
-    // ciuffo rosso che esce dal cappellino: l'unico accento di colore
-    const x = c.getContext("2d", { willReadFrequently: true });
-    tuft(x, (a, b) => [(a + 3) * SS, (b + 3) * SS]);
-  }
-  addHi(scene, key, c);
-  return key;
-}
-
-// ritratto a mezzo busto per la scheda del team (testa e spalle, disegnato a risoluzione doppia)
-export function crewBust(scene, i) {
-  const key = `crew_bust_${i}`;
-  if (scene.textures.exists(key)) return key;
-  const o = TEAM_LOOK[i];
-  const S = 2 * SS;
-  const c = paint(152 * SS, 168 * SS, S, (T) => {
-    T.X.translate(-22, -4);
-    front(T, o);
-  }, { seedValue: 41 + i, cell: 1 });
-  const x = c.getContext("2d", { willReadFrequently: true });
-  if (o.tuft) tuft(x, (a, b) => [(a - 22) * S, (b - 4) * S]);
-  if (o.balayage) {
-    // shatush fucsia: le punte delle ciocche sfumano dal castano al fucsia (sfumatura morbida)
-    const all = new Path2D();
-    FRONT_LOCKS.forEach((pts) => {
-      const P = ([lx, ly]) => [(lx - 22) * S, (ly - 4) * S];
-      all.moveTo(...P(pts[0]));
-      for (let j = 1; j < pts.length; j += 2) all.quadraticCurveTo(...P(pts[j]), ...P(pts[j + 1]));
-      all.closePath();
-    });
-    x.save();
-    x.clip(all);
-    const g = x.createLinearGradient(0, (56 - 4) * S, 0, (68 - 4) * S);
-    g.addColorStop(0, "rgba(217,79,154,0)");
-    g.addColorStop(1, "rgba(217,79,154,1)");
-    x.fillStyle = g;
-    x.fillRect(0, (56 - 4) * S, c.width, c.height);
-    x.restore();
-  }
-  addHi(scene, key, c);
-  return key;
 }
 
 export function registerPeople(scene) {

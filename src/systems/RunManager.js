@@ -3,15 +3,6 @@ import { ORIGINS } from "../config/origins.js";
 
 // la run vive nel registry di Phaser, così la vedono tutte le scene
 
-function shuffle(list) {
-  const copy = [...list];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
 // le extra vanno prima dell'uscita / della corsa verso casa, altrimenti in coda
 function withExtras(steps, extras) {
   if (!extras?.length) return steps;
@@ -43,14 +34,6 @@ function pick(pool, weight) {
   let r = Math.random() * ws.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) if ((r -= ws[i]) <= 0) return pool[i];
   return pool[pool.length - 1];
-}
-
-// quanti eventi in base alla difficoltà della città
-function eventCount(origin) {
-  const lvl = origin?.level ?? 2;
-  if (lvl === 1) return Math.random() < 0.5 ? 2 : 3;
-  if (lvl === 3) return Math.random() < 0.5 ? 3 : 4;
-  return 3;
 }
 
 // variazioni per evento: tempi e gradi cambiano un po' ogni partita, più duri nelle città difficili

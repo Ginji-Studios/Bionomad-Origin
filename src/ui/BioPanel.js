@@ -32,69 +32,6 @@ export function bioKeys(scene) {
   };
 }
 
-// illustrazione del BIONOMAD vero: scatola bianca con le agavi, il display e i comandi
-export function bionomadArt(scene) {
-  const key = "bionomad_big";
-  if (scene.textures.exists(key)) return key;
-  const c = document.createElement("canvas");
-  c.width = 300;
-  c.height = 300;
-  const X = c.getContext("2d", { willReadFrequently: true });
-  const leaf = (x, y, h, lean, col) => {
-    X.fillStyle = col;
-    X.beginPath();
-    X.moveTo(x - 7, y);
-    X.quadraticCurveTo(x - 4 + lean * 0.3, y - h * 0.6, x + lean, y - h);
-    X.quadraticCurveTo(x + 4 + lean * 0.3, y - h * 0.6, x + 7, y);
-    X.fill();
-  };
-  // agavi
-  const greens = ["#5F8F62", "#76A574", "#4E7C55"];
-  for (let i = 0; i < 16; i++) leaf(70 + i * 10, 120, 70 + ((i * 37) % 50), ((i * 13) % 30) - 15, greens[i % 3]);
-  // vaso laterale
-  X.fillStyle = "#E9E7E1";
-  X.fillRect(18, 170, 52, 56);
-  for (let i = 0; i < 5; i++) leaf(28 + i * 9, 172, 40 + (i % 2) * 14, (i - 2) * 6, greens[i % 3]);
-  // corpo principale
-  X.fillStyle = "#EDEBE5";
-  X.beginPath();
-  X.moveTo(50, 120);
-  X.lineTo(250, 120);
-  X.quadraticCurveTo(262, 120, 262, 132);
-  X.lineTo(262, 262);
-  X.quadraticCurveTo(262, 274, 250, 274);
-  X.lineTo(62, 274);
-  X.quadraticCurveTo(50, 274, 50, 262);
-  X.closePath();
-  X.fill();
-  X.fillStyle = "#D9D6CE";
-  X.fillRect(236, 124, 24, 148);
-  // display
-  X.fillStyle = "#2B3D56";
-  X.fillRect(120, 168, 112, 70);
-  X.fillStyle = "#8FD0A6";
-  X.fillRect(128, 228, 60, 3);
-  X.fillStyle = "#F4F5F7";
-  X.font = "bold 13px monospace";
-  X.fillText("O₂RIGIN", 130, 190);
-  // pulsanti
-  [[74, 150, "#E2B33C"], [74, 182, "#3F67A8"], [74, 214, "#F4F5F7"], [196, 146, "#BFC6D0"]].forEach(([x, y, col]) => {
-    X.fillStyle = "#C9C6BE";
-    X.beginPath();
-    X.arc(x, y, 11, 0, 7);
-    X.fill();
-    X.fillStyle = col;
-    X.beginPath();
-    X.arc(x, y, 7, 0, 7);
-    X.fill();
-  });
-  // anello luminoso alla base
-  X.fillStyle = "#8FD0A6";
-  X.fillRect(56, 266, 200, 3);
-  scene.textures.addCanvas(key, c);
-  return key;
-}
-
 // ------------------------------------------------------------------ lo ZAINO a tutto schermo
 // Nelle task si vede lo zaino BIONOMAD in grande, nel posto in cui ci si trova (bus, ufficio,
 // casa, strada; di giorno o di sera), e la mano del giocatore che usa i comandi dello zaino:

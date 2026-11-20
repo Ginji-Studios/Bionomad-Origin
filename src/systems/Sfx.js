@@ -73,7 +73,6 @@ export function toggleMute() {
   if (master) master.gain.setTargetAtTime(muted ? 0 : 0.5, ctx.currentTime, 0.05);
   return muted;
 }
-export const isMuted = () => muted;
 
 // pausa del team: l'audio si congela insieme al gioco e riparte da dove era
 export function setAudioPaused(on) {

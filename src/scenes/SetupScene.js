@@ -4,7 +4,7 @@ import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { ORIGINS } from "../config/origins.js";
 import { startRun } from "../systems/RunManager.js";
 import { OPERATORS, operatorKey } from "../art/people.js";
-import { buildSkyline, paint } from "../world/skyline.js";
+import { buildSkyline } from "../world/skyline.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { plantNav } from "../input/plantNav.js";
 import { brackets, button, C, fadeIn, goTo, HEX, txt, VIEW } from "../ui/hud.js";
@@ -164,7 +164,6 @@ export class SetupScene extends Phaser.Scene {
   header(step, title) {
     this.frame(40, 34, VIEW.w - 80, 56);
     this.layer.add(txt(this, 60, 62, title, { size: 28, weight: "500", origin: [0, 0.5] }));
-    this.layer.add(txt(this, VIEW.w - 220, 62, `SELEZIONE · ${step}/2`, { size: 20, color: HEX.c3, origin: [1, 0.5] }));
     this.layer.add(this.add.image(VIEW.w - 60, 62, "logo_biodom").setOrigin(1, 0.5).setTint(C.c4));
   }
 

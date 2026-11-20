@@ -5,8 +5,6 @@ import { posterBody } from "./biodom.js";
 // Coordinate logiche: alto 540, pavimento a GY = 480, largo LW = 1280 / k.
 import { paint, GY } from "../world/skyline.js";
 import { K } from "./people.js";
-import { POSTER_IMG } from "../ui/posters.js";
-
 // manifesto BIODOM in cornice: l'immagine originale passa in scala di grigi (più luminosa e
 // contrastata, così le scritte restano leggibili) e poi il retino della palette la ridisegna.
 // Dentro i luoghi il manifesto viene messo in coda e retinato a parte a grana fine (cell 1).

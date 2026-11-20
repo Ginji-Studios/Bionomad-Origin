@@ -2,10 +2,9 @@ import Phaser from "../phaser.js";
 import { setAmbient } from "../systems/Sfx.js";
 import { ensureMenuBg } from "./MenuScene.js";
 import { plantArt } from "../ui/PlantPanel.js";
-import { bionomadArt } from "../ui/BioPanel.js";
 import { careFrames, dieFrames, operatorKey, WALK_FRAMES } from "../art/people.js";
 import { addHiRes } from "../art/hires.js";
-import { brackets, button, C, ditherBand, fadeIn, goTo, HEX, o2Hud, txt, VIEW } from "../ui/hud.js";
+import { brackets, button, C, fadeIn, goTo, HEX, o2Hud, txt, VIEW } from "../ui/hud.js";
 import { plantNav } from "../input/plantNav.js";
 
 // tutorial senza testo: quattro "schermate video" animate che scorrono da sole,
@@ -17,7 +16,6 @@ const CTRL_MS = 2000; // ogni comando del BIONOMAD resta acceso 2 secondi
 // pagine: 0 movimento · 1 comandi del BIONOMAD · 2 respiro (la pagina delle notifiche è stata tolta)
 const LAST = 2;
 const pageMs = (i) => (i === LAST ? 8800 : i === 1 ? CTRL_MS * 5 + 400 : PAGE_MS);
-const TILE_W = 270;
 const TILE_H = 480;
 
 // Il tutorial arriva subito dopo GIOCA: niente città o personaggi del gioco (niente spoiler).
@@ -79,6 +77,8 @@ function silKey(scene, key) {
     if (!d[i + 3]) continue;
     let l = (0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) / 255;
     l = Math.pow(Math.min(1, Math.max(0, (l - 0.12) / 0.8)), 1.5);
+    // pelle (toni caldi) → blu medio, così la maschera chiara si stacca dal viso
+    if (d[i] - d[i + 2] > 28 && d[i] > 140 && d[i + 1] < d[i] - 8) l = 0.38;
     for (let k = 0; k < 3; k++) d[i + k] = lo[k] + (hi[k] - lo[k]) * l;
   }
   X.putImageData(img, 0, 0);
@@ -365,12 +365,6 @@ export class TutorialScene extends Phaser.Scene {
 
   // ---------- pagine 2 e 3: gesti sul vaso vero, con l'effetto sull'ossigeno
 
-  // pagina 2: i cinque comandi del BIONOMAD · pagina 3: notifiche e cure (+O₂ / −O₂)
-  pageGestures(care) {
-    if (care) return this.pageControls();
-    return this.pageNotify();
-  }
-
   card(x, y, w, h) {
     const g = this.add.graphics();
     g.fillStyle(C.c0, 0.95);
@@ -400,20 +394,6 @@ export class TutorialScene extends Phaser.Scene {
     const cap = txt(this, 925, 560, "", { size: 19, color: HEX.c3, origin: 0.5, align: "center", wrap: 520 });
     this.layer.add([name, cap]);
     this.tiles.push({ kind: "machine", g, hand, name, cap, anim: true, delay: 0 });
-  }
-
-  pageNotify() {
-    this.badge("✓ +O₂   ·   ✗ −O₂", "ARRIVA UNA NOTIFICA: CURA IL BIONOMAD IN TEMPO");
-    const x = 140;
-    const y = 160;
-    this.card(x, y, VIEW.w - 280, 450);
-    this.layer.add(this.add.image(x + 40, y + 420, bionomadArt(this)).setOrigin(0, 1).setScale(1.1));
-    const g = this.add.graphics();
-    this.layer.add(g);
-    const note = txt(this, x + 460, y + 70, "! Il BIONOMAD ha bisogno di acqua", { size: 20, wrap: 480 });
-    const ok = txt(this, x + 460, y + 330, "", { size: 34, weight: "500" });
-    this.layer.add([note, ok]);
-    this.tiles.push({ kind: "notify", x, y, g, note, ok, anim: true, delay: 0 });
   }
 
   // animazioni delle schede dei comandi (t in ms)

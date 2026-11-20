@@ -8,12 +8,12 @@ import { PlantSensors } from "../input/PlantSensors.js";
 import { BioPanel, bioKeys } from "../ui/BioPanel.js";
 import { notification } from "./EventScene.js";
 import { biodomPoster } from "../art/biodom.js";
-import { buildSkyline, paint } from "../world/skyline.js";
+import { buildSkyline } from "../world/skyline.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey, warmBare } from "../art/people.js";
 import { snowfall } from "../world/snow.js";
 import { careWithPack } from "../entities/packGesture.js";
-import { brackets, cityHud, C, controls, fadeIn, goTo, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
+import { brackets, cityHud, controls, fadeIn, goTo, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
 const PLACE_NAME = { home: "CASA", office: "UFFICIO", bus: "FERMATA DEL BUS", busstop: "FERMATA DEL BUS", foodtruck: "FOOD TRUCK", street: "STRADA" };

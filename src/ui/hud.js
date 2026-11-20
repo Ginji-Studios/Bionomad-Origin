@@ -1,11 +1,6 @@
-// interfaccia del gioco nello stile del concept: monospace, pannelli navy
-// semitrasparenti con bordo sottile, staffe agli angoli, pulsanti grandi per il tablet.
-import Phaser from "../phaser.js";
 import { Sfx } from "../systems/Sfx.js";
 import { PlantSensors } from "../input/PlantSensors.js";
-import { paint, quant, ZONES } from "../world/skyline.js";
-import { LANDMARKS } from "../world/city.js";
-import { iconKey } from "./icons.js";
+import { ZONES } from "../world/skyline.js";
 import { addHiRes } from "../art/hires.js";
 import { npcKey, WALK_FRAMES } from "../art/people.js";
 import { Bionomad, IDEAL } from "../systems/Bionomad.js";
@@ -15,7 +10,6 @@ import { Bionomad, IDEAL } from "../systems/Bionomad.js";
 export const C = { c0: 0xf4f5f7, c1: 0xe3e8ef, c2: 0xd3dbe6, c3: 0x9aa7ba, c4: 0x24344b };
 export const HEX = { c0: "#F4F5F7", c1: "#E3E8EF", c2: "#D3DBE6", c3: "#6B7B93", c4: "#24344B" };
 export const Y_ACCENT = 0xe2b33c;
-export const Y_HEX = "#E2B33C";
 export const FONT = '"Roboto Mono", ui-monospace, Menlo, monospace';
 export const VIEW = { w: 1280, h: 800 };
 
@@ -472,8 +466,6 @@ export function livePeople(scene, sky, depth, cityId = "milano") {
   scene.events.once("shutdown", () => scene.events.off("update", tick));
   return people;
 }
-
-export const clamp = Phaser.Math.Clamp;
 
 // nome della città e coordinate in alto a sinistra, etichette dei monumenti agganciate
 // ai livelli della skyline (si muovono con il parallasse)

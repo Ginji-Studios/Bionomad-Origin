@@ -3,7 +3,6 @@
 import Phaser from "../phaser.js";
 import { PlantSensors, VIAL_COLORS } from "../input/PlantSensors.js";
 import { paint } from "../world/skyline.js";
-import { K } from "../art/people.js";
 import { box, button, C, ditherBand, HEX, txt, VIEW } from "./hud.js";
 
 const W = 830;
