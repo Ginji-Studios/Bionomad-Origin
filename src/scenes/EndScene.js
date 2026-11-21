@@ -80,8 +80,8 @@ export class EndScene extends Phaser.Scene {
       txt(this, sx, y + 274, value, { size: 30, weight: "700" }).setScrollFactor(0);
     };
     stat(x + 48, "TAPPE", `${done}/${total}`);
-    stat(x + 228, "OSSIGENO FINALE", `${Math.round(o2 * 100)}%`);
-    stat(x + 448, "DIFFICOLTÀ", origin.difficulty ?? "");
+    stat(x + 210, "OSSIGENO FINALE", `${Math.round(o2 * 100)}%`);
+    stat(x + 410, "DIFFICOLTÀ", origin.difficulty ?? "");
     // barra dell'ossigeno: traccia chiara e riempimento blu notte che cresce
     const bar = this.add.graphics().setScrollFactor(0);
     const bx = x + 48;
