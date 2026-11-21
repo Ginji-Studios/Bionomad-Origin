@@ -186,7 +186,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
   const cx = w / 2;
   const hy = h * 0.42; // centro della testa
   // Francesca (shatush): castano un po' più chiaro
-  const hair = o.balayage ? "#9A7559" : HAIR(o.hairTone ?? 0.3);
+  const hair = o.hairC ?? (o.balayage ? "#9A7559" : HAIR(o.hairTone ?? 0.3));
   const skin = "#EBD3BF";
   const skinD = "#D9BBA3";
   const top = o.sweaterColor ?? TOP(o.top ?? 0.4);

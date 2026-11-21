@@ -1421,7 +1421,7 @@ export const TEAM_LOOK = [
   { hair: "long", hairTone: 0.3, hat: "cap", jacket: true, top: 0.35, legs: 0.08, tuft: true },
   { hair: "long", hairTone: 0.36, top: 0.12, legs: 0.3, skirt: true, earLocks: true, glasses: "round" },
   { hair: "long", hairTone: 0.55, balayage: true, frontLocks: true, glasses: "round", top: 0.2, stripes: true, legs: 0.3 },
-  { hair: "long", hairTone: 0.14, top: 0.78, legs: 0.4, overalls: true }
+  { hair: "long", hairTone: 0.14, hairC: "#3E2B22", top: 0.78, legs: 0.4, overalls: true }
 ];
 const RUST = "#B4553F";
 // ciuffo rosso morbido (curve, non blocchi di pixel)
