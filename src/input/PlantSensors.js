@@ -26,8 +26,8 @@ const state = {
   touchRight: false,
   serialDirection: 0,
   // nuovi controlli
-  lightSwitch: false,
-  knob: 0.5, // 0..1
+  lightKnob: 0, // 0..1 manopola della luce
+  knob: 0.5, // 0..1 manopola della temperatura
   irrigate: false,
   vent: false,
   // pressioni contate (anche se rapidissime, tra un fotogramma e l'altro)
@@ -102,9 +102,14 @@ function parseLine(line) {
       reported.add("W");
       state.irrigation = value === 1;
     }
+    // manopola della luce (potenziometro 0..1023); "LU" 0/1 resta per il vecchio interruttore
+    if (key === "LK") {
+      reported.add("LK");
+      state.lightKnob = Math.max(0, Math.min(1, value / 1023));
+    }
     if (key === "LU") {
-      reported.add("LU");
-      state.lightSwitch = value === 1;
+      reported.add("LK");
+      state.lightKnob = value === 1 ? 0.75 : 0;
     }
     if (key === "TK") {
       reported.add("TK");

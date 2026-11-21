@@ -1,7 +1,7 @@
 // pannello del BIONOMAD: il "display" del dispositivo con temperatura dello zaino e dell'esterno,
 // luce, acqua e aria, più l'obiettivo della task. Si usa con i controlli fisici; se un comando
 // non è collegato, compaiono i pulsanti a schermo e funzionano i tasti:
-//   L luce · W/S (o ↑/↓) manopola · R irrigazione (tenuto) · V aria (tenuto)
+//   L/K manopola della luce (su/giù) · W/S (o ↑/↓) manopola della task aperta · R irrigazione · V aria
 import Phaser from "../phaser.js";
 import { Bionomad, IDEAL } from "../systems/Bionomad.js";
 import { PlantSensors } from "../input/PlantSensors.js";
@@ -18,15 +18,17 @@ const H = 470;
 // tasti dei controlli simulati: validi in tutte le scene di gioco
 export function bioKeys(scene) {
   const kb = scene.input.keyboard;
-  const keys = kb.addKeys("W,S,UP,DOWN,R,V,L");
-  kb.on("keydown-L", () => {
-    if (PlantSensors.simulated("LU")) Bionomad.sim.light = !Bionomad.sim.light;
-  });
+  const keys = kb.addKeys("W,S,UP,DOWN,R,V,L,K");
   return (delta) => {
     const dt = Math.min(delta, 100) / 1000;
     const up = keys.W.isDown || keys.UP.isDown;
     const down = keys.S.isDown || keys.DOWN.isDown;
-    if (up || down) Bionomad.sim.knob = Phaser.Math.Clamp(Bionomad.sim.knob + (up ? 0.35 : -0.35) * dt, 0, 1);
+    // W/S girano la manopola della task aperta (luce o temperatura); L/K sempre quella della luce
+    const lightTask = scene.bio?.open && scene.bio.step?.goal === "light";
+    const lUp = keys.L.isDown || (lightTask && up);
+    const lDown = keys.K.isDown || (lightTask && down);
+    if (lUp || lDown) Bionomad.sim.lightKnob = Phaser.Math.Clamp(Bionomad.sim.lightKnob + (lUp ? 0.45 : -0.45) * dt, 0, 1);
+    if (!lightTask && (up || down)) Bionomad.sim.knob = Phaser.Math.Clamp(Bionomad.sim.knob + (up ? 0.35 : -0.35) * dt, 0, 1);
     Bionomad.sim.irrigating = keys.R.isDown || Boolean(scene._simIrr);
     Bionomad.sim.venting = keys.V.isDown || Boolean(scene._simAir);
   };
@@ -349,7 +351,7 @@ function mixC(a, b, k) {
   return (m(16) << 16) | (m(8) << 8) | m(0);
 }
 
-const GOAL_NAME = { light: "TASTO LUCE", temp: "MANOPOLA TEMP", water: "TASTO ACQUA", air: "TASTO ARIA" };
+const GOAL_NAME = { light: "MANOPOLA LUCE", temp: "MANOPOLA TEMP", water: "TASTO ACQUA", air: "TASTO ARIA" };
 
 export class BioPanel {
   constructor(scene) {
@@ -388,6 +390,8 @@ export class BioPanel {
     const s = Bionomad.state;
     if (goal === "water") s.water = Math.min(s.water, 0.18);
     if (goal === "air") s.air = Math.min(s.air, 0.25);
+    // task della luce: si parte al buio (in simulazione la manopola torna a zero)
+    if (goal === "light" && PlantSensors.simulated("LK")) Bionomad.sim.lightKnob = 0;
     this.prev = { light: s.light, knob: s.knob };
     // quick time event dei pulsanti: si conta da qui quante volte vengono premuti
     this.presses0 = { irr: Bionomad.pulse.irrPresses, air: Bionomad.pulse.airPresses };
@@ -421,8 +425,8 @@ export class BioPanel {
     this.arm = scene.add.graphics();
     this.props.add(this.arm);
     this.hand = null;
-    if (goal !== "temp") {
-      // il dito preme il tasto dello zaino (per la temperatura si usa il potenziometro vero:
+    if (goal !== "temp" && goal !== "light") {
+      // il dito preme il tasto dello zaino (luce e temperatura sono manopole vere: niente mano) (per la temperatura si usa il potenziometro vero:
       // nel gioco si vede lo zaino che scalda o raffredda, senza mano)
       const k = BTN[goal];
       this.hand = scene.add.image(k.x + 6, k.y + 8, "bv_hand2").setOrigin(22 / 140, 22 / 140);
@@ -476,7 +480,9 @@ export class BioPanel {
       c.add(z);
     };
     const g = this.step.goal;
-    if (g === "light" && PlantSensors.simulated("LU")) zone(BTN.light.x, BTN.light.y, 76, 90, () => (Bionomad.sim.light = !Bionomad.sim.light));
+    if (g === "light" && PlantSensors.simulated("LK"))
+      // simulazione senza Arduino: metà destra della manopola = più luce, metà sinistra = meno
+      [-1, 1].forEach((d) => zone(BTN.light.x + d * 40, BTN.light.y, 80, 110, () => (this.lightDir = d), () => (this.lightDir = 0)));
     if (g === "water" && PlantSensors.simulated("IR")) zone(BTN.water.x, BTN.water.y, 76, 90, () => (scene._simIrr = true), () => (scene._simIrr = false));
     if (g === "air" && PlantSensors.simulated("AR")) zone(BTN.air.x, BTN.air.y, 76, 90, () => (scene._simAir = true), () => (scene._simAir = false));
     if (g === "temp" && PlantSensors.simulated("TK"))
@@ -493,6 +499,7 @@ export class BioPanel {
     this.scene._simIrr = false;
     this.scene._simAir = false;
     this.knobDir = 0;
+    this.lightDir = 0;
   }
 
   // ritorna { done, failed, negligence, progress }
@@ -517,14 +524,16 @@ export class BioPanel {
     const step = this.step;
     const s = Bionomad.state;
     if (this.knobDir) Bionomad.sim.knob = Phaser.Math.Clamp(Bionomad.sim.knob + this.knobDir * 0.4 * (delta / 1000), 0, 1);
+    if (this.lightDir) Bionomad.sim.lightKnob = Phaser.Math.Clamp(Bionomad.sim.lightKnob + this.lightDir * 0.45 * (delta / 1000), 0, 1);
     this.elapsed += delta;
     this.t += delta;
     let progress = 0;
     let res = {};
     if (step.goal === "light") {
-      if (s.light) this.ok += delta;
-      else this.ok = 0;
-      progress = Math.min(1, this.ok / 500);
+      // manopola nella fascia giusta per un attimo (né troppo poca né troppa luce)
+      if (Bionomad.lightOk()) this.ok += delta;
+      else this.ok = Math.max(0, this.ok - delta * 0.6);
+      progress = Math.min(1, this.ok / (step.holdMs ?? 1000));
       if (step.qteMs && this.elapsed > step.qteMs && progress < 1) res = { failed: true, negligence: "dark" };
     } else if (step.goal === "temp") {
       if (Bionomad.tempOk()) this.ok += delta;
@@ -682,6 +691,7 @@ export class BioPanel {
     const goal = step.goal;
     const t = this.t / 1000;
     const lit = s.light;
+    const lv = s.lightLvl ?? (lit ? 1 : 0); // intensità della luce 0..1 (manopola)
     const ease = (v, target, ms) => v + (target - v) * Math.min(1, delta / ms);
     const handFree = this.hand && !this.scene.tweens.isTweening(this.hand);
 
@@ -689,7 +699,7 @@ export class BioPanel {
     // il dito preme il tasto quando nella realtà si preme il comando
     const presses = Bionomad.pulse.irrPresses + Bionomad.pulse.airPresses;
     if (s.light !== this.prev.light || presses !== this.prev.presses) this.tapUntil = this.t + 300;
-    if (goal !== "temp") {
+    if (this.hand) {
       const k = BTN[goal];
       const press = this.t < (this.tapUntil ?? 0) ? 1 : 0;
       this.handPress = ease(this.handPress ?? 0, press, 60);
@@ -709,11 +719,11 @@ export class BioPanel {
       glassPts.push({ x: PX + Math.cos(a) * (GLASS.w / 2), y: GLASS.y + 150 + Math.sin(a) * 150 });
     }
     glassPts.push({ x: GLASS.x + GLASS.w, y: GLASS.y + GLASS.h });
-    G.fillStyle(lit ? 0xf4ecc8 : 0xc6d6ea, 1);
+    G.fillStyle(mixC(0xc6d6ea, 0xf4ecc8, Math.min(1, lv * 1.3)), 1);
     G.fillPoints(glassPts, true);
     if (lit) {
-      // luce accesa: il cono caldo della lampada sulle piante
-      G.fillStyle(0xf6e7a8, 0.45 + 0.08 * Math.sin(t * 4));
+      // luce accesa: il cono caldo della lampada sulle piante, intenso quanto la manopola
+      G.fillStyle(0xf6e7a8, (0.45 + 0.08 * Math.sin(t * 4)) * Math.min(1, lv * 1.2));
       G.fillTriangle(PX, GLASS.y + 14, GLASS.x + 10, SOIL_Y, GLASS.x + GLASS.w - 10, SOIL_Y);
     }
 
@@ -836,10 +846,10 @@ export class BioPanel {
     const D = this.dev;
     D.clear();
     // luce interna: striscia LED in cima al vetro (accesa calda, spenta scura)
-    D.fillStyle(lit ? 0xfff3c4 : 0x2b3d56, 1);
+    D.fillStyle(mixC(0x2b3d56, 0xfff3c4, Math.min(1, lv * 1.3)), 1);
     D.fillRoundedRect(PX - 70, GLASS.y + 6, 140, 12, 6);
     if (lit) {
-      D.fillStyle(0xfff3c4, 0.25 + 0.05 * Math.sin(t * 5));
+      D.fillStyle(0xfff3c4, (0.25 + 0.05 * Math.sin(t * 5)) * Math.min(1, lv * 1.3));
       D.fillEllipse(PX, GLASS.y + 14, 240, 40);
     }
     // feritoie dell'aria sul fianco del vetro
@@ -848,6 +858,42 @@ export class BioPanel {
     // tasti dello zaino: luce, irrigazione, aria (il tasto dell'obiettivo si illumina)
     Object.entries(BTN).forEach(([id, k]) => {
       const on = id === goal;
+      if (id === "light") {
+        // manopola della luce: anello con la fascia giusta, tacca gialla che segue la manopola vera
+        const A0 = -Math.PI * 1.25;
+        const A1 = Math.PI * 0.25;
+        const ang = (v) => A0 + v * (A1 - A0);
+        if (on) {
+          for (let i = 3; i >= 1; i--) {
+            D.fillStyle(k.col, 0.08 * (4 - i) * (0.6 + lv * 0.4));
+            D.fillCircle(k.x, k.y, 32 + i * 7 + Math.sin(t * 5) * 2);
+          }
+        }
+        D.lineStyle(6, 0xd3dbe6, 1);
+        D.beginPath();
+        D.arc(k.x, k.y, 36, A0, A1, false);
+        D.strokePath();
+        if (on) {
+          D.lineStyle(6, 0x5a8e92, 0.75);
+          D.beginPath();
+          D.arc(k.x, k.y, 36, ang(IDEAL.lMin), ang(IDEAL.lMax), false);
+          D.strokePath();
+        }
+        if (lv > 0.01) {
+          D.lineStyle(3, 0xf6c94c, 1);
+          D.beginPath();
+          D.arc(k.x, k.y, 36, A0, ang(lv), false);
+          D.strokePath();
+        }
+        D.fillStyle(0xc9c6be, 1);
+        D.fillCircle(k.x, k.y + 3, 27);
+        D.fillStyle(0x24344b, 1);
+        D.fillCircle(k.x, k.y, 25);
+        const a = ang(lv);
+        D.lineStyle(5, on || lit ? 0xf6c94c : 0x9aa7ba, 1);
+        D.lineBetween(k.x + Math.cos(a) * 8, k.y + Math.sin(a) * 8, k.x + Math.cos(a) * 21, k.y + Math.sin(a) * 21);
+        return;
+      }
       const pressed = (id === "water" && s.irrigating) || (id === "air" && s.venting) || (id === "light" && lit);
       if (on) {
         for (let i = 3; i >= 1; i--) {
@@ -968,10 +1014,12 @@ export class BioPanel {
 
     const pressed = goal === "water" ? Bionomad.pulse.irrPresses > this.presses0.irr : goal === "air" ? Bionomad.pulse.airPresses > this.presses0.air : false;
     // ---------- quick time event: anello che si svuota attorno all'oggetto finché non si preme
-    if ((goal === "water" || goal === "air") && !pressed && this.qte) {
+    const lightWait = goal === "light" && step.qteMs && !Bionomad.lightOk() && this.ok <= 0;
+    if (((goal === "water" || goal === "air") && !pressed && this.qte) || lightWait) {
       const at = BTN[goal];
-      const left = Math.max(0, 1 - this.elapsed / this.qte);
-      const pulseR = 46 + Math.sin(t * 8) * 3;
+      const lim = goal === "light" ? step.qteMs : this.qte;
+      const left = Math.max(0, 1 - this.elapsed / lim);
+      const pulseR = (goal === "light" ? 50 : 46) + Math.sin(t * 8) * 3;
       X.lineStyle(6, 0xffffff, 0.5);
       X.strokeCircle(at.x, at.y, pulseR);
       X.lineStyle(6, left < 0.3 ? 0xb4553f : Y_ACCENT, 1);
@@ -988,7 +1036,7 @@ export class BioPanel {
     B.fillStyle(C.c4, 1);
     this.shownProg = (this.shownProg ?? 0) + (progress - (this.shownProg ?? 0)) * Math.min(1, delta / 120);
     B.fillRoundedRect(VIEW.w - 352, this.barY, Math.max(8, 300 * this.shownProg), 8, 4);
-    const limit = pressed ? null : this.qte;
+    const limit = goal === "light" ? (step.qteMs && progress < 1 ? step.qteMs : null) : pressed ? null : this.qte;
     if (limit) {
       const left = Math.max(0, 1 - this.elapsed / limit);
       B.fillStyle(left < 0.3 ? 0xb4553f : Y_ACCENT, 1);

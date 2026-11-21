@@ -12,7 +12,8 @@ import { C, canvasImage, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../
 
 const FEET = 764;
 const BAR = 84; // altezza delle bande nere da cinema
-const SEAT = 44; // altezza della seduta del divano = bacino nella posa seduta (px a schermo)
+const SEAT = 44;
+const NIGHT = 0x0e1626; // blu notte di bande e stanza al buio // altezza della seduta del divano = bacino nella posa seduta (px a schermo)
 
 // cutscene di fine giornata: rientro a casa di notte, lo zaino torna sull'hub a ricaricarsi,
 // le luci si abbassano. Inquadrature con bande da cinema e zoom lenti; didascalie battute a macchina.
@@ -20,6 +21,13 @@ const SEAT = 44; // altezza della seduta del divano = bacino nella posa seduta (
 export class OutroScene extends Phaser.Scene {
   constructor() {
     super("OutroScene");
+  }
+
+  init(data) {
+    // inside: si è già in casa (l'ultimo evento era a casa), niente rientro dalla porta.
+    // night: il BIONOMAD ti aveva svegliato, si torna a dormire
+    this.inside = Boolean(data?.inside);
+    this.wasNight = Boolean(data?.night);
   }
 
   create() {
@@ -55,40 +63,45 @@ export class OutroScene extends Phaser.Scene {
     // e poi si siede sopra la seduta, con le gambe davanti e i piedi a terra
     this.sofaX = this.points.sofa ?? 222;
     this.add.image(this.sofaX, FEET + 2, sofaSprite(this, origin.id, SEAT)).setOrigin(0.5, 1).setScrollFactor(0).setDepth(480);
-    this.night = this.add.rectangle(0, 0, VIEW.w, VIEW.h, C.c0, 1).setAlpha(0).setOrigin(0).setScrollFactor(0).setDepth(800);
+    this.night = this.add.rectangle(0, 0, VIEW.w, VIEW.h, NIGHT, 1).setAlpha(0).setOrigin(0).setScrollFactor(0).setDepth(800);
 
     // l'operatore rientra dalla porta, con lo zaino
     this.key = operatorKey(this, this.op, this.city);
     this.bare = holdFrames(this, operatorKey(this, this.op, this.city, { bare: true }));
-    this.walker = new Walker(this, this.key, this.points.door, FEET, { sound: true, indoor: true, speed: 170 });
+    const startX = this.inside ? Math.min(this.points.door - 150, this.points.hub + 330) : this.points.door;
+    this.walker = new Walker(this, this.key, startX, FEET, { sound: true, indoor: true, speed: 170 });
     [this.walker.img, this.walker.shadow].forEach((o) => o.setScrollFactor(0));
     this.walker.facing = -1;
     this.walker.img.setFlipX(true);
     this.walker.maxX = this.points.door + 10;
-    // entra dalla porta: il vano si apre sulla strada di notte e lui sbuca dalla luce
-    this.door = doorway(this, this.points.door, { night: true, depth: this.walker.img.depth });
-    [this.walker.img, this.walker.shadow].forEach((o) => o.setAlpha(0));
-    this.walker.img.setScale(0.92);
-    this.walker.frozen = true;
-    this.time.delayedCall(500, () => {
-      this.door.open();
-      this.time.delayedCall(320, () => {
-        this.walker.frozen = false;
-        this.tweens.add({ targets: [this.walker.img, this.walker.shadow], alpha: 1, duration: 420 });
-        this.tweens.add({ targets: this.walker.img, scaleX: 1, scaleY: 1, duration: 520, ease: "Sine.easeOut" });
+    if (!this.inside) {
+      // entra dalla porta: il vano si apre sulla strada di notte e lui sbuca dalla luce
+      this.door = doorway(this, this.points.door, { night: true, depth: this.walker.img.depth });
+      [this.walker.img, this.walker.shadow].forEach((o) => o.setAlpha(0));
+      this.walker.img.setScale(0.92);
+      this.walker.frozen = true;
+      this.time.delayedCall(500, () => {
+        this.door.open();
+        this.time.delayedCall(320, () => {
+          this.walker.frozen = false;
+          this.tweens.add({ targets: [this.walker.img, this.walker.shadow], alpha: 1, duration: 420 });
+          this.tweens.add({ targets: this.walker.img, scaleX: 1, scaleY: 1, duration: 520, ease: "Sine.easeOut" });
+        });
       });
-    });
+    } else this.doorClosed = true;
+    // di notte la stanza è già in penombra
+    if (this.wasNight) this.night.setAlpha(0.35);
     // la luce della pianta: alone retinato che resta acceso quando la stanza si spegne
     this.glow = this.add.image(0, 0, glowTexture(this)).setScrollFactor(0).setDepth(810).setAlpha(0);
 
     this.buildUi();
     fadeIn(this, 700);
-    this.ui.fadeIn(700, 28, 40, 57);
+    this.ui.fadeIn(700, 14, 22, 38);
     this.phase = "in";
     this.target = this.points.hub + 70;
     // primo piano lento verso l'hub mentre entra
     cam.zoomTo(1.18, 3600, "Sine.easeInOut");
-    this.caption("21:40 · RIENTRO A CASA");
+    this.caption(this.wasNight ? "03:20 · DI NUOVO A DORMIRE" : this.inside ? "21:40 · FINE SERATA" : "21:40 · RIENTRO A CASA");
     this.input.on("pointerup", () => this.finish());
     this.input.keyboard.on("keydown-ENTER", () => this.finish());
     this.input.keyboard.on("keydown-ESC", () => this.finish());
@@ -104,18 +117,18 @@ export class OutroScene extends Phaser.Scene {
 
   buildUi() {
     // bande alte quanto metà schermo: entrano per BAR px, alla fine si chiudono del tutto
-    const top = this.ui$(this.add.rectangle(0, -VIEW.h / 2, VIEW.w, VIEW.h / 2, C.c0, 1).setOrigin(0).setDepth(3000));
-    const bot = this.ui$(this.add.rectangle(0, VIEW.h, VIEW.w, VIEW.h / 2, C.c0, 1).setOrigin(0).setDepth(3000));
+    const top = this.ui$(this.add.rectangle(0, -VIEW.h / 2, VIEW.w, VIEW.h / 2, NIGHT, 1).setOrigin(0).setDepth(3000));
+    const bot = this.ui$(this.add.rectangle(0, VIEW.h, VIEW.w, VIEW.h / 2, NIGHT, 1).setOrigin(0).setDepth(3000));
     this.barTop = top;
     this.barBot = bot;
     this.tweens.add({ targets: top, y: BAR - VIEW.h / 2, duration: 700, ease: "Cubic.easeOut" });
     this.tweens.add({ targets: bot, y: VIEW.h - BAR, duration: 700, ease: "Cubic.easeOut" });
     const line = this.ui$(this.add.graphics().setDepth(3001));
-    line.fillStyle(C.c4, 1);
+    line.fillStyle(0xe2b33c, 1);
     line.fillRect(40, VIEW.h - BAR / 2 - 1, 6, 6);
-    this.cap = this.ui$(txt(this, 60, VIEW.h - BAR / 2 + 2, "", { size: 24, origin: [0, 0.5] }).setDepth(3001));
-    this.ui$(txt(this, VIEW.w - 40, BAR / 2, "TOCCA PER SALTARE", { size: 16, color: HEX.c3, origin: [1, 0.5] }).setDepth(3001));
-    this.ui$(txt(this, 40, BAR / 2, "FINE GIORNATA", { size: 16, color: HEX.c3, origin: [0, 0.5] }).setDepth(3001));
+    this.cap = this.ui$(txt(this, 60, VIEW.h - BAR / 2 + 2, "", { size: 24, color: "#F4F5F7", origin: [0, 0.5] }).setDepth(3001));
+    this.ui$(txt(this, VIEW.w - 40, BAR / 2, "TOCCA PER SALTARE", { size: 16, color: "#9AA7BA", origin: [1, 0.5] }).setDepth(3001));
+    this.ui$(txt(this, 40, BAR / 2, "FINE GIORNATA", { size: 16, color: "#9AA7BA", origin: [0, 0.5] }).setDepth(3001));
   }
 
   caption(text) {
@@ -137,7 +150,7 @@ export class OutroScene extends Phaser.Scene {
     if (this.phase === "in") {
       this.walker.update(-1, delta);
       // passato il vano, la porta si richiude alle sue spalle
-      if (!this.doorClosed && this.walker.x < this.points.door - 110) {
+      if (!this.doorClosed && this.door && this.walker.x < this.points.door - 110) {
         this.doorClosed = true;
         this.door.close();
       }
@@ -153,7 +166,7 @@ export class OutroScene extends Phaser.Scene {
     // mentre è in carica, la pianta sull'hub rilascia ossigeno
     if (this.charging && (this.chargeMs -= delta) <= 0) {
       this.chargeMs = 380;
-      const b = this.add.rectangle(this.hubAt.x + 8 + Math.random() * 12, this.hubAt.y + 10, 3 + (Math.random() < 0.3 ? 1 : 0), 3, Math.random() < 0.7 ? 0xf1f0ed : C.c4).setScrollFactor(0).setDepth(820);
+      const b = this.add.circle(this.hubAt.x + 8 + Math.random() * 12, this.hubAt.y + 10, 1.6 + Math.random() * 1.4, Math.random() < 0.7 ? 0xf1f0ed : 0xa9c6e0, 0.9).setScrollFactor(0).setDepth(820);
       const drift = (Math.random() - 0.5) * 24;
       this.tweens.add({ targets: b, y: b.y - 70 - Math.random() * 50, x: b.x + drift, alpha: 0, duration: 1600, ease: "Sine.easeOut", onComplete: () => b.destroy() });
     }
@@ -183,7 +196,7 @@ export class OutroScene extends Phaser.Scene {
         this.tweens.add({ targets: pack, y: pack.y + 14, alpha: 0, duration: 520, delay: 180, ease: "Sine.easeIn", onComplete: () => pack.setVisible(false) });
         Sfx.attach();
         // impulso di ricarica: un anello che si allarga dallo zaino
-        const ring = this.add.rectangle(pack.x + 14, pack.y + 29, 40, 70).setStrokeStyle(2, C.c4, 1).setScrollFactor(0).setDepth(700);
+        const ring = this.add.ellipse(pack.x + 14, pack.y + 29, 44, 70).setStrokeStyle(2, 0xa9c6e0, 1).setScrollFactor(0).setDepth(700);
         this.tweens.add({ targets: ring, scaleX: 1.8, scaleY: 1.5, alpha: 0, duration: 700, onComplete: () => ring.destroy() });
         this.charging = true;
         this.chargeMs = 0;
@@ -255,7 +268,7 @@ export class OutroScene extends Phaser.Scene {
       Sfx.win?.();
       this.tweens.add({ targets: this.night, alpha: 0.62, duration: 1800, ease: "Sine.easeInOut" });
       this.tweens.add({ targets: this.glow, alpha: 1, duration: 1800 });
-      // spenta la luce, entra il chiaro di luna dalle finestre: fasci retinati sul pavimento
+      // spenta la luce, entra il chiaro di luna dalle finestre
       this.moonBeams();
       this.cameras.main.zoomTo(1.1, 3400, "Sine.easeInOut");
       // chiusura: le bande da cinema si stringono sulla scena, poi il riepilogo
@@ -268,7 +281,7 @@ export class OutroScene extends Phaser.Scene {
     });
   }
 
-  // fasci di luna: dalle finestre scendono obliqui fino al pavimento, nel retino della palette
+  // fasci di luna: dalle finestre scendono obliqui fino al pavimento
   moonBeams() {
     const p = this.points;
     const floor = Math.round(GYK);
@@ -288,69 +301,67 @@ export class OutroScene extends Phaser.Scene {
     if (this.done) return;
     this.done = true;
     this.charging = false;
-    this.ui.fadeOut(260, 28, 40, 57);
+    this.ui.fadeOut(260, 14, 22, 38);
     goTo(this, "EndScene", { result: "win", quiet: true });
   }
 }
 
 const GYK = (480 * 800) / 540;
 // fascio di luna: parallelogramma che parte dalla finestra e scende a sinistra sul pavimento,
-// più denso in alto e sfumato in basso; retino Bayer 4x4 a celle di 3 px
+// sfumato in modo continuo (stile vettoriale, niente retino)
 function beamTexture(scene, ww, wh, drop) {
-  const key = `outro_beam_${ww}_${wh}_${drop}`;
+  const key = `outro_beam2_${ww}_${wh}_${drop}`;
   if (scene.textures.exists(key)) return key;
   const slant = 0.55;
-  const W = Math.round(ww + drop * slant + 8);
-  const H = Math.round(drop + 60);
-  const t = scene.textures.createCanvas(key, W, H);
-  const X = t.getContext();
-  const B = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-  const cell = 3;
   const off = drop * slant;
-  for (let y = 0; y < H; y += cell) {
-    const sh = Math.min(y, drop) * slant;
-    for (let x = 0; x < W; x += cell) {
-      // il fascio: tra i bordi della finestra spostati verso sinistra
-      const lx = x - (off - sh);
-      if (lx < 0 || lx > ww) continue;
-      let v;
-      if (y <= drop) v = y < wh ? 0.12 : 0.03 + 0.09 * (1 - (y - wh) / Math.max(1, drop - wh));
-      else v = 0.24 * (1 - (y - drop) / 60); // macchia di luce sul pavimento
-      const edge = Math.min(lx, ww - lx) / 14;
-      v *= Math.min(1, edge);
-      const th = (B[((y / cell) & 3) * 4 + ((x / cell) & 3)] + 0.5) / 16;
-      if (v > th) {
-        X.fillStyle = "#f1f0ed";
-        X.globalAlpha = 0.5;
-        X.fillRect(x, y, cell, cell);
-      }
-    }
-  }
-  t.refresh();
+  const W = Math.round(ww + off + 8);
+  const H = Math.round(drop + 60);
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const X = c.getContext("2d");
+  const gr = X.createLinearGradient(0, 0, 0, drop);
+  gr.addColorStop(0, "rgba(241,240,237,0.16)");
+  gr.addColorStop(Math.min(0.95, wh / drop), "rgba(241,240,237,0.08)");
+  gr.addColorStop(1, "rgba(241,240,237,0.03)");
+  X.fillStyle = gr;
+  X.beginPath();
+  X.moveTo(off, 0);
+  X.lineTo(off + ww, 0);
+  X.lineTo(ww, drop);
+  X.lineTo(0, drop);
+  X.closePath();
+  X.fill();
+  // macchia di luce sul pavimento
+  const pool = X.createRadialGradient(ww / 2, drop + 8, 4, ww / 2, drop + 8, ww * 0.75);
+  pool.addColorStop(0, "rgba(241,240,237,0.22)");
+  pool.addColorStop(1, "rgba(241,240,237,0)");
+  X.fillStyle = pool;
+  X.save();
+  X.translate(0, drop + 8);
+  X.scale(1, 0.25);
+  X.translate(0, -(drop + 8));
+  X.fillRect(-ww, 0, ww * 3, H * 4);
+  X.restore();
+  scene.textures.addCanvas(key, c);
   return key;
 }
 
-// alone retinato della pianta: dischi concentrici a retino Bayer nel colore della lampada
+// alone della pianta: sfumatura radiale morbida nei blu del brand
 function glowTexture(scene) {
-  const key = "outro_glow";
+  const key = "outro_glow2";
   if (scene.textures.exists(key)) return key;
   const R = 120;
-  const t = scene.textures.createCanvas(key, R * 2, R * 2);
-  const X = t.getContext();
-  const B = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-  const cell = 3;
-  for (let y = 0; y < R * 2; y += cell)
-    for (let x = 0; x < R * 2; x += cell) {
-      const d = Math.hypot(x - R, y - R) / R;
-      if (d >= 1) continue;
-      const v = Math.pow(1 - d, 1.6);
-      const th = (B[((y / cell) & 3) * 4 + ((x / cell) & 3)] + 0.5) / 16;
-      if (v * 0.9 > th) {
-        X.fillStyle = v > 0.55 ? "#A3BDF0" : "#7FA6E3";
-        X.globalAlpha = 0.35 + v * 0.4;
-        X.fillRect(x, y, cell, cell);
-      }
-    }
-  t.refresh();
+  const c = document.createElement("canvas");
+  c.width = R * 2;
+  c.height = R * 2;
+  const X = c.getContext("2d");
+  const gr = X.createRadialGradient(R, R, 0, R, R, R);
+  gr.addColorStop(0, "rgba(190,214,240,0.75)");
+  gr.addColorStop(0.35, "rgba(127,166,227,0.38)");
+  gr.addColorStop(1, "rgba(127,166,227,0)");
+  X.fillStyle = gr;
+  X.fillRect(0, 0, R * 2, R * 2);
+  scene.textures.addCanvas(key, c);
   return key;
 }

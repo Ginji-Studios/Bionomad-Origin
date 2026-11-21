@@ -142,7 +142,7 @@ export class Walker {
           sc.cameras.main.shake(140, 0.004);
           // polvere a terra
           for (let i = 0; i < 8; i++) {
-            const d = sc.add.rectangle(baseX + f * (40 + Math.random() * 90), img.y - 4, 4, 4, 0x5e6d88).setDepth(this.depth + 1).setScrollFactor(img.scrollFactorX);
+            const d = sc.add.circle(baseX + f * (40 + Math.random() * 90), img.y - 4, 2 + Math.random() * 2, 0x5e6d88, 0.8).setDepth(this.depth + 1).setScrollFactor(img.scrollFactorX);
             sc.tweens.add({ targets: d, y: d.y - 10 - Math.random() * 14, x: d.x + (Math.random() - 0.5) * 30, alpha: 0, duration: 600, onComplete: () => d.destroy() });
           }
           // la pianta si spegne

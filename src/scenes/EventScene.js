@@ -3,6 +3,7 @@ import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
 import { EMERGENCY_ACTIONS, EVENTS } from "../config/events.js";
 import { completeEvent, currentEvent, dayTime, failRun, getRun, cityZone, cityTemp } from "../systems/RunManager.js";
+import { doorway } from "../ui/door.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { Bionomad } from "../systems/Bionomad.js";
 import { buildSkyline } from "../world/skyline.js";
@@ -92,11 +93,13 @@ export class EventScene extends Phaser.Scene {
       this.add.ellipse(boss.x, FEET - 6, 70, 12, 0x24344b, 0.18).setDepth(399).setScrollFactor(sf);
     }
 
-    this.player = new Walker(this, this.packedKey, 420, FEET, { sound: true, indoor: this.indoor, speed: 255 });
+    this.player = new Walker(this, this.packedKey, 420, FEET, { sound: true, indoor: this.indoor, speed: 230 });
     this.player.img.setScrollFactor(sf);
     this.player.shadow.setScrollFactor(sf);
     this.player.maxX = this.worldW - 60;
     if (this.wide) smoothFollow(this, this.player, 480);
+    // a casa si entra dalla porta (come nella cutscene finale), camminando verso sinistra
+    if (loc === "home" && this.points.door) this.enterHome();
 
     // interfaccia pulita: luogo + task in alto a sinistra, respiro in alto al centro
     cityHud(this, this.origin.id, { zone: cityZone(this.run) });
@@ -158,6 +161,22 @@ export class EventScene extends Phaser.Scene {
     }
   }
 
+  enterHome() {
+    const p = this.player;
+    p.x = this.points.door;
+    p.maxX = this.points.door + 10;
+    p.facing = -1;
+    p.img.setFlipX(true);
+    [p.img, p.shadow].forEach((o) => o.setAlpha(0));
+    const door = doorway(this, this.points.door, { night: true, depth: p.img.depth });
+    this.autoWalk = this.points.door - 170;
+    this.time.delayedCall(250, () => {
+      door.open();
+      this.tweens.add({ targets: [p.img, p.shadow], alpha: 1, duration: 380 });
+    });
+    this.time.delayedCall(1300, () => door.close());
+  }
+
   // ---------- notifica (telefono / BIONOMAD) ----------
 
   notify(step) {
@@ -166,8 +185,14 @@ export class EventScene extends Phaser.Scene {
     if (step.wake) {
       // svegliato nel cuore della notte: la stanza si schiarisce appena
       this.mode = "busy";
-      this.tweens.add({ targets: this.night, fillAlpha: 0.35, duration: 600 });
+      this.tweens.add({ targets: this.night, fillAlpha: Math.max(0.35, this.duskA ?? 0), duration: 600 });
       this.player.img.setTexture(`${this.player.key}_idle`);
+    }
+    if (step.dusk) {
+      // la giornata scorre: la luce cala (fine giornata in ufficio, corrente saltata a casa)
+      this.duskA = step.dusk;
+      this.tweens.add({ targets: this.night, fillAlpha: step.dusk, duration: 1400, ease: "Sine.easeInOut" });
+      this.bioContext.night = true;
     }
     if (step.out != null) Bionomad.setOutside(cityTemp(this.run, step.out));
     PlantSensors.send("N");
@@ -334,6 +359,8 @@ export class EventScene extends Phaser.Scene {
   }
 
   completeStep({ quiet = false } = {}) {
+    // a evento chiuso (o dopo la fine dei passi) non si avanza più: niente doppie chiusure
+    if (this.mode === "done" || this.stepIndex >= this.event.steps.length) return;
     if (!quiet) {
       Sfx.o2Gain();
       this.addOxygen(STEP_BONUS);
@@ -359,7 +386,7 @@ export class EventScene extends Phaser.Scene {
       const nextId = run.events[run.index];
       // già a casa a fine giornata: niente tragitto, si va alla cutscene finale.
       // Evento successivo nello stesso posto (ufficio → ufficio, casa → casa): si resta lì.
-      if (finished && here === "home") goTo(this, "OutroScene");
+      if (finished && here === "home") goTo(this, "OutroScene", { inside: this.event.location === "home", night: this.event.steps.some((st) => st.type === "sleep") });
       else if (!finished && nextId && EVENTS[nextId].location === here) goTo(this, "EventScene");
       else goTo(this, "TravelScene");
     });
@@ -392,8 +419,17 @@ export class EventScene extends Phaser.Scene {
     Bionomad.update(delta);
     this.chip.update(time);
     const input = this.pad.poll();
-    this.player.frozen = this.mode !== "play";
-    this.player.update(input.dir, delta);
+    let dir = input.dir;
+    if (this.autoWalk != null) {
+      // entrata in casa: qualche passo da solo oltre la porta
+      dir = -1;
+      if (this.player.x <= this.autoWalk) {
+        this.autoWalk = null;
+        this.player.maxX = this.worldW - 60;
+      }
+    }
+    this.player.frozen = this.mode !== "play" && this.autoWalk == null;
+    this.player.update(dir, delta);
 
     const step = this.step;
     if (this.mode === "bio") {
@@ -414,7 +450,7 @@ export class EventScene extends Phaser.Scene {
         else this.holdMs = Math.max(0, this.holdMs - delta);
         const p = Math.min(1, this.holdMs / (step.duration ?? 1800));
         this.refreshTasks(p);
-        this.night.fillAlpha = p * 0.7;
+        this.night.fillAlpha = Math.max(this.duskA ?? 0, p * 0.7);
         if (p >= 1) {
           this.player.img.setVisible(true);
           this.completeStep({ quiet: true });
@@ -439,7 +475,11 @@ export class EventScene extends Phaser.Scene {
     this.emTimer += delta;
     const stable = this.cures >= step.cures;
     const atHome = this.player.x >= this.points.home - 40;
-    if (!stable && this.emTimer > step.actionEveryMs) this.openBio(Phaser.Utils.Array.GetRandom(EMERGENCY_ACTIONS), true);
+    if (!stable && this.emTimer > step.actionEveryMs) {
+      // tre cure diverse fra loro, mai la stessa due volte
+      if (!this.emBag?.length) this.emBag = Phaser.Utils.Array.Shuffle([...EMERGENCY_ACTIONS]);
+      this.openBio(this.emBag.pop(), true);
+    }
     else if (atHome && !stable) {
       if (!this.blockToast || this.time.now - this.blockToast > 2500) {
         this.blockToast = this.time.now;

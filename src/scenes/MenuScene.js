@@ -129,8 +129,8 @@ export class MenuScene extends Phaser.Scene {
       for (let i = 0; i <= 48; i++) {
         const u = i / 48;
         // pieno fino a ~400 px, poi cala dolcemente fino a ~1150 px
-        const k = u < 0.32 ? 1 : Math.max(0, 1 - (u - 0.32) / 0.58);
-        const a = 0.96 * (0.5 * k + 0.5 * ease(k));
+        const k = u < 0.36 ? 1 : Math.max(0, 1 - (u - 0.36) / 0.56);
+        const a = 0.5 * k + 0.5 * ease(k);
         const m = ease(Math.min(1, Math.max(0, (u - 0.28) / 0.4)));
         const col = from.map((v, j) => Math.round(v + (to[j] - v) * m));
         g.addColorStop(u, `rgba(${col.join(",")},${a.toFixed(3)})`);
@@ -139,8 +139,8 @@ export class MenuScene extends Phaser.Scene {
       x.fillRect(0, 0, W, 8);
       this.textures.addCanvas(key, c);
     };
-    veil("menu_veil2", [236, 239, 244], [212, 218, 228]);
-    this.veilDay = this.add.image(0, 0, "menu_veil2").setOrigin(0).setDisplaySize(VIEW.w, VIEW.h).setDepth(20);
+    veil("menu_veil3", [236, 239, 244], [212, 218, 228]);
+    this.veilDay = this.add.image(0, 0, "menu_veil3").setOrigin(0).setDisplaySize(VIEW.w, VIEW.h).setDepth(20);
     // logo biodom+ vettoriale e firma
     this.add.image(72, 78, "logo_biodom_l").setOrigin(0, 0.5).setTint(0x24344b).setDepth(21);
     txt(this, 72, 112, "PRESENTA", { size: 12, color: HEX.c3 }).setDepth(21).setLetterSpacing?.(4);

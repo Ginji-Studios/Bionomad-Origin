@@ -21,6 +21,46 @@ const TILE_H = 480;
 // Il tutorial arriva subito dopo GIOCA: niente città o personaggi del gioco (niente spoiler).
 // Lo sfondo delle schede è uno "studio" astratto nei colori del brand e il personaggio
 // è un manichino neutro in duotono blu.
+function backdropTex(scene) {
+  const key = "tut_backdrop";
+  if (scene.textures.exists(key)) return key;
+  const c = document.createElement("canvas");
+  c.width = 1280;
+  c.height = 800;
+  const X = c.getContext("2d");
+  const gr = X.createLinearGradient(0, 0, 0, 800);
+  gr.addColorStop(0, "#1B2A3D");
+  gr.addColorStop(0.55, "#16233A");
+  gr.addColorStop(1, "#0F1828");
+  X.fillStyle = gr;
+  X.fillRect(0, 0, 1280, 800);
+  // vignetta morbida ai bordi
+  const v = X.createRadialGradient(640, 380, 260, 640, 400, 860);
+  v.addColorStop(0, "rgba(0,0,0,0)");
+  v.addColorStop(1, "rgba(4,8,16,0.45)");
+  X.fillStyle = v;
+  X.fillRect(0, 0, 1280, 800);
+  scene.textures.addCanvas(key, c);
+  return key;
+}
+
+function orbTex(scene) {
+  const key = "tut_orb";
+  if (scene.textures.exists(key)) return key;
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const X = c.getContext("2d");
+  const g = X.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, "rgba(255,255,255,0.9)");
+  g.addColorStop(0.45, "rgba(255,255,255,0.35)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  X.fillStyle = g;
+  X.fillRect(0, 0, 256, 256);
+  scene.textures.addCanvas(key, c);
+  return key;
+}
+
 function studioTex(scene) {
   const key = "tut_studio";
   if (scene.textures.exists(key)) return key;
@@ -96,9 +136,23 @@ export class TutorialScene extends Phaser.Scene {
     this.next = data?.next ?? "MenuScene";
     fadeIn(this, 300);
     setAmbient(null);
+    // sfondo da "sala proiezione": blu notte del brand con luci morbide che respirano piano,
+    // così le schede chiare risaltano come schermi
+    // la stessa città del menu (come nella scelta della città), velata di blu notte del brand:
+    // si intravede lo skyline e le schede chiare risaltano come schermi
     ensureMenuBg(this);
     this.add.image(0, 0, "menu_bg").setOrigin(0);
-    this.add.rectangle(0, 0, VIEW.w, VIEW.h, C.c0, 0.7).setOrigin(0);
+    this.add.image(0, 0, backdropTex(this)).setOrigin(0).setAlpha(0.72);
+    this.orbs = [
+      [180, 160, 260, 0x2f5a60, 0.55],
+      [1090, 620, 300, 0x3e6e75, 0.45],
+      [980, 120, 180, 0x5a8e92, 0.3],
+      [300, 700, 200, 0x24344b, 0.6]
+    ].map(([x, y, r, col, a], i) => {
+      const o = this.add.image(x, y, orbTex(this)).setTint(col).setAlpha(a).setScale(r / 128);
+      this.tweens.add({ targets: o, x: x + (i % 2 ? -40 : 40), y: y + (i < 2 ? 24 : -24), scale: (r / 128) * 1.12, duration: 7000 + i * 1300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      return o;
+    });
     brackets(this);
     plantArt(this, "plant_small", 0.5);
     plantArt(this, "plant_mid", 1);
@@ -121,11 +175,12 @@ export class TutorialScene extends Phaser.Scene {
     // pianta: sinistra = video precedente, destra = avanti
     plantNav(this, { left: () => this.back(), right: () => this.advance() });
     // frecce ai lati: suggeriscono che si può tornare indietro o andare avanti
-    this.navL = txt(this, 14, 400, "‹", { size: 54, color: HEX.c3, origin: [0, 0.5] }).setDepth(30);
-    this.navR = txt(this, VIEW.w - 14, 400, "›", { size: 54, color: HEX.c3, origin: [1, 0.5] }).setDepth(30);
+    this.navL = txt(this, 14, 400, "‹", { size: 54, color: "#9FB3C8", origin: [0, 0.5] }).setDepth(30);
+    this.navR = txt(this, VIEW.w - 14, 400, "›", { size: 54, color: "#9FB3C8", origin: [1, 0.5] }).setDepth(30);
+    this.tweens.add({ targets: this.navR, x: VIEW.w - 6, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     this.input.keyboard.on("keydown-SPACE", () => this.advance());
     this.input.keyboard.on("keydown-ENTER", () => goTo(this, this.next));
-    this.go = button(this, VIEW.w - 200, 716, 160, 56, "▶▶", () => goTo(this, this.next), { primary: true, size: 26 });
+    this.go = button(this, VIEW.w - 220, 716, 180, 52, "SALTA ▶▶", () => goTo(this, this.next), { size: 20 });
     this.showPage(0);
   }
 
@@ -143,6 +198,7 @@ export class TutorialScene extends Phaser.Scene {
   }
 
   showPage(i) {
+    const dir = i >= (this.page ?? 0) ? 1 : -1;
     this.page = i;
     this.t = 0;
     this.navL?.setAlpha(i === 0 ? 0.25 : 1);
@@ -151,6 +207,10 @@ export class TutorialScene extends Phaser.Scene {
     if (i === 0) this.pageMove();
     else if (i === 1) this.pageControls();
     else this.pageBreath();
+    // entrata della pagina: scivola dal lato da cui si arriva e si accende
+    this.tweens.killTweensOf(this.layer);
+    this.layer.setAlpha(0).setX(48 * dir);
+    this.tweens.add({ targets: this.layer, alpha: 1, x: 0, duration: 420, ease: "Cubic.easeOut" });
   }
 
   // ---------- elementi comuni
@@ -158,9 +218,11 @@ export class TutorialScene extends Phaser.Scene {
   // scheda chiara con gli angoli arrotondati e un'ombra leggera (stile del gioco)
   frame(x, y, w, h) {
     const g = this.add.graphics();
-    g.fillStyle(C.c4, 0.1);
-    g.fillRoundedRect(x, y + 4, w, h, 18);
-    g.fillStyle(C.c0, 0.96);
+    for (let i = 4; i >= 1; i--) {
+      g.fillStyle(0x060b14, 0.07);
+      g.fillRoundedRect(x - i * 2, y + 6 + i * 2, w + i * 4, h, 18 + i * 2);
+    }
+    g.fillStyle(C.c0, 1);
     g.fillRoundedRect(x, y, w, h, 18);
     this.layer.add(g);
     return g;
@@ -168,8 +230,11 @@ export class TutorialScene extends Phaser.Scene {
 
   // simbolo grande in alto: cosa insegna la pagina (+O₂ / −O₂ / ◀ ● ▶ / respiro)
   badge(label, caption) {
-    this.layer.add(txt(this, VIEW.w / 2, 58, label, { size: 40, weight: "500", origin: 0.5 }));
-    if (caption) this.layer.add(txt(this, VIEW.w / 2, 102, caption, { size: 20, color: HEX.c3, origin: 0.5 }));
+    // capitolo · titolo · spiegazione, come il menu: piccolo numero giallo, titolo chiaro
+    const kick = txt(this, VIEW.w / 2, 30, `TUTORIAL · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#E2B33C", origin: 0.5 });
+    const title = txt(this, VIEW.w / 2, 66, label, { size: 36, weight: "700", color: "#F4F5F7", origin: 0.5 });
+    this.layer.add([kick, title]);
+    if (caption) this.layer.add(txt(this, VIEW.w / 2, 104, caption, { size: 17, color: "#B8C6D6", origin: 0.5 }));
   }
 
   // ---------- disegni: mano, torce, sensori del vaso vero
@@ -274,7 +339,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 1: si cammina toccando le foglie del vaso vero (o con le frecce)
 
   pageMove() {
-    this.badge("◀  TOCCA  ▶", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER MUOVERTI");
+    this.badge("MUOVITI", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER MUOVERTI");
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
     // due piante vere: toccare quella di sinistra fa andare a sinistra, quella di destra a destra
@@ -367,7 +432,11 @@ export class TutorialScene extends Phaser.Scene {
 
   card(x, y, w, h) {
     const g = this.add.graphics();
-    g.fillStyle(C.c0, 0.95);
+    for (let i = 4; i >= 1; i--) {
+      g.fillStyle(0x060b14, 0.07);
+      g.fillRoundedRect(x - i * 2, y + 6 + i * 2, w + i * 4, h, 18 + i * 2);
+    }
+    g.fillStyle(C.c0, 1);
     g.fillRoundedRect(x, y, w, h, 18);
     this.layer.add(g);
     return g;
@@ -518,10 +587,11 @@ export class TutorialScene extends Phaser.Scene {
     this.glowK = this.glowK.map((v, i) => ease(v, i === idx && u < 0.94 ? 1 : 0, 140));
     // LED ad anello attorno alla vaschetta centrale: premendo un tasto si accende del suo colore
     // (luce giallo, acqua azzurro, aria bianco-grigio, temperatura il colore scelto con la manopola)
-    const kv = act.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0;
+    const isKnob = act.id === "temp" || act.id === "light";
+    const kv = isKnob ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0;
     // a riposo (e con PLAY) il LED resta bianco; con gli altri tasti prende il colore del comando
     const WHITE = 0xf4f5f7;
-    const ledCol = after && u < 0.95 ? { light: 0xf6c94c, water: 0x6fc3ff, air: 0xd9dee6, temp: mixCol(0x5f8fd0, 0xd0864f, kv), play: WHITE }[act.id] : WHITE;
+    const ledCol = after && u < 0.95 ? { light: mixCol(WHITE, 0xf6c94c, 0.25 + kv * 0.75), water: 0x6fc3ff, air: 0xd9dee6, temp: mixCol(0x5f8fd0, 0xd0864f, kv), play: WHITE }[act.id] : WHITE;
     const lit = after && u < 0.95 && act.id !== "play";
     this.ledK = ease(this.ledK ?? 0.55, lit ? 1 : 0.55, 150);
     this.ledC = this.ledC == null ? ledCol : mixCol(this.ledC, ledCol, Math.min(1, dt / 120));
@@ -580,8 +650,10 @@ export class TutorialScene extends Phaser.Scene {
         g.fillCircle(b.x, b.y, 20);
       }
       // tasto sul piano del lato: ellisse in prospettiva, con un bordino e la luce in alto
-      const r = i === 4 ? 13 : 10.5;
-      const down = on && press ? -1.5 : 0;
+      // luce e temperatura sono manopole (scure, con la tacca), gli altri tasti
+      const knobI = i === 0 || i === 4;
+      const r = knobI ? 13 : 10.5;
+      const down = on && press && !knobI ? -1.5 : 0;
       const disc = (rr, dz = 0) => {
         const pts = [];
         for (let j = 0; j < 28; j++) {
@@ -592,21 +664,21 @@ export class TutorialScene extends Phaser.Scene {
       };
       g.fillStyle(0xb9b4aa, 1);
       g.fillPoints(disc(r + 1, -1.5), true);
-      g.fillStyle(i === 4 ? 0x24344b : on && press ? 0xe4e1d9 : 0xf9f8f4, 1);
+      g.fillStyle(knobI ? 0x24344b : on && press ? 0xe4e1d9 : 0xf9f8f4, 1);
       g.fillPoints(disc(r), true);
-      if (i !== 4) {
+      if (!knobI) {
         g.fillStyle(0xffffff, 0.8);
         g.fillPoints(disc(r * 0.55, r * 0.35), true);
       }
       g.lineStyle(on ? 2.5 : 1.5, on ? k.glow : 0xc9c5bb, 1);
       g.strokePoints(disc(r + 0.5), true);
       // simbolo del comando sul tasto (e tacca sulla manopola)
-      miniIcon(g, k.id, b.x, b.y, on ? k.glow : 0x8a99b0, on && k.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0.3);
+      miniIcon(g, knobI ? "knob" + k.id : k.id, b.x, b.y, on ? k.glow : 0x8a99b0, on && knobI ? kv : 0.3);
     });
     // --- fila dei comandi grandi (come sul dispositivo)
     CTRL_ROW.forEach((k, i) => {
       const on = i === idx;
-      drawCtrl(g, k, this.glowK[i], on && press, t, on && act.id === "temp" ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0.3);
+      drawCtrl(g, k, this.glowK[i], on && press, t, on && isKnob ? kv : 0.3);
     });
     // --- mano che preme il tasto acceso (o gira la manopola)
     // la mano scivola dal tasto precedente a quello nuovo, senza sparire
@@ -615,7 +687,7 @@ export class TutorialScene extends Phaser.Scene {
     this.handPos = this.handPos ?? { x: tx, y: ty + 60 };
     this.handPos.x = ease(this.handPos.x, tx, 170);
     this.handPos.y = ease(this.handPos.y, ty, 120);
-    drawHand(hand, this.handPos.x, this.handPos.y, act.id === "temp");
+    drawHand(hand, this.handPos.x, this.handPos.y, isKnob);
     hand.setAlpha(1);
   }
 
@@ -766,7 +838,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 4: il respiro cala da solo; curare lo riporta su; a zero si sviene
 
   pageBreath() {
-    this.badge("O₂", "L'OSSIGENO CALA DA SOLO · A ZERO SVIENI");
+    this.badge("IL TUO RESPIRO", "L'OSSIGENO CALA DA SOLO · CURA IL BIONOMAD · A ZERO SVIENI");
     this.frame(140, 130, 1000, 520);
     // sfondo: la città del gioco (come nella pagina del movimento), dentro la scheda
     const city = this.add.tileSprite(150, 140, 980, 420, studioTex(this)).setOrigin(0);
@@ -872,11 +944,13 @@ export class TutorialScene extends Phaser.Scene {
     const x0 = VIEW.w / 2 - (segW * (LAST + 1) + 12 * LAST) / 2;
     for (let i = 0; i <= LAST; i++) {
       const sx = x0 + i * (segW + 12);
-      b.fillStyle(C.c3, 1);
-      b.fillRect(sx, 740, segW, 6);
+      b.fillStyle(0xf4f5f7, 0.18);
+      b.fillRoundedRect(sx, 740, segW, 6, 3);
       const p = i < this.page ? 1 : i === this.page ? Math.min(1, this.t / pageMs(i)) : 0;
-      b.fillStyle(C.c4, 1);
-      b.fillRect(sx, 740, segW * p, 6);
+      if (p > 0.02) {
+        b.fillStyle(i === this.page ? 0xe2b33c : 0xf4f5f7, 1);
+        b.fillRoundedRect(sx, 740, Math.max(6, segW * p), 6, 3);
+      }
     }
     if (this.t >= pageMs(this.page)) {
       // alla fine dell'ultimo video parte il gioco
@@ -904,7 +978,7 @@ const MACHINE = {
   disp: ms(140, 0, 95) // centro del display
 };
 const CTRL_ROW = [
-  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0xe2b33c, cap: "Premi il tasto: il LED diventa giallo e nel gioco si accende la luce dello zaino." },
+  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0xe2b33c, cap: "Gira la manopola: più la giri, più luce. Il LED diventa giallo." },
   { id: "water", label: "ACQUA", x: 810, y: 380, glow: 0x3f8fe0, cap: "Premi una volta, in tempo: LED azzurro, nel gioco parte l'irrigazione." },
   { id: "air", label: "ARIA", x: 920, y: 380, glow: 0x9aa7ba, cap: "Premi una volta, in tempo: LED bianco, nel gioco la ventola soffia aria pulita." },
   { id: "play", label: "PLAY", x: 1030, y: 380, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
@@ -1220,12 +1294,13 @@ function drawCtrl(g, k, onK, pressed, t, knob) {
       g.fillCircle(x, y, 44 + i * 9 + Math.sin(t / 160) * 2);
     }
   }
-  if (k.id === "temp") {
-    // anello di puntini: freddo (blu) → caldo (arancio), si accendono fino alla posizione
+  if (k.id === "temp" || k.id === "light") {
+    // anello di puntini: temperatura freddo (blu) → caldo (arancio); luce spenta → gialla piena
+    const isL = k.id === "light";
     for (let i = 0; i < 16; i++) {
       const a = -Math.PI * 1.25 + (i / 15) * Math.PI * 1.5;
       const u = i / 15;
-      const col = Phaser.Display.Color.GetColor(Math.round(0x5f + (0xd0 - 0x5f) * u), Math.round(0x8f + (0x86 - 0x8f) * u), Math.round(0xd0 + (0x4f - 0xd0) * u));
+      const col = isL ? mixCol(0xb9b4aa, 0xf6c94c, 0.35 + u * 0.65) : Phaser.Display.Color.GetColor(Math.round(0x5f + (0xd0 - 0x5f) * u), Math.round(0x8f + (0x86 - 0x8f) * u), Math.round(0xd0 + (0x4f - 0xd0) * u));
       g.fillStyle(u <= knob ? col : 0xd3dbe6, 1);
       g.fillCircle(x + Math.cos(a) * 60, y + Math.sin(a) * 60, 5);
     }
@@ -1234,8 +1309,13 @@ function drawCtrl(g, k, onK, pressed, t, knob) {
     g.fillStyle(0x24344b, 1);
     g.fillCircle(x, y, 38);
     const a = -Math.PI * 1.25 + knob * Math.PI * 1.5;
-    g.lineStyle(6, 0xd0864f, 1);
+    g.lineStyle(6, isL ? 0xf6c94c : 0xd0864f, 1);
     g.lineBetween(x + Math.cos(a) * 14, y + Math.sin(a) * 14, x + Math.cos(a) * 32, y + Math.sin(a) * 32);
+    if (isL) {
+      // piccolo sole al centro della manopola della luce
+      g.fillStyle(0xf6c94c, 0.35 + knob * 0.65);
+      g.fillCircle(x - Math.cos(a) * 14, y - Math.sin(a) * 14, 4);
+    }
     return;
   }
   g.fillStyle(0x24344b, 0.12);
@@ -1401,16 +1481,16 @@ function miniIcon(g, id, x, y, col, knob = 0.3) {
     g.fillStyle(col, 1);
     g.fillTriangle(x - 3, y - 5, x - 3, y + 5, x + 5, y);
   } else {
-    // manopola: tacca che indica la temperatura scelta
+    // manopola: tacca che indica la posizione (arancio per la temperatura, gialla per la luce)
     const a = -Math.PI * 1.25 + knob * Math.PI * 1.5;
-    g.lineStyle(2.4, col === 0x8a99b0 ? 0xd0864f : col, 1);
+    g.lineStyle(2.4, col === 0x8a99b0 ? (id === "knoblight" ? 0xf6c94c : 0xd0864f) : col, 1);
     g.lineBetween(x + Math.cos(a) * 3, y + Math.sin(a) * 3, x + Math.cos(a) * 10, y + Math.sin(a) * 10);
   }
 }
 
 // schermata del display della macchina per ogni comando (stessa prospettiva del lato destro)
 function screenArt(scene, id) {
-  const key = `tut_screen_${id}`;
+  const key = `tut_screen2_${id}`;
   if (scene.textures.exists(key)) return key;
   const S = 2;
   const W = 640;
@@ -1456,7 +1536,7 @@ function screenArt(scene, id) {
       X.lineTo(sw / 2 + Math.cos(a) * 30, 48 + Math.sin(a) * 30);
       X.stroke();
     }
-    T("LUCE ON", sw / 2 - 34, 104, 15);
+    T("LUCE 75%", sw / 2 - 38, 104, 15);
   } else if (id === "water") {
     X.fillStyle = "#6FA8E8";
     X.beginPath();

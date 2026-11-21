@@ -5,7 +5,7 @@
 //
 // Comandi del dispositivo:
 //   START  pulsante di avvio / pausa
-//   LU     interruttore della luce (0/1)
+//   LK     manopola della luce (0..1023): più la giri, più luce
 //   TK     manopola della temperatura (0..1023)
 //   IR     pulsante di irrigazione: si preme UNA volta (quick time event) e versa una dose d'acqua
 //   AR     pulsante di arieggiamento: si preme UNA volta e il ventilatore soffia per qualche secondo
@@ -15,20 +15,21 @@ import { PlantSensors } from "../input/PlantSensors.js";
 export const POUR_MS = 1800;
 export const VENT_MS = 3400;
 
-export const IDEAL = { tMin: 17, tMax: 25, wMin: 0.4, wMax: 0.75, aMin: 0.5 };
+export const IDEAL = { tMin: 17, tMax: 25, wMin: 0.4, wMax: 0.75, aMin: 0.5, lMin: 0.55, lMax: 0.9 };
 
 const s = {
   temp: 21, // °C nello zaino
   out: 16, // °C fuori
-  knob: 0.5, // 0..1 (manopola)
-  light: false,
+  knob: 0.5, // 0..1 (manopola della temperatura)
+  lightLvl: 0, // 0..1 (manopola della luce)
+  light: false, // luce accesa (manopola oltre il minimo)
   water: 0.6, // 0..1 umidità della terra
   air: 0.85, // 0..1 aria pulita
   irrigating: false,
   venting: false
 };
 // comandi simulati (tastiera / pulsanti a schermo), usati solo se l'Arduino non li manda
-const sim = { knob: 0.5, light: false, irrigating: false, venting: false };
+const sim = { knob: 0.5, lightKnob: 0, irrigating: false, venting: false };
 // pressioni e dosi in corso
 const pulse = { irrRaw: false, airRaw: false, pour: 0, vent: 0, irrPresses: 0, airPresses: 0 };
 
@@ -55,7 +56,8 @@ export const Bionomad = {
     const dt = Math.min(delta, 100) / 1000;
     const ps = PlantSensors.state;
     s.knob = PlantSensors.simulated("TK") ? sim.knob : ps.knob;
-    s.light = PlantSensors.simulated("LU") ? sim.light : ps.lightSwitch;
+    s.lightLvl = PlantSensors.simulated("LK") ? sim.lightKnob : ps.lightKnob;
+    s.light = s.lightLvl > 0.08;
     // pulsanti: conta solo il momento in cui vengono premuti (fronte di salita)
     const irr = PlantSensors.simulated("IR") ? sim.irrigating : ps.irrigate;
     const air = PlantSensors.simulated("AR") ? sim.venting : ps.vent;
@@ -90,6 +92,9 @@ export const Bionomad = {
     if (s.water < 0.2 || s.water > 0.92) k += 0.2;
     if (s.air < 0.3) k += 0.2;
     return k;
+  },
+  lightOk() {
+    return s.lightLvl >= IDEAL.lMin && s.lightLvl <= IDEAL.lMax;
   },
   tempOk() {
     return s.temp >= IDEAL.tMin && s.temp <= IDEAL.tMax;

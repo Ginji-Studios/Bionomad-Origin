@@ -20,14 +20,14 @@ Il gioco sarà su `https://<utente-o-organizzazione>.github.io/Bionomad-Origin/`
 
 ## Come funziona una run
 
-1. **Menu** → GIOCA
-2. **Origine**: Reykjavík (facile), Milano (medio), Nuova Delhi (difficile). Più è alto il PM2.5, più in fretta cala l'ossigeno, più lentamente si ricarica (`regen` in `origins.js`) e più fitto è lo smog in città (`smog`). Cambia anche l'aspetto del personaggio, e il numero di task per evento:
-   - **Facile**: solo la task dell'evento.
-   - **Medio**: + una task di cura in più (illuminala, scaldala, nutrila, dalle un sorso).
-   - **Difficile**: + una cura e + un rimedio a una negligenza (leva lasciata aperta, fiala sbagliata nel pozzetto, pianta surriscaldata o rimasta al buio).
-   Dopo l'origine si sceglie **uomo o donna** (stessi frame di animazione, capelli diversi).
-3. **Cutscene**: il cittadino indossa BIONOMAD+ ed esce di casa.
-4. **3 eventi** pescati a caso tra 11 in `src/config/events.js` (5 nel gioco, 5 sulla pianta vera), giocati in ordine di orario. Tra un evento e l'altro si attraversa la città a piedi.
+1. **Menu** → GIOCA → **Tutorial** (come muoversi toccando le piante, i tasti del BIONOMAD, il respiro).
+2. **Città e personaggio**: Reykjavík (facile), Milano (medio), Nuova Delhi (difficile). Più è alto il PM2.5, più in fretta cala l'ossigeno e più fitto è lo smog. Cambiano anche l'outfit del personaggio, le notifiche durante i tragitti (1 / 1 / 2) e la probabilità che di notte il BIONOMAD ti svegli (25% / 45% / 70%).
+3. **Cutscene**: il cittadino indossa il BIONOMAD ed esce di casa.
+4. **Una giornata in 3 tappe**, una sola visita per posto, tra una tappa e l'altra si attraversa la città a piedi:
+   - **mattina**: bus affollato (luce) oppure bus perso al freddo (temperatura);
+   - **ufficio**: un imprevisto di giorno (riscaldamento spento, riunione col capo, pausa pranzo), poi alle 18:30 l'ultima cura prima di uscire;
+   - **casa la sera**: si entra dalla porta e c'è l'ultima cura (riscaldamento acceso, corrente saltata, sete prima di cena); a volte di notte il BIONOMAD ti sveglia.
+   Le cure (luce, temperatura, acqua, aria) sono scelte a inizio giornata in modo da non ripetersi a raffica.
 5. **Fine giornata** (tutte le task completate) oppure **Task fallite · Game over**: con l'ossigeno a zero il cittadino sviene, lo zaino cade e il vaso si rovescia.
 
 Comandi: WASD / frecce per muoversi, SPAZIO per interagire, ESC per il menu, M per attivare / disattivare l'audio (sintetizzato con Web Audio, nessun file), P per mettere in pausa tutto il gioco (pausa per il team durante le presentazioni).
@@ -62,7 +62,7 @@ La riga `STOP` arresta immediatamente il movimento.
 | Fiale nel pozzetto | Lettore NFC PN532 (I2C) + adesivo NFC nel tappo | A4 SDA, A5 SCL, D2 IRQ, D3 RESET | Casa sera (fertilizzante), task extra |
 | LED rossi / verde | — | D9, D10 / D11 | Emergenza / task riuscita |
 
-Senza pianta collegata si gioca da tastiera: **C** copri, **I** torcia, **H** scalda, **F** raffredda, **R** apre / chiude la leva dell'acqua, **1 / 2 / 3** inserisci fiala verde / blu / rossa, **0** togli fiala, **Q / E** tocca foglia sinistra / destra. Su telefono e tablet compaiono i comandi touch; il pulsante **⛶** in alto attiva o disattiva il fullscreen.
+Senza pianta collegata si gioca da tastiera: **L / K** gira la manopola della luce (più / meno), **W / S** (o ↑ / ↓) gira la manopola della task aperta (luce o temperatura), **R** irrigazione, **V** aria, **Q / E** tocca foglia sinistra / destra. Nelle task si possono anche toccare le manopole e i tasti a schermo. Su telefono e tablet compaiono i comandi touch; il pulsante **⛶** in alto attiva o disattiva il fullscreen.
 
 ## Struttura
 

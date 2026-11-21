@@ -1,8 +1,7 @@
 import Phaser from "../phaser.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { getOrigin } from "../config/origins.js";
-import { dayTime, failRun, getRun, nextDestination, cityZone, cityTemp } from "../systems/RunManager.js";
-import { TRAVEL_TASKS, TRAVEL_TASK_CHANCE } from "../config/events.js";
+import { dayTime, failRun, getRun, nextDestination, cityZone, cityTemp, travelTask } from "../systems/RunManager.js";
 import { Bionomad } from "../systems/Bionomad.js";
 import { PlantSensors } from "../input/PlantSensors.js";
 import { BioPanel, bioKeys } from "../ui/BioPanel.js";
@@ -70,7 +69,7 @@ export class TravelScene extends Phaser.Scene {
     // verso sinistra (e in casa si rientra dalla porta camminando ancora verso sinistra)
     this.back = this.finished;
     const startX = this.back ? this.worldW - 420 : 420;
-    this.player = new Walker(this, opKey, startX, FEET, { sound: true, depth: 500, speed: 255 });
+    this.player = new Walker(this, opKey, startX, FEET, { sound: true, depth: 500, speed: 250 });
     this.player.maxX = this.worldW - 60;
     if (this.back) {
       this.player.facing = -1;
@@ -98,8 +97,9 @@ export class TravelScene extends Phaser.Scene {
     this.tasks?.setDark(this.bioContext.night);
     this.bioKeys = bioKeys(this);
     this.mode = "play";
-    // a volte, durante il tragitto, il BIONOMAD chiede qualcosa (irrigazione o aria)
-    this.taskAt = Math.random() < TRAVEL_TASK_CHANCE ? 0.3 + Math.random() * 0.3 : null;
+    // la cura del tragitto è decisa a inizio giornata (così non si ripete): arriva a metà strada
+    this.travelCare = this.finished ? null : travelTask(this.run);
+    this.taskAt = this.travelCare ? 0.32 + Math.random() * 0.22 : null;
     // anche in strada ci sono tutti e tre i tasti (◀ ▶ ●), come nelle stanze
     this.pad = controls(this);
     this.pad.highlight(false);
@@ -126,7 +126,7 @@ export class TravelScene extends Phaser.Scene {
 
   // notifica del BIONOMAD durante il tragitto: ci si ferma e si fa la task
   travelTask() {
-    const t = Phaser.Utils.Array.GetRandom(TRAVEL_TASKS);
+    const t = this.travelCare;
     // il personaggio rallenta da solo (niente stop secco) mentre arriva la notifica,
     // poi lo zaino si apre quasi subito
     this.mode = "busy";
