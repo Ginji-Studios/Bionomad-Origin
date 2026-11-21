@@ -231,7 +231,7 @@ export class TutorialScene extends Phaser.Scene {
   // simbolo grande in alto: cosa insegna la pagina (+O₂ / −O₂ / ◀ ● ▶ / respiro)
   badge(label, caption) {
     // capitolo · titolo · spiegazione, come il menu: piccolo numero giallo, titolo chiaro
-    const kick = txt(this, VIEW.w / 2, 30, `TUTORIAL · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#E2B33C", origin: 0.5 });
+    const kick = txt(this, VIEW.w / 2, 30, `PRIMA DI USCIRE · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#E2B33C", origin: 0.5 });
     const title = txt(this, VIEW.w / 2, 66, label, { size: 36, weight: "700", color: "#F4F5F7", origin: 0.5 });
     this.layer.add([kick, title]);
     if (caption) this.layer.add(txt(this, VIEW.w / 2, 104, caption, { size: 17, color: "#B8C6D6", origin: 0.5 }));
@@ -339,7 +339,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 1: si cammina toccando le foglie del vaso vero (o con le frecce)
 
   pageMove() {
-    this.badge("MUOVITI", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER MUOVERTI");
+    this.badge("UN PASSO, UNA FOGLIA", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER MUOVERTI");
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
     // due piante vere: toccare quella di sinistra fa andare a sinistra, quella di destra a destra
@@ -445,7 +445,7 @@ export class TutorialScene extends Phaser.Scene {
   // la macchina BIONOMAD vera (il dispositivo fisico) e i suoi comandi: a turno ogni tasto
   // si illumina, la mano lo preme e la macchina reagisce
   pageControls() {
-    this.badge("I COMANDI DEL BIONOMAD", "OGNI TASTO SI ILLUMINA QUANDO VA USATO");
+    this.badge("PRENDITI CURA DI LEI", "QUANDO LA PIANTA HA BISOGNO DI TE, IL SUO COMANDO SI ACCENDE");
     this.card(40, 140, VIEW.w - 80, 560);
     this.layer.add(this.add.image(MG.ox, MG.oy, machineArt(this)).setOrigin(0).setScale(MG.k));
     // lo schermo della macchina reagisce al comando usato (una schermata per comando)
@@ -838,7 +838,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 4: il respiro cala da solo; curare lo riporta su; a zero si sviene
 
   pageBreath() {
-    this.badge("IL TUO RESPIRO", "L'OSSIGENO CALA DA SOLO · CURA IL BIONOMAD · A ZERO SVIENI");
+    this.badge("RESPIRA CON LEI", "SE LEI STA BENE, RESPIRI ANCHE TU · SE L'OSSIGENO FINISCE, SVIENI");
     this.frame(140, 130, 1000, 520);
     // sfondo: la città del gioco (come nella pagina del movimento), dentro la scheda
     const city = this.add.tileSprite(150, 140, 980, 420, studioTex(this)).setOrigin(0);
