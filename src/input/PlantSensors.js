@@ -41,8 +41,9 @@ let port = null;
 let writer = null;
 let lastArduinoCommand = null;
 // respiro basso: il buzzer suona sotto questa percentuale
-export const LOW_O2 = 25;
+export const LOW_O2 = 30; // come la barra del RESPIRO, che diventa rossa sotto il 30%
 let lowSent = null;
+let heartbeat = null;
 let lowAt = 0;
 // sensori che l'Arduino ha davvero mandato almeno una volta (L, T, P, W, TOUCH):
 // solo quelli comandano il gioco, tutti gli altri restano simulati da tastiera / pulsanti
@@ -153,6 +154,13 @@ function parseLine(line) {
   }
 }
 
+// uscendo dal gioco (pagina chiusa o ricaricata) il buzzer si spegne subito
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    if (writer) writer.write("X\n").catch(() => {});
+  });
+}
+
 async function readLoop() {
   const decoder = new TextDecoderStream();
   port.readable.pipeTo(decoder.writable).catch(() => {});
@@ -171,6 +179,7 @@ async function readLoop() {
     console.warn("Pianta scollegata", error);
   }
   state.connected = false;
+  clearInterval(heartbeat);
   reported.clear();
   state.serialDirection = 0;
   state.touchLeft = false;
@@ -199,6 +208,11 @@ export const PlantSensors = {
     encoder.readable.pipeTo(port.writable).catch(() => {});
     writer = encoder.writable.getWriter();
     state.connected = true;
+    // buzzer: si riparte in silenzio, poi un "ci sono" ogni secondo.
+    // Se l'Arduino non lo riceve per 3 s (gioco chiuso, pagina ricaricata) spegne da solo il buzzer.
+    this.send("X");
+    clearInterval(heartbeat);
+    heartbeat = setInterval(() => this.send("K"), 1000);
     readLoop();
   },
 

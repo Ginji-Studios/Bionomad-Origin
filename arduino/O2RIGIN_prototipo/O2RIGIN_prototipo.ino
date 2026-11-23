@@ -9,14 +9,16 @@
 //   (temperatura e luce si regolano dal PC: il potenziometro non si usa)
 // Dal gioco (il buzzer suona SOLO in questi tre casi):
 //   E1 / E0   emergenza: bip veloce continuo finché non arriva E0
-//   B1 / B0   respiro basso (sotto il 25%): bip lento finché non arriva B0
-//   L         partita persa: melodia discendente
+//   B1 / B0   respiro basso (barra rossa, sotto il 30%): sirena a intermittenza finché non arriva B0
+//   L         partita persa (respiro a 0): suono continuo che sale fino al culmine e si spegne
+//   K         "ci sono", ogni secondo: se non arriva per 3 s il buzzer si spegne (gioco chiuso)
+//   X         spegni tutto (uscita, menu, nuova partita)   Q / R  pausa: muto / riprendi
 //   (N, G arrivano ma vengono ignorati)
 //
 // Sulla matrice di LED della scheda compare il logo b+ di biodom+.
 //
-// Collegamenti: avvio D2, irrigazione D6, aria D8 (altro piedino a GND)
-//               buzzer D5 (con transistor), foglia D0
+// Collegamenti: avvio D2, irrigazione D6, aria D5 (altro piedino a GND)
+//               buzzer D8, foglia D0
 
 #include "Arduino_CapacitiveTouch.h"
 #include "Arduino_LED_Matrix.h"
@@ -34,7 +36,7 @@ uint8_t logo[8][12] = {
   {0,1,1,1,1,0,0,0,0,0,0,0}
 };
 
-const int P_AVVIO = 2, P_IRR = 6, P_ARIA = 8, P_BUZZER = 5;
+const int P_AVVIO = 2, P_IRR = 6, P_ARIA = 5, P_BUZZER = 8;
 
 CapacitiveTouch foglia = CapacitiveTouch(D0);
 const int SOGLIA = 1000;           // sopra 1000 la foglia conta come toccata
@@ -46,7 +48,10 @@ const unsigned long TIENI_MS = 800;   // tenendo premuto START più di così: pa
 int irr = 0, aria = 0;
 unsigned long ultimoInvio = 0, tAllarme = 0;
 bool allarme = false;
-bool bassoRespiro = false;         // il gioco manda B1 sotto il 25% di respiro, B0 quando risale
+int notaSirena = 0;
+bool muto = false;
+unsigned long ultimoDalGioco = 0;
+bool bassoRespiro = false;         // il gioco manda B1 quando la barra del respiro diventa rossa, B0 quando risale
 unsigned long tBasso = 0;
 String rx = "";
 
@@ -58,14 +63,22 @@ void inviaStato() {
 
 void comando(String c) {
   c.trim(); c.toUpperCase();
+  if (c.length() == 0) return;
+  ultimoDalGioco = millis();
+  if (c == "K") return;
+  Serial.print("# ricevuto: "); Serial.println(c);   // per controllare che i comandi arrivino
   if (c == "E1") allarme = true;
   else if (c == "E0") { allarme = false; noTone(P_BUZZER); }   // fine emergenza
-  else if (c == "B1") bassoRespiro = true;
+  else if (c == "B1") { if (!bassoRespiro) tBasso = millis(); bassoRespiro = true; }
   else if (c == "B0") bassoRespiro = false;
+  else if (c == "X") { allarme = false; bassoRespiro = false; muto = false; noTone(P_BUZZER); notaSirena = 0; }
+  else if (c == "Q") { muto = true; noTone(P_BUZZER); notaSirena = 0; }
+  else if (c == "R") muto = false;
   else if (c == "L") {                                   // partita persa
     allarme = false; bassoRespiro = false;
-    int note[] = {880, 740, 587, 440};
-    for (int k = 0; k < 4; k++) { tone(P_BUZZER, note[k], 220); delay(260); }
+    // suono continuo che sale fino al culmine (2 s), resta in cima un attimo e si spegne di colpo
+    for (int f = 500; f <= 1800; f += 13) { tone(P_BUZZER, f); delay(20); }
+    tone(P_BUZZER, 1800); delay(700);
     noTone(P_BUZZER);
   }
 }
@@ -110,12 +123,23 @@ void loop() {
     else if (ch != '\r') rx += ch;
   }
 
-  // emergenza: bip veloce continuo finché il gioco non manda E0
-  if (allarme && millis() - tAllarme > 500) { tone(P_BUZZER, 2400, 250); tAllarme = millis(); }
-  // ossigeno basso: bip lento (solo se non c'è già l'emergenza)
-  else if (!allarme && bassoRespiro && millis() - tBasso > 1500) {
-    tone(P_BUZZER, 1000, 150); tBasso = millis();
+  // gioco chiuso o pagina ricaricata: niente "K" da 3 secondi → buzzer spento
+  if ((allarme || bassoRespiro) && millis() - ultimoDalGioco > 3000) {
+    allarme = false; bassoRespiro = false; noTone(P_BUZZER); notaSirena = 0;
   }
+
+  // emergenza: bip veloce continuo finché il gioco non manda E0
+  if (muto) { }
+  else if (allarme && millis() - tAllarme > 500) { tone(P_BUZZER, 2400, 250); tAllarme = millis(); }
+  // respiro basso: sirena a intermittenza (solo se non c'è già l'emergenza)
+  // 1,2 s di sirena (due note che si alternano) + 0,8 s di pausa, e ricomincia
+  else if (!allarme && bassoRespiro) {
+    unsigned long t = (millis() - tBasso) % 2000;
+    if (t < 1200) {
+      int nota = ((t / 200) % 2 == 0) ? 1400 : 900;   // acuta / grave ogni 0,2 s
+      if (nota != notaSirena) { tone(P_BUZZER, nota); notaSirena = nota; }
+    } else if (notaSirena != 0) { noTone(P_BUZZER); notaSirena = 0; }
+  } else if (notaSirena != 0) { noTone(P_BUZZER); notaSirena = 0; }
 
   delay(15);
 }

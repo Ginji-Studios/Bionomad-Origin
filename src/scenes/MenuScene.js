@@ -57,6 +57,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    PlantSensors.send("X"); // menu / nuova partita: buzzer spento
     fadeIn(this, 500);
     this._leaving = false;
     setAmbient(null);

@@ -219,7 +219,73 @@ export class EventScene extends Phaser.Scene {
     this.pad.setVisible(false);
   }
 
+  // task fallita: prima la schermata "EVENTO FALLITO", poi (con START) si va avanti
   closeBio(success) {
+    if (!success) {
+      this.bio.close();
+      this.showFailed(() => this.finishBio(false));
+      return;
+    }
+    this.finishBio(true);
+  }
+
+  showFailed(onContinue) {
+    this.mode = "failed";
+    this.pad.setVisible(false);
+    const W = VIEW.w;
+    const H = VIEW.h;
+    const c = this.add.container(0, 0).setScrollFactor(0).setDepth(5000);
+    const dim = this.add.rectangle(0, 0, W, H, 0x0b1220, 0.6).setOrigin(0);
+    const card = this.add.graphics();
+    card.fillStyle(0x060b14, 0.18);
+    card.fillRoundedRect(W / 2 - 270, H / 2 - 150 + 8, 540, 300, 24);
+    card.fillStyle(C.c0, 1);
+    card.fillRoundedRect(W / 2 - 270, H / 2 - 150, 540, 300, 24);
+    // X rossa in un cerchio
+    const x = this.add.graphics();
+    x.fillStyle(0xb4553f, 1);
+    x.fillCircle(W / 2, H / 2 - 52, 52);
+    x.lineStyle(12, 0xffffff, 1);
+    x.lineBetween(W / 2 - 22, H / 2 - 74, W / 2 + 22, H / 2 - 30);
+    x.lineBetween(W / 2 + 22, H / 2 - 74, W / 2 - 22, H / 2 - 30);
+    const title = txt(this, W / 2, H / 2 + 36, "EVENTO FALLITO", { size: 40, weight: "700", color: "#B4553F", origin: 0.5 });
+    const hint = txt(this, W / 2, H / 2 + 96, "premi START per continuare", { size: 18, color: HEX.c3, origin: 0.5 });
+    c.add([dim, card, x, title, hint]);
+    c.setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, duration: 220 });
+    this.tweens.add({ targets: hint, alpha: 0.35, duration: 700, yoyo: true, repeat: -1, delay: 400 });
+    this.failCard = c;
+    this.failContinue = onContinue;
+    // dal PC: Invio, spazio o tocco sullo schermo
+    this.time.delayedCall(400, () => {
+      if (this.failCard !== c) return;
+      const go = () => this.continueFailed();
+      this.input.keyboard.once("keydown-ENTER", go);
+      this.input.keyboard.once("keydown-SPACE", go);
+      this.input.once("pointerup", go);
+    });
+  }
+
+  continueFailed() {
+    if (this.mode !== "failed" || !this.failCard) return;
+    const c = this.failCard;
+    const cb = this.failContinue;
+    this.failCard = null;
+    this.failContinue = null;
+    this.tweens.killTweensOf(c.list);
+    c.destroy();
+    this.mode = "play";
+    cb?.();
+  }
+
+  // tasto START del dispositivo: chiude la schermata di evento fallito,
+  // altrimenti fa da pulsante di interazione (●) quando è disponibile
+  onStart() {
+    if (this.mode === "failed") this.continueFailed();
+    else this.onAction();
+  }
+
+  finishBio(success) {
     this.bio.close();
     this.pad.setVisible(true);
     if (success) PlantSensors.send("G");
@@ -463,7 +529,8 @@ export class EventScene extends Phaser.Scene {
       if (step.type === "emergency") this.updateEmergency(delta);
     }
 
-    this.addOxygen(-(delta * Bionomad.stress()) / (this.origin.drainSeconds * 1000), true);
+    // mentre è aperta la schermata di evento fallito l'ossigeno non scende
+    if (this.mode !== "failed") this.addOxygen(-(delta * Bionomad.stress()) / (this.origin.drainSeconds * 1000), true);
     this.o2.set(this.oxygen, time);
     // livello di ossigeno al LED RGB del dispositivo (solo quando cambia)
     const o = Math.round(this.oxygen * 100);

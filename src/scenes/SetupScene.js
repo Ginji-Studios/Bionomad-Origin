@@ -1,5 +1,6 @@
 import { addHiRes } from "../art/hires.js";
 import Phaser from "../phaser.js";
+import { PlantSensors } from "../input/PlantSensors.js";
 import { Sfx, setAmbient } from "../systems/Sfx.js";
 import { ORIGINS } from "../config/origins.js";
 import { startRun } from "../systems/RunManager.js";
@@ -98,6 +99,7 @@ export class SetupScene extends Phaser.Scene {
   }
 
   create() {
+    PlantSensors.send("X"); // menu / nuova partita: buzzer spento
     this._leaving = false;
     fadeIn(this, 300);
     setAmbient(null);

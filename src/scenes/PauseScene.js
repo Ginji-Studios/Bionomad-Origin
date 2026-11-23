@@ -1,7 +1,7 @@
 import Phaser from "../phaser.js";
 import { setAudioPaused } from "../systems/Sfx.js";
 import { box, button, C, ditherTitle, VIEW } from "../ui/hud.js";
-import { plantNav } from "../input/plantNav.js";
+import { PlantSensors } from "../input/PlantSensors.js";
 
 // pausa per il team (tasto P o doppio tocco con due dita): congela tutto, audio compreso
 const SKIP = ["BootScene", "PreloadScene", "PauseScene"];
@@ -22,6 +22,7 @@ export class PauseScene extends Phaser.Scene {
     const keys = running.map((sc) => sc.scene.key);
     running.forEach((sc) => sc.scene.pause());
     setAudioPaused(true);
+    PlantSensors.send("Q"); // buzzer muto in pausa
     sm.run("PauseScene", { keys });
     sm.bringToTop("PauseScene");
   }
@@ -40,6 +41,7 @@ export class PauseScene extends Phaser.Scene {
 
   resumeGame() {
     setAudioPaused(false);
+    PlantSensors.send("R"); // il buzzer torna a suonare se serve
     this.pausedKeys.forEach((key) => {
       this.scene.get(key)?.input?.keyboard?.resetKeys();
       this.scene.resume(key);
