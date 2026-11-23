@@ -55,8 +55,19 @@ export const Bionomad = {
   update(delta) {
     const dt = Math.min(delta, 100) / 1000;
     const ps = PlantSensors.state;
-    s.knob = PlantSensors.simulated("TK") ? sim.knob : ps.knob;
-    s.lightLvl = PlantSensors.simulated("LK") ? sim.lightKnob : ps.lightKnob;
+    // manopola della temperatura: comandano sia il potenziometro sia il PC (tastiera / schermo),
+    // vince l'ultimo che si è mosso
+    if (!PlantSensors.simulated("TK") && (pulse.lastPot === undefined || Math.abs(ps.knob - pulse.lastPot) > 0.015)) {
+      sim.knob = ps.knob;
+      pulse.lastPot = ps.knob;
+    }
+    s.knob = sim.knob;
+    // manopola della luce: come la temperatura, comandano sia il potenziometro sia il PC
+    if (!PlantSensors.simulated("LK") && (pulse.lastPotL === undefined || Math.abs(ps.lightKnob - pulse.lastPotL) > 0.015)) {
+      sim.lightKnob = ps.lightKnob;
+      pulse.lastPotL = ps.lightKnob;
+    }
+    s.lightLvl = sim.lightKnob;
     s.light = s.lightLvl > 0.08;
     // pulsanti: conta solo il momento in cui vengono premuti (fronte di salita)
     const irr = PlantSensors.simulated("IR") ? sim.irrigating : ps.irrigate;
@@ -81,7 +92,7 @@ export const Bionomad = {
     s.irrigating = pulse.pour > 0;
     s.venting = pulse.vent > 0;
     // la temperatura dello zaino segue la manopola con un po' di inerzia
-    s.temp += (this.target() - s.temp) * Math.min(1, dt * 0.45);
+    s.temp += (this.target() - s.temp) * Math.min(1, dt * 0.9);
     s.water = Math.max(0, Math.min(1, s.water + (s.irrigating ? 0.16 : -0.0035) * dt));
     s.air = Math.max(0, Math.min(1, s.air + (s.venting ? 0.22 : -0.0028) * dt));
   },
@@ -93,11 +104,12 @@ export const Bionomad = {
     if (s.air < 0.3) k += 0.2;
     return k;
   },
+  // un po' di margine invisibile oltre la fascia mostrata, così il potenziometro non è troppo nervoso
   lightOk() {
-    return s.lightLvl >= IDEAL.lMin && s.lightLvl <= IDEAL.lMax;
+    return s.lightLvl >= IDEAL.lMin - 0.07 && s.lightLvl <= IDEAL.lMax + 0.07;
   },
   tempOk() {
-    return s.temp >= IDEAL.tMin && s.temp <= IDEAL.tMax;
+    return s.temp >= IDEAL.tMin - 1 && s.temp <= IDEAL.tMax + 1;
   },
   waterOk() {
     return s.water >= IDEAL.wMin && s.water <= IDEAL.wMax;

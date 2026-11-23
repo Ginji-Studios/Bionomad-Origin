@@ -102,8 +102,7 @@ export class EndScene extends Phaser.Scene {
     button(this, x + 368, y + 392, 224, 68, "MENU", () => goTo(this, "MenuScene"), { size: 22 });
     this.input.keyboard.on("keydown-ENTER", () => goTo(this, "SetupScene"));
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
-    // pianta: destra = rigioca, sinistra = menu
-    plantNav(this, { right: () => goTo(this, "SetupScene"), left: () => goTo(this, "MenuScene") });
+    // START = rigioca (onStart)
     win ? Sfx.win() : Sfx.gameOver();
   }
 

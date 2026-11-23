@@ -25,13 +25,13 @@ window.addEventListener("touchstart", (e) => {
   if (e.touches.length === 3) PauseScene.toggle(game);
 });
 
-// pulsante START del BIONOMAD: avvia (nei menu fa la scelta) e mette in pausa durante il gioco.
-// Ogni scena può avere onStart(); se non ce l'ha, il pulsante mette in pausa / riprende.
+// pulsante START del BIONOMAD: premuto e lasciato = conferma (onStart() della scena),
+// tenuto premuto = pausa / riprendi. In pausa anche una pressione breve riprende.
 game.events.on("poststep", () => {
-  if (!PlantSensors.takeStart()) return;
   const sm = game.scene;
+  if (PlantSensors.takePause()) return PauseScene.toggle(game);
+  if (!PlantSensors.takeStart()) return;
   if (sm.isActive("PauseScene")) return PauseScene.toggle(game);
   const top = sm.getScenes(true).filter((sc) => !["BootScene", "PreloadScene"].includes(sc.scene.key)).pop();
-  if (top?.onStart) top.onStart();
-  else PauseScene.toggle(game);
+  top?.onStart?.();
 });

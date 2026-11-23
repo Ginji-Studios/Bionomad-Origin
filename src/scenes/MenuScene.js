@@ -203,8 +203,7 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard.on("keydown-DOWN", () => this.select((this.sel + 1) % 3));
 
     this.input.keyboard.on("keydown-ENTER", () => this.buttons[this.sel].press());
-    // pianta: destra = GIOCA
-    plantNav(this, { right: () => this.buttons[0].press() });
+    // conferma con il tasto START (onStart), non con la foglia
   }
 
   // pulsante START del dispositivo = GIOCA

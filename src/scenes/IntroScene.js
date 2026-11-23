@@ -44,8 +44,7 @@ export class IntroScene extends Phaser.Scene {
     this.phase = "walk";
     this.input.keyboard.on("keydown-ENTER", () => this.go());
     this.input.keyboard.on("keydown-SPACE", () => this.go());
-    // pianta: destra = INIZIA (verso la porta)
-    plantNav(this, { right: () => this.go() });
+    // si parte con il tasto START (onStart), non con la foglia
     // tocco per saltare la scena
     this.skip = txt(this, VIEW.w - 40, VIEW.h - 40, "TOCCA PER SALTARE", { size: 16, color: HEX.c3, origin: [1, 1] }).setScrollFactor(0);
     this.input.once("pointerup", () => this.phase === "walk" && this.wearPack());

@@ -211,6 +211,12 @@ export class TravelScene extends Phaser.Scene {
     const drain = (this.origin.travelDrainSeconds ?? 300) * 1000;
     this.oxygen = Math.max(0, this.oxygen - (delta * Bionomad.stress()) / drain);
     this.o2.set(this.oxygen, time);
+    // livello di ossigeno al dispositivo (buzzer quando è basso), solo quando cambia
+    const o = Math.round(this.oxygen * 100);
+    if (o !== this.lastO2) {
+      this.lastO2 = o;
+      PlantSensors.send(`O:${o}`);
+    }
     const nearGoal = Math.abs(this.player.x - this.goalX) < 90;
     this.mark.setActive(nearGoal);
     this.pad.highlight(nearGoal);
@@ -218,6 +224,7 @@ export class TravelScene extends Phaser.Scene {
     if (this.oxygen <= 0) {
       this.done = true;
       failRun(this.registry);
+      PlantSensors.send("L"); // buzzer: partita persa
       Sfx.gameOver();
       toast(this, "OSSIGENO ESAURITO", { duration: 3000 });
       this.player.faint(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose" })));

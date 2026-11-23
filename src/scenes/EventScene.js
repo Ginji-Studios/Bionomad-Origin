@@ -405,6 +405,7 @@ export class EventScene extends Phaser.Scene {
     this.mark.c.setVisible(false);
     this.pad.setVisible(false);
     failRun(this.registry);
+    PlantSensors.send("L"); // buzzer: partita persa
     Sfx.gameOver();
     toast(this, "OSSIGENO ESAURITO", { duration: 3000 });
     this.player.faint(() => this.time.delayedCall(900, () => goTo(this, "EndScene", { result: "lose" })));

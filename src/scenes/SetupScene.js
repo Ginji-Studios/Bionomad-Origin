@@ -107,8 +107,8 @@ export class SetupScene extends Phaser.Scene {
     brackets(this);
     this.city = this.registry.get("origin") ?? "milano";
     this.op = this.registry.get("operator") ?? "a";
-    // pianta: destra / sinistra scorre le scelte, tenendola inclinata si conferma
-    plantNav(this, { left: () => this.move(-1), right: () => this.move(1), hold: () => this.confirm() });
+    // pianta: le foglie scorrono le scelte; si conferma con il tasto START
+    plantNav(this, { left: () => this.move(-1), right: () => this.move(1) });
     this.layer = this.add.container(0, 0);
     this.back = button(this, 40, 716, 200, 56, "◀ INDIETRO", () => this.goBack(), { size: 22 });
     this.next = button(this, VIEW.w - 300, 716, 260, 56, "AVANTI ▶", () => this.confirm(), { primary: true, size: 24 });

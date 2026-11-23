@@ -35,7 +35,7 @@ export class PauseScene extends Phaser.Scene {
     box(this, VIEW.w / 2 - 260, VIEW.h / 2 - 140, 520, 280, { alpha: 0.96, border: C.c4 });
     ditherTitle(this, VIEW.w / 2, VIEW.h / 2 - 70, "PAUSA", { size: 52, origin: 0.5 });
     button(this, VIEW.w / 2 - 150, VIEW.h / 2 + 10, 300, 76, "RIPRENDI ▶", () => this.resumeGame(), { primary: true, size: 28 });
-    plantNav(this, { right: () => this.resumeGame() });
+    // si riprende con il tasto START
   }
 
   resumeGame() {

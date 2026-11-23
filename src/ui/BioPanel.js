@@ -480,13 +480,13 @@ export class BioPanel {
       c.add(z);
     };
     const g = this.step.goal;
-    if (g === "light" && PlantSensors.simulated("LK"))
-      // simulazione senza Arduino: metà destra della manopola = più luce, metà sinistra = meno
+    if (g === "light")
+      // manopola a schermo, sempre attiva (anche con il potenziometro collegato): metà destra della manopola = più luce, metà sinistra = meno
       [-1, 1].forEach((d) => zone(BTN.light.x + d * 40, BTN.light.y, 80, 110, () => (this.lightDir = d), () => (this.lightDir = 0)));
     if (g === "water" && PlantSensors.simulated("IR")) zone(BTN.water.x, BTN.water.y, 76, 90, () => (scene._simIrr = true), () => (scene._simIrr = false));
     if (g === "air" && PlantSensors.simulated("AR")) zone(BTN.air.x, BTN.air.y, 76, 90, () => (scene._simAir = true), () => (scene._simAir = false));
-    if (g === "temp" && PlantSensors.simulated("TK"))
-      // simulazione senza Arduino: metà alta del termometro = più caldo, metà bassa = più freddo
+    if (g === "temp")
+      // termometro a schermo, sempre attivo (anche con il potenziometro collegato): metà alta del termometro = più caldo, metà bassa = più freddo
       [-1, 1].forEach((d) => zone(THERMO.x, d > 0 ? (THERMO.y0 + THERMO.y1) / 2 - 90 : (THERMO.y0 + THERMO.y1) / 2 + 90, 90, 180, () => (this.knobDir = d), () => (this.knobDir = 0)));
   }
 
@@ -532,12 +532,12 @@ export class BioPanel {
     if (step.goal === "light") {
       // manopola nella fascia giusta per un attimo (né troppo poca né troppa luce)
       if (Bionomad.lightOk()) this.ok += delta;
-      else this.ok = Math.max(0, this.ok - delta * 0.6);
+      else this.ok = Math.max(0, this.ok - delta * 0.25);
       progress = Math.min(1, this.ok / (step.holdMs ?? 1000));
       if (step.qteMs && this.elapsed > step.qteMs && progress < 1) res = { failed: true, negligence: "dark" };
     } else if (step.goal === "temp") {
       if (Bionomad.tempOk()) this.ok += delta;
-      else this.ok = Math.max(0, this.ok - delta * 0.5);
+      else this.ok = Math.max(0, this.ok - delta * 0.25);
       progress = Math.min(1, this.ok / (step.holdMs ?? 3000));
     } else if (step.goal === "water") {
       // una pressione = una dose giusta; premere di nuovo fa traboccare l'acqua

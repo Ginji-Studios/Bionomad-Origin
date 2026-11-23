@@ -33,7 +33,8 @@ const state = {
   // pressioni contate (anche se rapidissime, tra un fotogramma e l'altro)
   irrCount: 0,
   airCount: 0,
-  startPresses: 0
+  startPresses: 0,
+  pausePresses: 0
 };
 
 let port = null;
@@ -42,6 +43,7 @@ let lastArduinoCommand = null;
 // sensori che l'Arduino ha davvero mandato almeno una volta (L, T, P, W, TOUCH):
 // solo quelli comandano il gioco, tutti gli altri restano simulati da tastiera / pulsanti
 const reported = new Set();
+const reportedOnce = {};
 
 function parseLine(line) {
   const command = line.trim().toUpperCase();
@@ -70,6 +72,12 @@ function parseLine(line) {
   if (command === "START") {
     reported.add("START");
     state.startPresses += 1;
+    return;
+  }
+  // tasto START tenuto premuto: pausa
+  if (command === "PAUSA") {
+    reported.add("START");
+    state.pausePresses += 1;
     return;
   }
   // le righe con '#' sono messaggi dell'arduino (es. UID di una fiala NFC non registrata)
@@ -105,7 +113,10 @@ function parseLine(line) {
     // manopola della luce (potenziometro 0..1023); "LU" 0/1 resta per il vecchio interruttore
     if (key === "LK") {
       reported.add("LK");
-      state.lightKnob = Math.max(0, Math.min(1, value / 1023));
+      // media mobile: il potenziometro trema un po', così il valore resta fermo
+      const v = Math.max(0, Math.min(1, value / 1023));
+      state.lightKnob = reportedOnce.LK ? state.lightKnob + (v - state.lightKnob) * 0.5 : v;
+      reportedOnce.LK = true;
     }
     if (key === "LU") {
       reported.add("LK");
@@ -113,7 +124,9 @@ function parseLine(line) {
     }
     if (key === "TK") {
       reported.add("TK");
-      state.knob = Math.max(0, Math.min(1, value / 1023));
+      const v = Math.max(0, Math.min(1, value / 1023));
+      state.knob = reportedOnce.TK ? state.knob + (v - state.knob) * 0.5 : v;
+      reportedOnce.TK = true;
     }
     if (key === "IR") {
       reported.add("IR");
@@ -199,6 +212,13 @@ export const PlantSensors = {
   takeStart() {
     const n = state.startPresses;
     state.startPresses = 0;
+    return n > 0;
+  },
+
+  // START tenuto premuto (pausa) arrivato dall'ultima lettura
+  takePause() {
+    const n = state.pausePresses;
+    state.pausePresses = 0;
     return n > 0;
   },
 
