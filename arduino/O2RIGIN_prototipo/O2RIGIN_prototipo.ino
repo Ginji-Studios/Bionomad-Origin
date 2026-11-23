@@ -15,7 +15,7 @@
 //   X         spegni tutto (uscita, menu, nuova partita)   Q / R  pausa: muto / riprendi
 //   (N, G arrivano ma vengono ignorati)
 //
-// Sulla matrice di LED della scheda compare il logo b+ di biodom+.
+// Sulla matrice di LED della scheda all'avvio scorre "biodom", poi resta fisso il logo b+.
 //
 // Collegamenti: avvio D2, irrigazione D6, aria D5 (altro piedino a GND)
 //               buzzer D8, foglia D0
@@ -35,6 +35,37 @@ uint8_t logo[8][12] = {
   {0,1,0,0,0,1,0,0,0,0,0,0},
   {0,1,1,1,1,0,0,0,0,0,0,0}
 };
+
+// scritta "biodom" che scorre all'avvio (8 righe, 1 = LED acceso)
+const char* LETTERE[][8] = {
+  {"1000","1000","1000","1110","1001","1001","1001","1110"},        // b
+  {"0","1","0","1","1","1","1","1"},                                // i
+  {"0000","0000","0000","0110","1001","1001","1001","0110"},        // o
+  {"0001","0001","0001","0111","1001","1001","1001","0111"},        // d
+  {"0000","0000","0000","0110","1001","1001","1001","0110"},        // o
+  {"00000","00000","00000","11110","10101","10101","10101","10101"} // m
+};
+const int MAX_COL = 60;
+uint8_t nastro[8][MAX_COL];   // tutte le colonne della scritta, con spazi prima e dopo
+uint8_t schermo[8][12];
+
+void scriviBiodom() {
+  int n = 12;                                  // parte fuori schermo, da destra
+  memset(nastro, 0, sizeof(nastro));
+  for (int l = 0; l < 6; l++) {
+    int w = strlen(LETTERE[l][0]);
+    for (int c = 0; c < w; c++)
+      for (int r = 0; r < 8; r++) nastro[r][n + c] = LETTERE[l][r][c] == '1';
+    n += w + 1;                                // una colonna vuota tra le lettere
+  }
+  n += 12;                                     // esce tutta a sinistra
+  for (int off = 0; off + 12 <= n; off++) {
+    for (int r = 0; r < 8; r++)
+      for (int c = 0; c < 12; c++) schermo[r][c] = nastro[r][off + c];
+    matrice.renderBitmap(schermo, 8, 12);
+    delay(90);
+  }
+}
 
 const int P_AVVIO = 2, P_IRR = 6, P_ARIA = 5, P_BUZZER = 8;
 
@@ -90,7 +121,8 @@ void setup() {
   pinMode(P_ARIA, INPUT_PULLUP);
   pinMode(P_BUZZER, OUTPUT);
   matrice.begin();
-  matrice.renderBitmap(logo, 8, 12);
+  scriviBiodom();                    // "biodom" scorre una volta...
+  matrice.renderBitmap(logo, 8, 12); // ...poi resta fisso il logo b+
   if (!foglia.begin()) Serial.println("# foglia: pin non supportato");
   foglia.setThreshold(SOGLIA);
   Serial.println("# O2RIGIN pronto");

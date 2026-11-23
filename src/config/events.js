@@ -76,6 +76,7 @@ export const EVENTS = {
     ]
   },
   ufficio_pranzo: {
+    off: true, // non è nella lista ufficiale degli eventi: non esce
     slot: "office",
     goal: "water",
     title: "UFFICIO · PAUSA PRANZO",
@@ -107,6 +108,7 @@ export const EVENTS = {
     ]
   },
   casa_blackout: {
+    off: true, // non è nella lista ufficiale degli eventi: non esce
     slot: "home",
     goal: "light",
     evening: true,
@@ -121,6 +123,7 @@ export const EVENTS = {
     ]
   },
   casa_cena: {
+    off: true, // non è nella lista ufficiale degli eventi: non esce
     slot: "home",
     goal: "water",
     evening: true,
@@ -155,15 +158,16 @@ export const TRAVEL_TASK_COUNT = [1, 1, 2];
 
 // ultima cura in ufficio, alle 18:30, prima di uscire: si sceglie quella meno fatta nella giornata
 export const OFFICE_TAILS = {
-  light: { line: "18:30 · Fine giornata: fuori è già buio", text: "ACCENDI LA LUCE PRIMA DI USCIRE", hint: "Fuori è buio: gira la manopola LUCE fino alla fascia evidenziata." },
-  air: { line: "18:30 · Fine giornata: aria viziata dopo ore in ufficio", text: "ARIEGGIA PRIMA DI USCIRE", hint: "L'aria nel vetro è viziata: premi ARIA una volta, in tempo." },
-  water: { line: "18:30 · Fine giornata: la terra si è asciugata", text: "IRRIGA PRIMA DI USCIRE", hint: "La terra è secca: premi ACQUA una sola volta, in tempo. Due volte la allaghi." },
-  temp: { line: "18:30 · Fine giornata: fuori la temperatura crolla", text: "SCALDA LO ZAINO PRIMA DI USCIRE", hint: "Fuori fa freddo: gira TEMP verso il caldo e tieni il display tra 17 e 25 °C.", out: 6, holdMs: 2000 }
+  light: { lines: ["18:30 · Fine giornata: fuori è già buio", "18:20 · Hanno spento le luci del piano: la pianta resta al buio", "18:40 · Ultima riunione al buio con il proiettore acceso"], text: "ACCENDI LA LUCE PRIMA DI USCIRE", hint: "Fuori è buio: gira la manopola LUCE fino alla fascia evidenziata." },
+  air: { lines: ["18:30 · Fine giornata: aria viziata dopo ore in ufficio", "18:15 · Qualcuno ha bruciato i pop-corn nel microonde", "18:35 · Le pulizie spruzzano detersivo vicino all'hub"], text: "ARIEGGIA PRIMA DI USCIRE", hint: "L'aria nel vetro è viziata: premi ARIA una volta, in tempo." },
+  water: { lines: ["18:30 · Fine giornata: la terra si è asciugata", "18:10 · Il termosifone accanto all'hub ha seccato la terra", "18:45 · Dopo otto ore di schermo, la terra è secca"], text: "IRRIGA PRIMA DI USCIRE", hint: "La terra è secca: premi ACQUA una sola volta, in tempo. Due volte la allaghi." },
+  temp: { lines: ["18:30 · Fine giornata: fuori la temperatura crolla", "18:25 · Hanno spento il riscaldamento dell'edificio", "18:40 · Si è alzato un vento gelido: fuori si gela"], text: "SCALDA LO ZAINO PRIMA DI USCIRE", hint: "Fuori fa freddo: gira TEMP verso il caldo e tieni il display tra 17 e 25 °C.", out: 6, holdMs: 2000 }
 };
-export function officeTail(goal) {
+// v = variante di testo, estratta a inizio partita
+export function officeTail(goal, v = 0) {
   const t = OFFICE_TAILS[goal];
   return [
-    { type: "notify", ms: 2200, text: "LA GIORNATA SCORRE", line: t.line, dusk: 0.22 },
+    { type: "notify", ms: 2200, text: "LA GIORNATA SCORRE", line: t.lines[v % t.lines.length], dusk: 0.22 },
     { type: "reach", target: "hub", text: "TORNA DAL BIONOMAD" },
     { type: "bio", goal, text: t.text, hint: t.hint, ...(t.out != null ? { out: t.out, holdMs: t.holdMs } : {}) },
     { type: "take", target: "hub", text: "RIPRENDI IL BIONOMAD" },
@@ -173,24 +177,35 @@ export function officeTail(goal) {
 
 // la notte, nella stessa scena di casa: a letto, poi il BIONOMAD ti sveglia
 export const NIGHT_LINES = {
-  water: { line: "03:12 · Il BIONOMAD ti sveglia: la terra è secca", text: "IRRIGA IL BIONOMAD", hint: "La terra è secca: premi ACQUA una sola volta, in tempo." },
-  air: { line: "03:12 · Il BIONOMAD ti sveglia: l'aria nel vetro è viziata", text: "ARIEGGIA IL BIONOMAD", hint: "L'aria nel vetro è viziata: premi ARIA una volta, in tempo." }
+  water: { lines: ["03:12 · Il BIONOMAD ti sveglia: la terra è secca", "01:47 · Una vibrazione dallo zaino: il BIONOMAD ha sete", "04:30 · Il riscaldamento notturno ha seccato la terra"], text: "IRRIGA IL BIONOMAD", hint: "La terra è secca: premi ACQUA una sola volta, in tempo." },
+  air: { lines: ["03:12 · Il BIONOMAD ti sveglia: l'aria nel vetro è viziata", "02:05 · Finestra chiusa tutta la sera: il vetro si appanna", "05:10 · Puzza di fumo dalla strada: il BIONOMAD lampeggia"], text: "ARIEGGIA IL BIONOMAD", hint: "L'aria nel vetro è viziata: premi ARIA una volta, in tempo." }
 };
-export function nightSteps(goal) {
+export function nightSteps(goal, v = 0) {
   const t = NIGHT_LINES[goal];
   return [
     { type: "sleep", target: "sofa", duration: 1500, text: "VAI A DORMIRE" },
-    { type: "notify", ms: 2000, text: "DORMI…", line: t.line, wake: true },
+    { type: "notify", ms: 2000, text: "DORMI…", line: t.lines[v % t.lines.length], wake: true },
     { type: "bio", goal, text: t.text, hint: t.hint }
   ];
 }
 
 // notifiche durante i tragitti
 export const TRAVEL_TASKS = {
-  water: { type: "bio", goal: "water", text: "IRRIGA IL BIONOMAD", line: "Il BIONOMAD ha sete: la terra è secca", hint: "La terra è secca: premi ACQUA una sola volta, in tempo. Due volte la allaghi." },
-  air: { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", line: "Smog in strada: il BIONOMAD ha bisogno di aria", hint: "Smog e polvere nel vetro: premi ARIA una volta, in tempo." },
-  light: { type: "bio", goal: "light", text: "ACCENDI LA LUCE", line: "Strada buia: la pianta non ha luce", hint: "È buio: gira la manopola LUCE fino alla fascia evidenziata." }
+  water: { type: "bio", goal: "water", text: "IRRIGA IL BIONOMAD", line: "Il BIONOMAD ha sete: la terra è secca", lines: ["Il BIONOMAD ha sete: la terra è secca", "Sole a picco sul marciapiede: la terra si asciuga", "Vento secco in strada: il BIONOMAD chiede acqua"], hint: "La terra è secca: premi ACQUA una sola volta, in tempo. Due volte la allaghi." },
+  air: { type: "bio", goal: "air", text: "ARIEGGIA IL BIONOMAD", line: "Smog in strada: il BIONOMAD ha bisogno di aria", lines: ["Smog in strada: il BIONOMAD ha bisogno di aria", "Cantiere aperto: polvere ovunque", "Un motorino ti sgasa accanto: fumo nel vetro"], hint: "Smog e polvere nel vetro: premi ARIA una volta, in tempo." },
+  light: { type: "bio", goal: "light", text: "ACCENDI LA LUCE", line: "Strada buia: la pianta non ha luce", lines: ["Strada buia: la pianta non ha luce", "Lampioni spenti in tutto il quartiere", "Passi sotto un lungo portico buio"], hint: "È buio: gira la manopola LUCE fino alla fascia evidenziata." }
 };
+
+// RANDOM: notifica "il BIONOMAD ha bisogno di acqua / aria" in un momento a caso della giornata.
+// in ufficio bisogna prima raggiungere l'hub; v = variante del testo
+export function randomSteps(goal, v = 0, atHub = false) {
+  const t = TRAVEL_TASKS[goal];
+  return [
+    { type: "notify", ms: 1800, text: "NOTIFICA", line: t.lines[v % t.lines.length] },
+    ...(atHub ? [{ type: "reach", target: "hub", text: "RAGGIUNGI IL BIONOMAD" }] : []),
+    { type: "bio", goal, text: t.text, hint: t.hint }
+  ];
+}
 
 export const EMERGENCY_CHANCE = 0.03;
 // cure a sorpresa durante la corsa verso casa (tre a caso)

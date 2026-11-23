@@ -1,4 +1,4 @@
-import { EVENTS, EMERGENCY_CHANCE, DAY_PLAN, NIGHT_CHANCE, TRAVEL_TASK_COUNT, TRAVEL_TASKS, officeTail, nightSteps } from "../config/events.js";
+import { EVENTS, EMERGENCY_CHANCE, DAY_PLAN, NIGHT_CHANCE, TRAVEL_TASK_COUNT, TRAVEL_TASKS, officeTail, nightSteps, randomSteps } from "../config/events.js";
 import { ORIGINS } from "../config/origins.js";
 
 // la run vive nel registry di Phaser, così la vedono tutte le scene
@@ -14,9 +14,26 @@ function readHistory() {
 }
 function saveHistory(ids) {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify([...ids, ...readHistory()].slice(0, 15)));
+    localStorage.setItem(HISTORY_KEY, JSON.stringify([...ids, ...readHistory()].slice(0, 24)));
   } catch {
     /* storage non disponibile: pazienza */
+  }
+}
+
+// "firme" delle ultime partite: una run non può essere uguale a una delle ultime 8
+const SIG_KEY = "o2rigin_runs";
+function readSigs() {
+  try {
+    return JSON.parse(localStorage.getItem(SIG_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+function saveSig(sig) {
+  try {
+    localStorage.setItem(SIG_KEY, JSON.stringify([sig, ...readSigs()].slice(0, 8)));
+  } catch {
+    /* pazienza */
   }
 }
 
@@ -36,6 +53,8 @@ function makeTune(origin) {
     hold: [r(0.8, 1), r(0.95, 1.15), r(1.1, 1.35)][lvl - 1],
     timeout: [r(1.1, 1.3), r(0.95, 1.05), r(0.8, 0.92)][lvl - 1],
     delta: Math.floor(Math.random() * 3) - 1,
+    // la temperatura fuori cambia di qualche grado a ogni partita
+    out: Math.round((Math.random() * 2 - 1) * 4),
     temp: { reykjavik: -4, milano: 0, delhi: 5 }[origin?.id] ?? 0
   };
 }
@@ -49,6 +68,7 @@ function tuneStep(step, t) {
   if (s.dropBy) s.dropBy = Math.max(2, s.dropBy + t.delta);
   if (s.maxOver && s.riseBy) s.maxOver = Math.max(s.maxOver, s.riseBy + 3);
   if (s.baseTemperature != null) s.baseTemperature += t.temp;
+  if (s.out != null && t.out) s.out += t.out;
   return s;
 }
 
@@ -68,6 +88,13 @@ function planner() {
       last = goal;
       return goal;
     },
+    // peso di una cura: già fatta oggi = molto meno probabile, uguale alla precedente = quasi mai
+    weight(g) {
+      return (g === last ? 0.08 : 1) / (1 + used[g] * 2.5);
+    },
+    draw(goals) {
+      return pick(goals, (g) => this.weight(g));
+    },
     score
   };
 }
@@ -80,39 +107,61 @@ export function startRun(registry, originId) {
   // molto raramente la giornata è solo l'emergenza (e allora niente altri eventi)
   const emergency = Math.random() < EMERGENCY_CHANCE && seen("emergenza") === 0;
   let events = ["emergenza"];
-  const plan = [{}];
+  let plan = [{}];
   let travel = [null];
+  let travelV = [0];
   if (!emergency) {
-    // giornata: bus del mattino → ufficio (fino alle 18:30) → casa la sera (a volte anche la notte).
-    // Una sola visita per posto: niente ritorni in ufficio o a casa.
-    events = [];
-    plan.length = 0;
-    const P = planner();
-    // quali tragitti hanno una notifica: 0 = verso il bus, 1 = verso l'ufficio, 2 = verso casa
-    const legs = shuffle([0, 1, 2]).slice(0, TRAVEL_TASK_COUNT[lvl - 1]);
-    travel = [null, null, null];
-    const travelGoal = (leg) => {
-      if (!legs.includes(leg)) return;
-      const goals = leg === 2 ? ["water", "air", "light"] : ["water", "air"];
-      travel[leg] = P.take(P.best(goals));
-    };
-    DAY_PLAN.forEach((slot, i) => {
-      travelGoal(i);
-      const pool = Object.keys(EVENTS).filter((id) => EVENTS[id].slot === slot);
-      // l'evento con la cura più "nuova", a parità quello visto meno nelle ultime partite
-      const sc = Object.fromEntries(pool.map((id) => [id, P.score(EVENTS[id].goal) + seen(id) * 4]));
-      const id = [...pool].sort((a, b) => sc[a] - sc[b])[0];
-      P.take(EVENTS[id].goal);
-      const extra = {};
-      if (slot === "office") extra.tail = P.take(P.best(["light", "air", "water", "temp"]));
-      if (slot === "home" && Math.random() < NIGHT_CHANCE[lvl - 1]) extra.night = P.take(P.best(["water", "air"]));
-      events.push(id);
-      plan.push(extra);
-    });
+    // giornata (solo gli eventi ufficiali): bus del mattino → ufficio → casa la sera.
+    // Cosa cambia da una partita all'altra:
+    //   bus      affollato (luce) oppure bus perso (temperatura)
+    //   ufficio  riscaldamento spento e/o capo, in ordine casuale, poi fine giornata (luce)
+    //   casa     riscaldamento acceso, a volte la notte il BIONOMAD ti sveglia (acqua/aria)
+    //   RANDOM   notifiche acqua/aria in momenti a caso: nei tragitti, in ufficio, a casa
+    //   testi, orari e gradi cambiano ogni volta; una giornata uguale a una delle ultime 8 si rifà
+    const sigs = readSigs();
+    const active = (slot) => Object.keys(EVENTS).filter((id) => EVENTS[id].slot === slot && !EVENTS[id].off);
+    const fresh = (id) => 1 / (1 + seen(id) * 2.5);
+    const v3 = () => Math.floor(Math.random() * 3);
+    let sig = "";
+    for (let attempt = 0; attempt < 40; attempt++) {
+      // quante notifiche RANDOM e dove: t0/t1/t2 = tragitti, office/home = dentro l'evento
+      const [lo, hi] = [[1, 2], [1, 3], [2, 4]][lvl - 1];
+      const nRand = Math.max(lo, Math.min(hi, TRAVEL_TASK_COUNT[lvl - 1] + Math.floor(Math.random() * (hi - lo + 1))));
+      const spots = shuffle(["t0", "t1", "t2", "office", "home"]).slice(0, nRand);
+      let lastRand = null;
+      // acqua o aria a caso; la stessa di prima solo una volta su quattro
+      const randGoal = () => {
+        const other = { water: "air", air: "water" };
+        const g = !lastRand ? (Math.random() < 0.5 ? "water" : "air") : Math.random() < 0.25 ? lastRand : other[lastRand];
+        return (lastRand = g);
+      };
+
+      const bus = pick(active("bus"), fresh);
+      const officePool = shuffle(active("office"));
+      const officeCount = Math.random() < [0.3, 0.5, 0.7][lvl - 1] ? 2 : 1;
+      const office = officePool.length > 1 ? (officeCount === 2 ? officePool.slice(0, 2) : [pick(officePool, fresh)]) : officePool;
+      const home = pick(active("home"), fresh);
+
+      const ev = [bus, office[0], home];
+      const tr = [0, 1, 2].map((leg) => (spots.includes("t" + leg) ? randGoal() : null));
+      const pl = [
+        { v: v3() },
+        { v: v3(), also: office.slice(1), tail: "light", rnd: spots.includes("office") ? [{ goal: randGoal(), v: v3() }] : [] },
+        { v: v3(), rnd: spots.includes("home") ? [{ goal: randGoal(), v: v3() }] : [] }
+      ];
+      if (Math.random() < NIGHT_CHANCE[lvl - 1]) pl[2].night = Math.random() < 0.5 ? "water" : "air";
+      events = ev;
+      plan = pl;
+      travel = tr;
+      travelV = tr.map(v3);
+      sig = JSON.stringify([ev, office, tr, pl.map((x) => [(x.rnd ?? []).map((r) => r.goal), x.night ?? null])]);
+      if (!sigs.includes(sig)) break;
+    }
+    saveSig(sig);
   }
   saveHistory(events);
   registry.set("origin", originId);
-  registry.set("run", { origin: originId, events, plan, travel, tune: events.map(() => makeTune(origin)), zoneOffset: Math.floor(Math.random() * 4), index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
+  registry.set("run", { origin: originId, events, plan, travel, travelV, tune: events.map(() => makeTune(origin)), zoneOffset: Math.floor(Math.random() * 4), index: 0, oxygen: 1, results: [], negligence: 0, lastLocation: "home" });
   return registry.get("run");
 }
 
@@ -127,7 +176,10 @@ function shuffle(arr) {
 // cura da fare durante il tragitto verso l'evento corrente (o null)
 export function travelTask(run) {
   const g = run?.travel?.[run?.index ?? 0];
-  return g ? TRAVEL_TASKS[g] : null;
+  if (!g) return null;
+  const t = TRAVEL_TASKS[g];
+  const v = run.travelV?.[run.index ?? 0] ?? 0;
+  return { ...t, line: t.lines[v % t.lines.length] };
 }
 
 // ogni tappa attraversa un quartiere diverso della città
@@ -160,8 +212,12 @@ export function currentEvent(registry) {
   const event = EVENTS[id];
   const extra = run.plan?.[run.index] ?? {};
   let steps = event.steps;
-  if (extra.tail) steps = [...steps, ...officeTail(extra.tail)];
-  if (extra.night) steps = [...steps, ...nightSteps(extra.night)];
+  // notifiche RANDOM dentro l'evento (in ufficio dopo il primo imprevisto, a casa prima di dormire)
+  for (const r of extra.rnd ?? []) steps = [...steps, ...randomSteps(r.goal, r.v, event.location === "office")];
+  // secondo imprevisto in ufficio: il BIONOMAD è già sull'hub, quindi niente "appoggia"
+  for (const id of extra.also ?? []) steps = [...steps, ...EVENTS[id].steps.filter((st) => st.type !== "place")];
+  if (extra.tail) steps = [...steps, ...officeTail(extra.tail, extra.v)];
+  if (extra.night) steps = [...steps, ...nightSteps(extra.night, extra.v)];
   return { id, ...event, steps: steps.map((st) => tuneStep(st, run.tune?.[run.index])) };
 }
 
