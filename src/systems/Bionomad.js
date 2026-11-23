@@ -8,10 +8,10 @@
 //   LK     manopola della luce (0..1023): più la giri, più luce
 //   TK     manopola della temperatura (0..1023)
 //   IR     pulsante di irrigazione: si preme UNA volta (quick time event) e versa una dose d'acqua
-//   AR     pulsante di arieggiamento: si preme UNA volta e il ventilatore soffia per qualche secondo
+//   AR     pulsante di arieggiamento: va TENUTO PREMUTO, il ventilatore soffia finché lo tieni giù
 import { PlantSensors } from "../input/PlantSensors.js";
 
-// una pressione = una dose: l'acqua scorre per POUR_MS, l'aria soffia per VENT_MS
+// una pressione di ACQUA = una dose che scorre per POUR_MS; l'aria invece soffia finché ARIA è premuto
 export const POUR_MS = 1800;
 export const VENT_MS = 3400;
 
@@ -81,10 +81,9 @@ export const Bionomad = {
       pulse.pour = POUR_MS;
       pulse.irrPresses++;
     }
-    if (airHit) {
-      pulse.vent = VENT_MS;
-      pulse.airPresses++;
-    }
+    if (airHit) pulse.airPresses++;
+    // ventola accesa solo mentre il tasto è tenuto premuto (piccola coda per non sfarfallare)
+    if (air) pulse.vent = 150;
     pulse.irrRaw = irr;
     pulse.airRaw = air;
     pulse.pour = Math.max(0, pulse.pour - Math.min(delta, 100));
@@ -94,7 +93,7 @@ export const Bionomad = {
     // la temperatura dello zaino segue la manopola con un po' di inerzia
     s.temp += (this.target() - s.temp) * Math.min(1, dt * 0.9);
     s.water = Math.max(0, Math.min(1, s.water + (s.irrigating ? 0.16 : -0.0035) * dt));
-    s.air = Math.max(0, Math.min(1, s.air + (s.venting ? 0.22 : -0.0028) * dt));
+    s.air = Math.max(0, Math.min(1, s.air + (s.venting ? 0.26 : -0.0028) * dt));
   },
   // quanto il BIONOMAD sta "soffrendo": moltiplica il consumo di ossigeno
   stress() {

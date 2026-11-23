@@ -1,7 +1,7 @@
 // pannello del BIONOMAD: il "display" del dispositivo con temperatura dello zaino e dell'esterno,
 // luce, acqua e aria, più l'obiettivo della task. Si usa con i controlli fisici; se un comando
 // non è collegato, compaiono i pulsanti a schermo e funzionano i tasti:
-//   L/K manopola della luce (su/giù) · W/S (o ↑/↓) manopola della task aperta · R irrigazione · V aria
+//   L/K manopola della luce (su/giù) · W/S (o ↑/↓) manopola della task aperta · R irrigazione · V aria (tenere premuto)
 import Phaser from "../phaser.js";
 import { Bionomad, IDEAL } from "../systems/Bionomad.js";
 import { PlantSensors } from "../input/PlantSensors.js";
@@ -373,7 +373,7 @@ export class BioPanel {
     let hint = step.hint;
     if (goal === "need") {
       goal = Math.random() < 0.5 ? "water" : "air";
-      hint = goal === "water" ? "La terra è secca: premi ACQUA una volta, parte l'irrigazione interna." : "L'aria nel vetro è viziata: premi ARIA una volta, in tempo.";
+      hint = goal === "water" ? "La terra è secca: premi ACQUA una volta, parte l'irrigazione interna." : "L'aria nel vetro è viziata: tieni premuto ARIA finché il vetro non è pulito.";
     }
     this.step = { ...step, goal, hint };
     this.emergency = emergency;
