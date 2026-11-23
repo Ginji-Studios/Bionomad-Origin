@@ -2,6 +2,8 @@
 // luce, acqua e aria, più l'obiettivo della task. Si usa con i controlli fisici; se un comando
 // non è collegato, compaiono i pulsanti a schermo e funzionano i tasti:
 //   L/K manopola della luce (su/giù) · W/S (o ↑/↓) manopola della task aperta · R irrigazione · V aria (tenere premuto)
+//   rotellina del mouse = regolazione fine della manopola della task; manopola e termometro a schermo
+//   si possono anche trascinare su/giù (o toccare: metà alta/destra = di più, metà bassa/sinistra = di meno)
 import Phaser from "../phaser.js";
 import { Bionomad, IDEAL } from "../systems/Bionomad.js";
 import { PlantSensors } from "../input/PlantSensors.js";
@@ -19,16 +21,22 @@ const H = 470;
 export function bioKeys(scene) {
   const kb = scene.input.keyboard;
   const keys = kb.addKeys("W,S,UP,DOWN,R,V,L,K");
+  const taskGoal = () => (scene.bio?.open ? scene.bio.step?.goal : null);
+  // rotellina: un passo fine alla volta sulla manopola della task aperta
+  scene.input.on("wheel", (_p, _o, _dx, dy) => {
+    const g = taskGoal();
+    if (g === "light" || g === "temp") Bionomad.nudge(g === "light" ? "lightKnob" : "knob", dy < 0 ? 1 : -1);
+  });
   return (delta) => {
-    const dt = Math.min(delta, 100) / 1000;
     const up = keys.W.isDown || keys.UP.isDown;
     const down = keys.S.isDown || keys.DOWN.isDown;
     // W/S girano la manopola della task aperta (luce o temperatura); L/K sempre quella della luce
-    const lightTask = scene.bio?.open && scene.bio.step?.goal === "light";
+    const lightTask = taskGoal() === "light";
     const lUp = keys.L.isDown || (lightTask && up);
     const lDown = keys.K.isDown || (lightTask && down);
-    if (lUp || lDown) Bionomad.sim.lightKnob = Phaser.Math.Clamp(Bionomad.sim.lightKnob + (lUp ? 0.45 : -0.45) * dt, 0, 1);
-    if (!lightTask && (up || down)) Bionomad.sim.knob = Phaser.Math.Clamp(Bionomad.sim.knob + (up ? 0.35 : -0.35) * dt, 0, 1);
+    // tastiera e pulsanti a schermo insieme: una sola chiamata per frame, così l'accelerazione è continua
+    Bionomad.turn("lightKnob", (lUp ? 1 : 0) - (lDown ? 1 : 0) || (scene.bio?.lightDir ?? 0), delta);
+    Bionomad.turn("knob", (!lightTask ? (up ? 1 : 0) - (down ? 1 : 0) : 0) || (scene.bio?.knobDir ?? 0), delta);
     Bionomad.sim.irrigating = keys.R.isDown || Boolean(scene._simIrr);
     Bionomad.sim.venting = keys.V.isDown || Boolean(scene._simAir);
   };
@@ -480,14 +488,45 @@ export class BioPanel {
       c.add(z);
     };
     const g = this.step.goal;
+    // manopola / termometro: tocco = gira piano in quella direzione; trascinando su/giù si imposta
+    // il valore direttamente (300 px = tutta la corsa), con la precisione del mouse
+    const dial = (x, y, w, h, dirOf, name, dirKey) => {
+      const z = scene.add.zone(x, y, w, h).setInteractive({ useHandCursor: true }).setScrollFactor(0);
+      z.on("pointerdown", (p) => {
+        this.drag = { name, y: p.y, v0: Bionomad.sim[name], moved: false, dirKey };
+        this[dirKey] = dirOf(p);
+      });
+      c.add(z);
+    };
+    const onMove = (p) => {
+      const d = this.drag;
+      if (!d || !p.isDown) return;
+      if (!d.moved && Math.abs(p.y - d.y) > 6) {
+        d.moved = true;
+        this[d.dirKey] = 0;
+        d.v0 = Bionomad.sim[d.name];
+        d.y = p.y;
+      }
+      if (d.moved) Bionomad.set(d.name, d.v0 + (d.y - p.y) / 300);
+    };
+    const onUp = () => {
+      if (this.drag) this[this.drag.dirKey] = 0;
+      this.drag = null;
+    };
+    scene.input.on("pointermove", onMove);
+    scene.input.on("pointerup", onUp);
+    this.offDrag = () => {
+      scene.input.off("pointermove", onMove);
+      scene.input.off("pointerup", onUp);
+    };
     if (g === "light")
-      // manopola a schermo, sempre attiva (anche con il potenziometro collegato): metà destra della manopola = più luce, metà sinistra = meno
-      [-1, 1].forEach((d) => zone(BTN.light.x + d * 40, BTN.light.y, 80, 110, () => (this.lightDir = d), () => (this.lightDir = 0)));
+      // manopola a schermo, sempre attiva: metà destra = più luce, metà sinistra = meno; o trascina su/giù
+      dial(BTN.light.x, BTN.light.y, 160, 120, (p) => (p.x >= BTN.light.x ? 1 : -1), "lightKnob", "lightDir");
     if (g === "water" && PlantSensors.simulated("IR")) zone(BTN.water.x, BTN.water.y, 76, 90, () => (scene._simIrr = true), () => (scene._simIrr = false));
     if (g === "air" && PlantSensors.simulated("AR")) zone(BTN.air.x, BTN.air.y, 76, 90, () => (scene._simAir = true), () => (scene._simAir = false));
     if (g === "temp")
-      // termometro a schermo, sempre attivo (anche con il potenziometro collegato): metà alta del termometro = più caldo, metà bassa = più freddo
-      [-1, 1].forEach((d) => zone(THERMO.x, d > 0 ? (THERMO.y0 + THERMO.y1) / 2 - 90 : (THERMO.y0 + THERMO.y1) / 2 + 90, 90, 180, () => (this.knobDir = d), () => (this.knobDir = 0)));
+      // termometro a schermo, sempre attivo: metà alta = più caldo, metà bassa = più freddo; o trascina su/giù
+      dial(THERMO.x, (THERMO.y0 + THERMO.y1) / 2, 110, THERMO.y1 - THERMO.y0 + 40, (p) => (p.y < (THERMO.y0 + THERMO.y1) / 2 ? 1 : -1), "knob", "knobDir");
   }
 
   close() {
@@ -500,6 +539,9 @@ export class BioPanel {
     this.scene._simAir = false;
     this.knobDir = 0;
     this.lightDir = 0;
+    this.drag = null;
+    this.offDrag?.();
+    this.offDrag = null;
   }
 
   // ritorna { done, failed, negligence, progress }
@@ -523,8 +565,6 @@ export class BioPanel {
     if (this.done) return {};
     const step = this.step;
     const s = Bionomad.state;
-    if (this.knobDir) Bionomad.sim.knob = Phaser.Math.Clamp(Bionomad.sim.knob + this.knobDir * 0.4 * (delta / 1000), 0, 1);
-    if (this.lightDir) Bionomad.sim.lightKnob = Phaser.Math.Clamp(Bionomad.sim.lightKnob + this.lightDir * 0.45 * (delta / 1000), 0, 1);
     this.elapsed += delta;
     this.t += delta;
     let progress = 0;
@@ -691,8 +731,10 @@ export class BioPanel {
     const goal = step.goal;
     const t = this.t / 1000;
     const lit = s.light;
-    const lv = s.lightLvl ?? (lit ? 1 : 0); // intensità della luce 0..1 (manopola)
     const ease = (v, target, ms) => v + (target - v) * Math.min(1, delta / ms);
+    // intensità della luce 0..1 (manopola): il disegno la insegue in ~60 ms, così si muove fluida
+    this.lvView = ease(this.lvView ?? s.lightLvl ?? 0, s.lightLvl ?? (lit ? 1 : 0), 60);
+    const lv = this.lvView;
     const handFree = this.hand && !this.scene.tweens.isTweening(this.hand);
 
     // ---------- oggetti reali mossi dai comandi veri

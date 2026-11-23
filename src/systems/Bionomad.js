@@ -30,6 +30,16 @@ const s = {
 };
 // comandi simulati (tastiera / pulsanti a schermo), usati solo se l'Arduino non li manda
 const sim = { knob: 0.5, lightKnob: 0, irrigating: false, venting: false };
+
+// manopole comandate dal PC (tastiera, pulsanti a schermo): al primo tocco fanno uno scatto
+// preciso (1 °C / 2 % di luce), tenendo premuto partono piano e accelerano in modo morbido
+const TURN = {
+  knob: { step: 0.02, slow: 0.05, fast: 0.32 }, // 0.02 = 1 °C; 0.05/s = 2,5 °C/s → 16 °C/s
+  lightKnob: { step: 0.02, slow: 0.08, fast: 0.5 }
+};
+const held = { knob: 0, lightKnob: 0 };
+const DELAY_MS = 220; // pausa dopo lo scatto, così un tocco breve resta un passo singolo
+const RAMP_MS = 1100;
 // pressioni e dosi in corso
 const pulse = { irrRaw: false, airRaw: false, pour: 0, vent: 0, irrPresses: 0, airPresses: 0 };
 
@@ -51,6 +61,27 @@ export const Bionomad = {
   // la posizione della manopola che porta lo zaino a t gradi
   knobFor(t) {
     return Math.max(0, Math.min(1, (t - s.out) / 50 + 0.5));
+  },
+  // gira una manopola dal PC: dir = -1, 0, +1 (chiamata una volta per frame)
+  turn(name, dir, delta) {
+    if (!dir) {
+      held[name] = 0;
+      return;
+    }
+    const c = TURN[name];
+    if (held[name] === 0) sim[name] += dir * c.step;
+    held[name] += Math.min(delta, 100);
+    const k = Math.min(1, Math.max(0, (held[name] - DELAY_MS) / RAMP_MS));
+    if (held[name] > DELAY_MS) sim[name] += dir * (c.slow + (c.fast - c.slow) * k * k) * (Math.min(delta, 100) / 1000);
+    sim[name] = Math.max(0, Math.min(1, sim[name]));
+  },
+  // regolazione fine (rotellina del mouse): n scatti
+  nudge(name, n) {
+    sim[name] = Math.max(0, Math.min(1, sim[name] + n * TURN[name].step * 0.5));
+  },
+  // valore diretto (trascinando la manopola / il termometro a schermo)
+  set(name, v) {
+    sim[name] = Math.max(0, Math.min(1, v));
   },
   update(delta) {
     const dt = Math.min(delta, 100) / 1000;

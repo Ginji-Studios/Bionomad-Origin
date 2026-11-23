@@ -8,6 +8,8 @@ export class Walker {
     this.scene = scene;
     this.key = key;
     this.speed = speed;
+    // lunghezza del passo: > 1 = passi più lunghi (andando di fretta le gambe non "frullano")
+    this.stride = 1;
     this.sound = sound;
     this.indoor = indoor;
     this.vx = 0;
@@ -37,6 +39,7 @@ export class Walker {
       const size = Math.random() < 0.35 ? 5 : Math.random() < 0.6 ? 4 : 3;
       const col = Math.random() < 0.7 ? 0xf1f0ed : 0x5e6d88;
       const b = this.scene.add.circle(bx, by, size * 0.55, col, 0.95).setDepth(this.depth + 1).setScrollFactor(sf);
+      b.isBubble = true;
       const drift = (Math.random() - 0.5) * 30;
       this.scene.tweens.add({ targets: b, y: by - 60 - Math.random() * 60, alpha: 0, duration: 1400 + Math.random() * 800, delay: i * 110, ease: "Sine.easeOut", onComplete: () => b.destroy() });
       this.scene.tweens.add({ targets: b, x: bx + drift, duration: 700, delay: i * 110, yoyo: true, repeat: 1, ease: "Sine.easeInOut" });
@@ -73,7 +76,7 @@ export class Walker {
     const N = WALK_FRAMES;
     if (Math.abs(this.vx) > 10) {
       const before = Math.floor(this.phase * N);
-      this.phase = (this.phase + Math.abs(this.vx) * dt * 0.0042) % 1;
+      this.phase = (this.phase + (Math.abs(this.vx) * dt * 0.0042) / this.stride) % 1;
       const f = Math.floor(this.phase * N);
       this.img.setTexture(`${this.key}_${f}`);
       // un passo ogni mezzo ciclo (piede a terra)

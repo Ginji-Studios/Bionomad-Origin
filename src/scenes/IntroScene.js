@@ -42,17 +42,56 @@ export class IntroScene extends Phaser.Scene {
     this.walker.pack = false;
     this.walkTo = this.points.hub - 90;
     this.phase = "walk";
-    this.input.keyboard.on("keydown-ENTER", () => this.go());
-    this.input.keyboard.on("keydown-SPACE", () => this.go());
-    // si parte con il tasto START (onStart), non con la foglia
-    // tocco per saltare la scena
-    this.skip = txt(this, VIEW.w - 40, VIEW.h - 40, "TOCCA PER SALTARE", { size: 16, color: HEX.c3, origin: [1, 1] }).setScrollFactor(0);
-    this.input.once("pointerup", () => this.phase === "walk" && this.wearPack());
+    this.input.keyboard.on("keydown-ENTER", () => this.advance());
+    this.input.keyboard.on("keydown-SPACE", () => this.advance());
+    // START (onStart), INVIO, SPAZIO o un tocco: saltano la camminata e la lettura del comunicato
+    this.skip = txt(this, VIEW.w - 40, VIEW.h - 40, "START / TOCCA PER SALTARE", { size: 16, color: HEX.c3, origin: [1, 1] }).setScrollFactor(0);
+    this.input.on("pointerup", () => this.advance());
+  }
+
+  // salto: durante la camminata il personaggio corre all'hub e prende lo zaino come sempre
+  // (niente teletrasporto); durante il comunicato si va subito avanti, anche a metà scrittura
+  advance() {
+    if (this.phase === "walk") {
+      if (this.rushing) return;
+      this.rushing = true;
+      this.skip.setVisible(false);
+      // passo svelto ma credibile: accelera in modo morbido e allunga il passo
+      this.tweens.add({ targets: this.walker, speed: 430, stride: 1.25, duration: 750, ease: "Sine.easeInOut" });
+    } else if (this.phase === "notice") {
+      if (!this.ready) this.skipNotice();
+      this.go();
+    }
+  }
+
+  walkerTween(tw) {
+    const own = [this.walker?.img, this.walker?.shadow];
+    return (tw.targets ?? []).some((o) => own.includes(o) || o?.isBubble);
+  }
+
+  // ferma la scrittura animata del comunicato
+  skipNotice() {
+    // via tutti i tween partiti col comunicato (non quelli del personaggio, già in corso prima)
+    const before = this.noticeTweens0 ?? new Set();
+    this.tweens.getTweens().forEach((tw) => !before.has(tw) && !this.walkerTween(tw) && (tw.remove ? tw.remove() : tw.stop()));
+    this.noticeTimers?.forEach((e) => e.remove(false));
+    this.ready = true;
   }
 
   update(time, delta) {
     if (!this.walker) return;
     if (this.phase === "walk") {
+      // di fretta: negli ultimi passi rallenta da solo, così si ferma all'hub in modo naturale
+      if (this.rushing) {
+        const left = this.walkTo - this.walker.x;
+        if (left < 260) {
+          // curva morbida (smoothstep): la frenata parte dolce e finisce dolce
+          const u = Math.max(0, left / 260);
+          const k = u * u * (3 - 2 * u);
+          this.walker.speed = Math.min(this.walker.speed, 210 + 220 * k);
+          this.walker.stride = Math.min(this.walker.stride, 1 + 0.25 * k);
+        }
+      }
       this.walker.update(1, delta);
       if (this.walker.x >= this.walkTo) this.wearPack();
     } else if (this.phase === "out") {
@@ -73,6 +112,12 @@ export class IntroScene extends Phaser.Scene {
     this.phase = "wear";
     this.skip.destroy();
     this.walker.frozen = true;
+    // arrivato di corsa: si ferma lì, senza scivolare oltre l'hub
+    if (this.rushing) {
+      this.tweens.killTweensOf(this.walker);
+      this.walker.speed = 220;
+      this.walker.stride = 1;
+    }
     this.walker.update(0, 16);
     const img = this.walker.img;
     const k = img.scaleX;
@@ -84,7 +129,7 @@ export class IntroScene extends Phaser.Scene {
       hub,
       mode: "wear",
       onAttach: () => this.walker.bubble?.(10),
-      onDone: () => this.time.delayedCall(600, () => this.showNotice())
+      onDone: () => this.time.delayedCall(this.rushing ? 150 : 600, () => this.showNotice())
     });
   }
 
@@ -94,6 +139,9 @@ export class IntroScene extends Phaser.Scene {
   showNotice() {
     this.phase = "notice";
     Sfx.announce();
+    // tween e timer dell'animazione: se si salta la lettura vengono fermati
+    this.noticeTweens0 = new Set(this.tweens.getTweens());
+    this.noticeTimers = [];
     const w = 860;
     const h = 470;
     const x = (VIEW.w - w) / 2;
@@ -151,14 +199,17 @@ export class IntroScene extends Phaser.Scene {
     const type = (t, full, ms, done) => {
       let i = 0;
       const ev = this.time.addEvent({
+        // (registrato sotto, per poterlo fermare)
         delay: ms,
         repeat: full.length - 1,
         callback: () => {
+          if (!t.active) return;
           i++;
           t.setText(full.slice(0, i));
           if (i >= full.length) done?.();
         }
       });
+      this.noticeTimers.push(ev);
       return ev;
     };
     const ease = (u) => 1 - Math.pow(1 - u, 3);
@@ -190,7 +241,7 @@ export class IntroScene extends Phaser.Scene {
                 warn.setVisible(true);
                 logo.setVisible(true);
                 type(head, HEAD, 18);
-                this.time.delayedCall(250, writeTitle);
+                this.noticeTimers.push(this.time.delayedCall(250, writeTitle));
               }
             });
           }

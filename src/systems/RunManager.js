@@ -130,9 +130,11 @@ export function startRun(registry, originId) {
       const spots = shuffle(["t0", "t1", "t2", "office", "home"]).slice(0, nRand);
       let lastRand = null;
       // acqua o aria a caso; la stessa di prima solo una volta su quattro
-      const randGoal = () => {
-        const other = { water: "air", air: "water" };
-        const g = !lastRand ? (Math.random() < 0.5 ? "water" : "air") : Math.random() < 0.25 ? lastRand : other[lastRand];
+      // avoid = cura appena fatta lì vicino (mai due uguali di fila)
+      const other = { water: "air", air: "water" };
+      const randGoal = (avoid) => {
+        let g = !lastRand ? (Math.random() < 0.5 ? "water" : "air") : Math.random() < 0.25 ? lastRand : other[lastRand];
+        if (g === avoid) g = other[g];
         return (lastRand = g);
       };
 
@@ -146,10 +148,13 @@ export function startRun(registry, originId) {
       const tr = [0, 1, 2].map((leg) => (spots.includes("t" + leg) ? randGoal() : null));
       const pl = [
         { v: v3() },
-        { v: v3(), also: office.slice(1), tail: "light", rnd: spots.includes("office") ? [{ goal: randGoal(), v: v3() }] : [] },
+        { v: v3(), also: office.slice(1), tail: "light", rnd: spots.includes("office") ? [{ goal: randGoal(office.map((id) => EVENTS[id].goal).find((g) => g === "air" || g === "water")), v: v3() }] : [] },
         { v: v3(), rnd: spots.includes("home") ? [{ goal: randGoal(), v: v3() }] : [] }
       ];
-      if (Math.random() < NIGHT_CHANCE[lvl - 1]) pl[2].night = Math.random() < 0.5 ? "water" : "air";
+      if (Math.random() < NIGHT_CHANCE[lvl - 1]) {
+        const before = pl[2].rnd[0]?.goal;
+        pl[2].night = before ? other[before] : Math.random() < 0.5 ? "water" : "air";
+      }
       events = ev;
       plan = pl;
       travel = tr;
