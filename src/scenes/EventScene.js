@@ -54,7 +54,10 @@ export class EventScene extends Phaser.Scene {
     this.time_ = dayTime(this.run);
     Bionomad.setOutside(cityTemp(this.run, this.event.out ?? (outdoor ? OUT_TEMP[this.time_] : 21)));
     setAmbient(OUTDOOR.has(loc) ? (this.time_ === "night" ? "night" : "city") : null);
-    this.events.once("shutdown", () => PlantSensors.send("E0"));
+    this.events.once("shutdown", () => {
+      PlantSensors.send("E0");
+      PlantSensors.oxygenOff();
+    });
     if (OUTDOOR.has(loc) && this.origin.id === "reykjavik") snowfall(this, { intensity: 0.8 });
 
     // città sullo sfondo
@@ -464,6 +467,7 @@ export class EventScene extends Phaser.Scene {
     this.o2.set(this.oxygen, time);
     // livello di ossigeno al LED RGB del dispositivo (solo quando cambia)
     const o = Math.round(this.oxygen * 100);
+    PlantSensors.oxygen(o);
     if (o !== this.lastO2) {
       this.lastO2 = o;
       PlantSensors.send(`O:${o}`);

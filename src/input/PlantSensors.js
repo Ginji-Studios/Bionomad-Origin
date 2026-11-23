@@ -40,6 +40,10 @@ const state = {
 let port = null;
 let writer = null;
 let lastArduinoCommand = null;
+// respiro basso: il buzzer suona sotto questa percentuale
+export const LOW_O2 = 25;
+let lowSent = null;
+let lowAt = 0;
 // sensori che l'Arduino ha davvero mandato almeno una volta (L, T, P, W, TOUCH):
 // solo quelli comandano il gioco, tutti gli altri restano simulati da tastiera / pulsanti
 const reported = new Set();
@@ -200,6 +204,24 @@ export const PlantSensors = {
 
   send(command) {
     if (writer) writer.write(`${command}\n`).catch(() => {});
+  },
+
+  // respiro (0..100) da chiamare a ogni fotogramma: manda B1 quando scende sotto LOW_O2,
+  // B0 quando risale, e ripete B1 ogni 2 s finché resta basso (così non si perde mai)
+  oxygen(o) {
+    const low = o > 0 && o < LOW_O2;
+    const now = performance.now();
+    if (low !== lowSent || (low && now - lowAt > 2000)) {
+      this.send(low ? "B1" : "B0");
+      lowSent = low;
+      lowAt = now;
+    }
+  },
+
+  // fine scena: spegne il bip del respiro basso
+  oxygenOff() {
+    this.send("B0");
+    lowSent = null;
   },
 
   // true se quel sensore va simulato (pianta scollegata o sensore che l'Arduino non manda)

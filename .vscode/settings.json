@@ -1,0 +1,8 @@
+{
+  // lo sketch Arduino (cartella arduino/) si compila con l'Arduino IDE:
+  // VS Code non conosce le sue librerie, quindi niente sottolineature rosse sul C++
+  "C_Cpp.errorSquiggles": "disabled",
+  "files.associations": {
+    "*.ino": "cpp"
+  }
+}

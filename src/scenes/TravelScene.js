@@ -34,6 +34,7 @@ export class TravelScene extends Phaser.Scene {
     this.dest = nextDestination(this.registry);
     this.finished = this.run.index >= this.run.events.length;
     this.oxygen = this.run.oxygen ?? 1;
+    this.events.once("shutdown", () => PlantSensors.oxygenOff());
     this.done = false;
     this.indoor = false;
     fadeIn(this);
@@ -213,6 +214,7 @@ export class TravelScene extends Phaser.Scene {
     this.o2.set(this.oxygen, time);
     // livello di ossigeno al dispositivo (buzzer quando è basso), solo quando cambia
     const o = Math.round(this.oxygen * 100);
+    PlantSensors.oxygen(o);
     if (o !== this.lastO2) {
       this.lastO2 = o;
       PlantSensors.send(`O:${o}`);
