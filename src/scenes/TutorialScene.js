@@ -202,15 +202,19 @@ export class TutorialScene extends Phaser.Scene {
     this.page = i;
     this.t = 0;
     this.navL?.setAlpha(i === 0 ? 0.25 : 1);
-    this.layer.removeAll(true);
+    // dissolvenza incrociata: la pagina vecchia scivola via mentre la nuova entra dal lato opposto
+    const old = this.layer;
+    this.layer = this.add.container(0, 0).setDepth(old.depth);
+    if (old.length) {
+      this.tweens.killTweensOf(old);
+      this.tweens.add({ targets: old, alpha: 0, x: -70 * dir, duration: 340, ease: "Cubic.easeIn", onComplete: () => old.destroy() });
+    } else old.destroy();
     this.tiles = [];
     if (i === 0) this.pageMove();
     else if (i === 1) this.pageControls();
     else this.pageBreath();
-    // entrata della pagina: scivola dal lato da cui si arriva e si accende
-    this.tweens.killTweensOf(this.layer);
-    this.layer.setAlpha(0).setX(48 * dir);
-    this.tweens.add({ targets: this.layer, alpha: 1, x: 0, duration: 420, ease: "Cubic.easeOut" });
+    this.layer.setAlpha(0).setX(90 * dir);
+    this.tweens.add({ targets: this.layer, alpha: 1, x: 0, duration: 560, delay: old.length ? 140 : 0, ease: "Cubic.easeOut" });
   }
 
   // ---------- elementi comuni

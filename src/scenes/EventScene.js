@@ -412,7 +412,9 @@ export class EventScene extends Phaser.Scene {
   onAction() {
     const step = this.step;
     if (this.mode !== "play" || !step || !this.near()) return;
-    if (step.type === "sleep" || REACH_TYPES.has(step.type)) return;
+    if (REACH_TYPES.has(step.type)) return;
+    // vicino al divano basta una pressione (● a schermo, SPAZIO o START del BIONOMAD)
+    if (step.type === "sleep") return this.fallAsleep(step);
     if (step.type === "talk") {
       toast(this, step.line ?? "", { duration: 2400 });
       this.mode = "busy";
@@ -425,6 +427,32 @@ export class EventScene extends Phaser.Scene {
     if (step.type === "place") this.placePack();
     if (step.type === "take") this.takePack();
     this.completeStep();
+  }
+
+  // ci si addormenta da soli: la stanza si spegne piano, poi il passo è completato
+  fallAsleep(step) {
+    if (this.mode !== "play" || this.sleeping) return;
+    this.sleeping = true;
+    this.mode = "busy";
+    this.mark.setActive(false);
+    this.pad.highlight(false);
+    const p = { v: 0 };
+    const from = this.night.fillAlpha;
+    this.tweens.add({
+      targets: p,
+      v: 1,
+      duration: step.duration ?? 1500,
+      ease: "Sine.easeInOut",
+      onUpdate: () => {
+        this.refreshTasks(p.v);
+        this.night.fillAlpha = Math.max(from, p.v * 0.7);
+      },
+      onComplete: () => {
+        this.sleeping = false;
+        this.mode = "play";
+        this.completeStep({ quiet: true });
+      }
+    });
   }
 
   completeStep({ quiet = false } = {}) {
@@ -510,22 +538,11 @@ export class EventScene extends Phaser.Scene {
     } else if (this.mode === "play" && step) {
       const near = this.near();
       this.mark.setActive(near);
-      const needsButton = ["place", "take", "talk", "exit"].includes(step.type);
+      const needsButton = ["place", "take", "talk", "exit", "sleep"].includes(step.type);
       this.pad.highlight(near && needsButton);
       if (input.action) this.onAction();
       if (near && REACH_TYPES.has(step.type)) this.completeStep({ quiet: true });
-      else if (near && step.type === "sleep") {
-        // tieni premuto ● vicino al divano: ci si addormenta
-        if (input.holding) this.holdMs += delta;
-        else this.holdMs = Math.max(0, this.holdMs - delta);
-        const p = Math.min(1, this.holdMs / (step.duration ?? 1800));
-        this.refreshTasks(p);
-        this.night.fillAlpha = Math.max(this.duskA ?? 0, p * 0.7);
-        if (p >= 1) {
-          this.player.img.setVisible(true);
-          this.completeStep({ quiet: true });
-        }
-      }
+      else if (near && step.type === "sleep" && input.holding) this.fallAsleep(step);
       if (step.type === "emergency") this.updateEmergency(delta);
     }
 
