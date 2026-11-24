@@ -188,8 +188,10 @@ export class TutorialScene extends Phaser.Scene {
     goTo(this, this.next);
   }
 
+  // foglia sinistra sulla prima pagina = si torna al menu
   back() {
-    this.showPage(Math.max(0, this.page - 1));
+    if (this.page === 0) return goTo(this, "MenuScene");
+    this.showPage(this.page - 1);
   }
 
   advance() {
@@ -201,7 +203,7 @@ export class TutorialScene extends Phaser.Scene {
     const dir = i >= (this.page ?? 0) ? 1 : -1;
     this.page = i;
     this.t = 0;
-    this.navL?.setAlpha(i === 0 ? 0.25 : 1);
+    this.navL?.setAlpha(1); // sulla prima pagina la freccia sinistra riporta al menu
     // dissolvenza incrociata: la pagina vecchia scivola via mentre la nuova entra dal lato opposto
     const old = this.layer;
     this.layer = this.add.container(0, 0).setDepth(old.depth);

@@ -88,12 +88,20 @@ export class CreditsScene extends Phaser.Scene {
     brackets(this);
     this.page = this.add.container(0, 0);
     this.tabs = ["BIONOMAD SYSTEM", "TEAM"].map((label, i) => button(this, VIEW.w - 600 + i * 280, 716, 260, 56, label, () => this.show(i), { size: 22 }));
-    button(this, 40, 716, 180, 56, "◀ MENU", () => goTo(this, "MenuScene"), { size: 22 });
+    // niente tasto indietro: con la pianta si torna al menu premendo START
+    txt(this, 40, 744, "START o PIANTA SINISTRA · TORNA AL MENU", { size: 16, color: HEX.c3, origin: [0, 0.5] });
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
-    this.input.keyboard.on("keydown-LEFT", () => this.show(0));
+    this.input.keyboard.on("keydown-ENTER", () => this.onStart());
+    this.input.keyboard.on("keydown-LEFT", () => (this.current === 0 ? goTo(this, "MenuScene") : this.show(0)));
     this.input.keyboard.on("keydown-RIGHT", () => this.show(1));
-    plantNav(this, { left: () => this.show(0), right: () => this.show(1) });
+    // foglia sinistra sulla prima scheda = si torna al menu
+    plantNav(this, { left: () => (this.current === 0 ? goTo(this, "MenuScene") : this.show(0)), right: () => this.show(1) });
     this.show(0);
+  }
+
+  // tasto START del BIONOMAD (o ● / INVIO): si torna al menu
+  onStart() {
+    goTo(this, "MenuScene");
   }
 
   // riquadro del fascicolo: linee sottili e un nodo a ogni angolo
@@ -130,6 +138,7 @@ export class CreditsScene extends Phaser.Scene {
   }
 
   show(i) {
+    this.current = i;
     this.tabs.forEach((t, k) => t.setSelected(k === i));
     this.page.removeAll(true);
     this.tweens.killAll();

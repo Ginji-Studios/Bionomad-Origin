@@ -190,6 +190,8 @@ export const Sfx = {
   // battitura del testo: tic da telescrivente
   tick: () => noise(0.008, { vol: 0.02, freq: 4200, q: 1, type: "highpass" }),
   // comunicato ufficiale: segnale d'annuncio pubblico a tre toni discendenti, con eco di sala
+  // allerta prima di una task: due colpi brevi e un terzo più acuto
+  heads: () => [0, 0.2, 0.42].forEach((d, i) => ping(i === 2 ? 1175 : 880, 0.12, 0.05, d)),
   announce: () => [784, 659, 523].forEach((f, i) => ping(f, 0.45, 0.06, i * 0.34, echoBus)),
   // fine giornata: accordo calmo che si apre, con eco
   win: () => [523, 659, 784, 1046].forEach((f, i) => ping(f, 1.1, 0.035, i * 0.05, echoBus)),

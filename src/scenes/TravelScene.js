@@ -12,7 +12,7 @@ import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey, warmBare } from "../art/people.js";
 import { snowfall } from "../world/snow.js";
 import { careWithPack } from "../entities/packGesture.js";
-import { brackets, cityHud, controls, fadeIn, goTo, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
+import { alertCue, brackets, cityHud, controls, fadeIn, goTo, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, VIEW } from "../ui/hud.js";
 
 const FEET = 764;
 const PLACE_NAME = { home: "CASA", office: "UFFICIO", bus: "FERMATA DEL BUS", busstop: "FERMATA DEL BUS", foodtruck: "FOOD TRUCK", street: "STRADA" };
@@ -130,15 +130,22 @@ export class TravelScene extends Phaser.Scene {
     const t = this.travelCare;
     // il personaggio rallenta da solo (niente stop secco) mentre arriva la notifica,
     // poi lo zaino si apre quasi subito
-    this.mode = "busy";
-    PlantSensors.send("N");
-    Sfx.announce?.();
-    notification(this, t.line);
-    this.tasks.set(this.taskTitle, [t.text, this.goalLabel], 0);
-    this.time.delayedCall(900, () => {
-      this.mode = "bio";
-      this.pad.setVisible(false);
-      this.bio.show(t);
+    // prima l'allerta (si continua a camminare), poi la notifica e lo zaino
+    this.alerting = true;
+    PlantSensors.send("A");
+    Sfx.heads?.();
+    alertCue(this, () => {
+      this.alerting = false;
+      this.mode = "busy";
+      PlantSensors.send("N");
+      Sfx.announce?.();
+      notification(this, t.line);
+      this.tasks.set(this.taskTitle, [t.text, this.goalLabel], 0);
+      this.time.delayedCall(900, () => {
+        this.mode = "bio";
+        this.pad.setVisible(false);
+        this.bio.show(t);
+      });
     });
   }
 

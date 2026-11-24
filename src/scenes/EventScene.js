@@ -12,7 +12,7 @@ import { snowfall } from "../world/snow.js";
 import { Walker, smoothFollow } from "../entities/Walker.js";
 import { npcKey, operatorKey, holdFrames } from "../art/people.js";
 import { BioPanel, bioKeys } from "../ui/BioPanel.js";
-import { cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, BRAND } from "../ui/hud.js";
+import { alertCue, cityHud, C, canvasImage, controls, fadeIn, goTo, HEX, marker, o2Hud, statusChip, skylineLayers, taskPanel, toast, txt, VIEW, BRAND } from "../ui/hud.js";
 
 const NEAR = 80;
 const STEP_BONUS = 0.04;
@@ -182,7 +182,17 @@ export class EventScene extends Phaser.Scene {
 
   // ---------- notifica (telefono / BIONOMAD) ----------
 
-  notify(step) {
+  notify(step, alerted = false) {
+    // allerta poco prima di ogni task (non per la sveglia notturna, che ha già il suo risveglio)
+    const upcoming = this.event.steps.slice(this.stepIndex + 1).some((st) => st.type === "bio");
+    if (!alerted && !step.wake && upcoming) {
+      PlantSensors.send("A");
+      Sfx.heads?.();
+      alertCue(this, () => {
+        if (this.step === step) this.notify(step, true);
+      });
+      return;
+    }
     // niente attesa a gioco fermo: la notifica arriva subito e si può continuare a camminare.
     // Se il passo dopo apre lo zaino si lascia appena il tempo di leggerla.
     if (step.wake) {

@@ -112,7 +112,6 @@ export class SetupScene extends Phaser.Scene {
     // pianta: le foglie scorrono le scelte; si conferma con il tasto START
     plantNav(this, { left: () => this.move(-1), right: () => this.move(1) });
     this.layer = this.add.container(0, 0);
-    this.back = button(this, 40, 716, 200, 56, "◀ INDIETRO", () => this.goBack(), { size: 22 });
     this.next = button(this, VIEW.w - 300, 716, 260, 56, "AVANTI ▶", () => this.confirm(), { primary: true, size: 24 });
     const kb = this.input.keyboard;
     kb.on("keydown-LEFT", () => this.move(-1));
@@ -254,14 +253,16 @@ export class SetupScene extends Phaser.Scene {
     this.confirm();
   }
 
+  // foglia sinistra sulla prima scelta = si torna indietro (operatore → città → menu);
+  // sull'ultima scelta la foglia destra non fa nulla (niente giro da capo)
   move(dir) {
-    if (this.step === "city") {
-      const i = Phaser.Math.Wrap(CITY_ORDER.indexOf(this.city) + dir, 0, CITY_ORDER.length);
-      this.pickCity(CITY_ORDER[i]);
-    } else {
-      const i = Phaser.Math.Wrap(OPERATORS.findIndex((o) => o.id === this.op) + dir, 0, OPERATORS.length);
-      this.pickOp(OPERATORS[i].id);
-    }
+    const list = this.step === "city" ? CITY_ORDER : OPERATORS.map((o) => o.id);
+    const at = list.indexOf(this.step === "city" ? this.city : this.op);
+    if (dir < 0 && at === 0) return this.goBack();
+    const i = Phaser.Math.Clamp(at + dir, 0, list.length - 1);
+    if (i === at) return;
+    if (this.step === "city") this.pickCity(list[i]);
+    else this.pickOp(list[i]);
   }
 
   confirm() {

@@ -572,3 +572,54 @@ export function statusChip(scene) {
     }
   };
 }
+
+// ---------------------------------------------------------------- allerta "task in arrivo"
+// Poco prima di ogni task: i bordi dello schermo pulsano in giallo due volte e in alto scende
+// una pillola "TASK IN ARRIVO" con una barra che si svuota. Poi parte la notifica vera.
+// Il gioco non si ferma: si può continuare a camminare. done() viene chiamato alla fine.
+export function alertCue(scene, done, { ms = 1700, text = "TASK IN ARRIVO" } = {}) {
+  const D = 4800;
+  const all = [];
+  // bordi che pulsano (cornice sfumata in giallo brand)
+  const edge = scene.add.graphics().setScrollFactor(0).setDepth(D).setAlpha(0);
+  for (let i = 0; i < 14; i++) {
+    const w = 6 + i * 6;
+    edge.lineStyle(6, 0xe2b33c, 0.16 * (1 - i / 14));
+    edge.strokeRect(w / 2, w / 2, VIEW.w - w, VIEW.h - w);
+  }
+  all.push(edge);
+  scene.tweens.add({ targets: edge, alpha: 1, duration: ms / 4, yoyo: true, repeat: 1, ease: "Sine.easeInOut" });
+  // pillola in alto al centro, sotto la barra del RESPIRO
+  const W = 360;
+  const H = 54;
+  const box = scene.add.container(VIEW.w / 2, 112).setScrollFactor(0).setDepth(D + 1).setAlpha(0);
+  const g = scene.add.graphics();
+  g.fillStyle(0x0e1626, 0.18);
+  g.fillRoundedRect(-W / 2 + 2, -H / 2 + 6, W, H, H / 2);
+  g.fillStyle(0x1b2528, 0.94);
+  g.fillRoundedRect(-W / 2, -H / 2, W, H, H / 2);
+  g.fillStyle(0xe2b33c, 1);
+  g.fillCircle(-W / 2 + 30, 0, 15);
+  const bang = txt(scene, -W / 2 + 30, 1, "!", { size: 22, weight: "700", color: "#1B2528", origin: 0.5 });
+  const label = txt(scene, -W / 2 + 58, -3, text, { size: 19, weight: "700", color: "#F4F5F7", origin: [0, 0.5] });
+  const bar = scene.add.graphics();
+  box.add([g, bang, label, bar]);
+  all.push(box);
+  const prog = { p: 1 };
+  const drawBar = () => {
+    bar.clear();
+    bar.fillStyle(0xf4f5f7, 0.18);
+    bar.fillRoundedRect(-W / 2 + 58, 13, W - 90, 4, 2);
+    bar.fillStyle(0xe2b33c, 1);
+    bar.fillRoundedRect(-W / 2 + 58, 13, Math.max(4, (W - 90) * prog.p), 4, 2);
+  };
+  drawBar();
+  box.y = 86;
+  scene.tweens.add({ targets: box, alpha: 1, y: 112, duration: 280, ease: "Back.easeOut" });
+  scene.tweens.add({ targets: bang, scale: 1.25, duration: 220, yoyo: true, repeat: 3, ease: "Sine.easeInOut" });
+  scene.tweens.add({ targets: prog, p: 0, duration: ms, onUpdate: drawBar });
+  scene.time.delayedCall(ms, () => {
+    scene.tweens.add({ targets: box, alpha: 0, y: 96, duration: 220, onComplete: () => all.forEach((o) => o.destroy()) });
+    done?.();
+  });
+}
