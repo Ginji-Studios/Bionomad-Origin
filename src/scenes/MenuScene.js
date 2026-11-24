@@ -154,7 +154,7 @@ export class MenuScene extends Phaser.Scene {
     // voci del menu: numero, nome grande, freccia; la voce attiva ha la pillola scura
     const items = [
       ["GIOCA", () => goTo(this, "TutorialScene", { next: "SetupScene" })],
-      [PlantSensors.state.connected ? "PIANTA COLLEGATA" : "COLLEGA LA PIANTA", () => this.connect()],
+      [plantText(), () => this.connect()],
       ["CREDITI", () => goTo(this, "CreditsScene")]
     ];
     this.sel = 0;
@@ -200,6 +200,10 @@ export class MenuScene extends Phaser.Scene {
     txt(this, 124, VIEW.h - 70, "Premi START per iniziare", { size: 15, color: HEX.c4, origin: [0, 0.5] }).setDepth(21);
     this.plantBtn = this.buttons[1];
     this.plantLabel = (s) => this.plantBtn.setLabel(s);
+    // la voce segue lo stato vero della pianta (anche se si collega da sola dopo un ricaricamento)
+    const off = PlantSensors.onChange(() => this.plantLabel(plantText()));
+    this.events.once("shutdown", off);
+    this.plantLabel(plantText());
     this.input.keyboard.on("keydown-UP", () => this.select((this.sel + 2) % 3));
     this.input.keyboard.on("keydown-DOWN", () => this.select((this.sel + 1) % 3));
 
@@ -319,12 +323,17 @@ export class MenuScene extends Phaser.Scene {
     if (PlantSensors.state.connected) return;
     try {
       await PlantSensors.connect();
-      this.plantLabel("Pianta collegata ✓");
+      this.plantLabel(plantText());
       toast(this, "Pianta collegata");
     } catch (error) {
       toast(this, error?.message ?? "Collegamento non riuscito", { duration: 3200 });
     }
   }
+}
+
+// voce del menu per la pianta: con la spunta finché l'Arduino è collegato
+function plantText() {
+  return PlantSensors.state.connected ? "PIANTA COLLEGATA ✓" : "COLLEGA LA PIANTA";
 }
 
 // titolo O₂RIGIN vettoriale (canvas 3x): lettere grandi blu notte, il 2 in giallo

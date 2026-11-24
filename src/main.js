@@ -11,6 +11,25 @@ const game = new Phaser.Game({
 });
 window.game = game;
 setupTouchControls();
+// pagina ricaricata: se l'Arduino era già stato autorizzato, si ricollega da solo
+PlantSensors.autoConnect();
+
+// schermo sempre acceso finché il gioco è aperto (niente standby di PC / tablet durante la mostra).
+// Il browser lo toglie quando la pagina va in secondo piano: lo si richiede appena torna visibile.
+let wakeLock = null;
+async function keepAwake() {
+  try {
+    if (!("wakeLock" in navigator) || document.visibilityState !== "visible" || wakeLock) return;
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => (wakeLock = null));
+  } catch {
+    // non supportato o negato: si riprova al prossimo tocco
+  }
+}
+keepAwake();
+document.addEventListener("visibilitychange", keepAwake);
+window.addEventListener("pointerdown", keepAwake);
+window.addEventListener("keydown", keepAwake);
 
 // audio: si sblocca al primo tocco; M lo attiva e disattiva
 window.addEventListener("keydown", (e) => {

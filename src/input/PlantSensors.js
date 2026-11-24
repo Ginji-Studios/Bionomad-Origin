@@ -44,6 +44,9 @@ let lastArduinoCommand = null;
 export const LOW_O2 = 30; // come la barra del RESPIRO, che diventa rossa sotto il 30%
 let lowSent = null;
 let heartbeat = null;
+let opening = false;
+const listeners = new Set();
+const notify = () => listeners.forEach((fn) => fn(state.connected));
 let lowAt = 0;
 // sensori che l'Arduino ha davvero mandato almeno una volta (L, T, P, W, TOUCH):
 // solo quelli comandano il gioco, tutti gli altri restano simulati da tastiera / pulsanti
@@ -154,6 +157,11 @@ function parseLine(line) {
   }
 }
 
+// Arduino ricollegato al cavo mentre il gioco è aperto: si riconnette da solo
+if (typeof navigator !== "undefined" && navigator.serial) {
+  navigator.serial.addEventListener("connect", () => setTimeout(() => PlantSensors.autoConnect(), 600));
+}
+
 // uscendo dal gioco (pagina chiusa o ricaricata) il buzzer si spegne subito
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", () => {
@@ -181,6 +189,14 @@ async function readLoop() {
   state.connected = false;
   clearInterval(heartbeat);
   reported.clear();
+  try {
+    await port?.close();
+  } catch {
+    // già chiusa
+  }
+  port = null;
+  writer = null;
+  notify();
   state.serialDirection = 0;
   state.touchLeft = false;
   state.touchRight = false;
@@ -196,11 +212,39 @@ export const PlantSensors = {
   // va chiamato da un gesto dell'utente (tasto o click)
   async connect() {
     if (!this.supported) throw new Error("Web Serial non disponibile: usa Chrome o Edge su localhost");
-    port = await navigator.serial.requestPort();
+    return this.open(await navigator.serial.requestPort());
+  },
+
+  // ricollegamento automatico: le porte già autorizzate in passato si riaprono senza chiedere nulla
+  // (pagina ricaricata, gioco riaperto, Arduino ricollegato al cavo)
+  async autoConnect() {
+    if (!this.supported || state.connected || opening) return false;
+    const ports = await navigator.serial.getPorts().catch(() => []);
+    for (const p of ports) {
+      try {
+        await this.open(p);
+        return true;
+      } catch {
+        // porta occupata o non più presente: si prova la successiva
+      }
+    }
+    return false;
+  },
+
+  // avvisa chi è interessato quando la pianta si collega o si scollega (es. la voce del menu)
+  onChange(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  },
+
+  async open(p) {
+    opening = true;
+    port = p;
     try {
       await port.open({ baudRate: BAUD });
     } catch (error) {
       port = null;
+      opening = false;
       const detail = error?.message ? ` (${error.message})` : "";
       throw new Error(`Impossibile aprire la porta seriale. Chiudi il Monitor seriale o altri programmi che la stanno usando${detail}`);
     }
@@ -208,6 +252,8 @@ export const PlantSensors = {
     encoder.readable.pipeTo(port.writable).catch(() => {});
     writer = encoder.writable.getWriter();
     state.connected = true;
+    opening = false;
+    notify();
     // buzzer: si riparte in silenzio, poi un "ci sono" ogni secondo.
     // Se l'Arduino non lo riceve per 3 s (gioco chiuso, pagina ricaricata) spegne da solo il buzzer.
     this.send("X");
