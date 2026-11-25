@@ -288,6 +288,15 @@ export class EventScene extends Phaser.Scene {
     cb?.();
   }
 
+  // luce del tasto START: accesa solo quando premerlo serve (schermata di evento fallito,
+  // oppure vicino a un punto in cui c'è da interagire: appoggiare, prendere, parlare, uscire, dormire)
+  startLit() {
+    if (this.mode === "failed") return true;
+    const step = this.step;
+    if (this.mode !== "play" || !step || !this.near()) return false;
+    return ["place", "take", "talk", "exit", "sleep"].includes(step.type);
+  }
+
   // tasto START del dispositivo: chiude la schermata di evento fallito,
   // altrimenti fa da pulsante di interazione (●) quando è disponibile
   onStart() {

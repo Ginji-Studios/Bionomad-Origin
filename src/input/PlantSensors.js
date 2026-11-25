@@ -2,7 +2,7 @@
 // Dall'Arduino:
 //   SINISTRA / DESTRA / STOP          foglie capacitive (movimento)
 //   START                             pulsante di avvio (una riga a ogni pressione)
-//   LU:1,TK:512,IR:0,AR:0             interruttore luce, manopola temperatura (0-1023),
+//   LU:1,TK:50,IR:0,AR:0              interruttore luce, manopola temperatura (0-100),
 //                                     pulsante irrigazione, pulsante arieggiamento
 // Verso l'Arduino:
 //   E1 / E0  emergenza (LED rosso lampeggiante + buzzer)   G  lampeggio verde (task riuscita)
@@ -118,11 +118,11 @@ function parseLine(line) {
       reported.add("W");
       state.irrigation = value === 1;
     }
-    // manopola della luce (potenziometro 0..1023); "LU" 0/1 resta per il vecchio interruttore
+    // manopola della luce (potenziometro 0..100); "LU" 0/1 resta per il vecchio interruttore
     if (key === "LK") {
       reported.add("LK");
       // media mobile: il potenziometro trema un po', così il valore resta fermo
-      const v = Math.max(0, Math.min(1, value / 1023));
+      const v = Math.max(0, Math.min(1, value / 100));
       state.lightKnob = reportedOnce.LK ? state.lightKnob + (v - state.lightKnob) * 0.5 : v;
       reportedOnce.LK = true;
     }
@@ -132,7 +132,7 @@ function parseLine(line) {
     }
     if (key === "TK") {
       reported.add("TK");
-      const v = Math.max(0, Math.min(1, value / 1023));
+      const v = Math.max(0, Math.min(1, value / 100));
       state.knob = reportedOnce.TK ? state.knob + (v - state.knob) * 0.5 : v;
       reportedOnce.TK = true;
     }
@@ -202,8 +202,26 @@ async function readLoop() {
   state.touchRight = false;
 }
 
+// luci dei tasti già mandate (per non ripeterle a ogni fotogramma)
+let lampsSent = null;
+let lampsAt = 0;
+
 export const PlantSensors = {
   state,
+
+  // luci dei tasti arcade: "S" avvio, "I" irrigazione, "A" aria (es. "SI"); "" = tutte spente.
+  // Da chiamare a ogni fotogramma: manda solo i cambi, e li ripete ogni secondo per sicurezza
+  lamps(which) {
+    if (!state.connected) {
+      lampsSent = null;
+      return;
+    }
+    const now = performance.now();
+    if (which === lampsSent && now - lampsAt < 1000) return;
+    this.send(`T:${which}`);
+    lampsSent = which;
+    lampsAt = now;
+  },
 
   get supported() {
     return typeof navigator !== "undefined" && "serial" in navigator;

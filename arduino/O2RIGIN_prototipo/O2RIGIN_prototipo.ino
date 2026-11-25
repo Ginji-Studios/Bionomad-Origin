@@ -6,7 +6,11 @@
 //   PAUSA                      tasto avvio tenuto premuto (0,8 s): pausa / riprendi
 //   DESTRA / STOP              foglia toccata / lasciata (il personaggio va a destra)
 //   IR:0/1,AR:0/1              tasto irrigazione, tasto aria
-//   (temperatura e luce si regolano dal PC: il potenziometro non si usa)
+//   TK:0-100,LK:0-100          manopola temperatura (A0) e manopola luce (A1), nella stessa riga di IR/AR
+//                              (si possono usare anche i comandi del PC: vince l'ultimo che si muove)
+// Dal gioco, luci dei tasti:
+//   T:SIA     accende la luce dei tasti di cui è il turno (S avvio, I irrigazione, A aria);
+//             "T:" da solo le spegne tutte. Il gioco la ripete ogni secondo.
 // Dal gioco (il buzzer suona SOLO in questi tre casi):
 //   E1 / E0   emergenza: bip veloce continuo finché non arriva E0
 //   B1 / B0   respiro basso (barra rossa, sotto il 30%): sirena a intermittenza finché non arriva B0
@@ -18,6 +22,8 @@
 // Sulla matrice di LED della scheda all'avvio scorre "biodom+", poi resta fisso il logo b+.
 //
 // Collegamenti: avvio D2, irrigazione D6, aria D5 (altro piedino a GND)
+//               luci dei tasti: avvio D3, irrigazione D7, aria D9 (− della luce a GND)
+//               manopola temperatura A0, manopola luce A1 (filo centrale; esterni a 5V e GND)
 //               buzzer D8, foglia D0
 
 #include "Arduino_CapacitiveTouch.h"
@@ -69,10 +75,19 @@ void scriviBiodom() {
 }
 
 const int P_AVVIO = 2, P_IRR = 6, P_ARIA = 5, P_BUZZER = 8;
+// luci dei tasti arcade: si accende quella del tasto da premere adesso
+const int L_AVVIO = 3, L_IRR = 7, L_ARIA = 9;
+bool luceS = false, luceI = false, luceA = false;
+
+void luci(bool s, bool i, bool a) {
+  luceS = s; luceI = i; luceA = a;
+  digitalWrite(L_AVVIO, s ? HIGH : LOW);
+  digitalWrite(L_IRR, i ? HIGH : LOW);
+  digitalWrite(L_ARIA, a ? HIGH : LOW);
+}
 
 CapacitiveTouch foglia = CapacitiveTouch(D0);
-const int SOGLIA = 1000;           // sopra 1000 la foglia conta come toccata
-
+const int SOGLIA = 500;           // abbassare per aumentare la sensibilità del touch
 
 bool avvioPrima = false, fogliaPrima = false, pausaInviata = false;
 unsigned long tPremuto = 0;
@@ -87,9 +102,38 @@ bool bassoRespiro = false;         // il gioco manda B1 quando la barra del resp
 unsigned long tBasso = 0;
 String rx = "";
 
+// ---------------------------------------------------------------- manopole (potenziometri)
+const int P_TEMP = A0, P_LUCE = A1;
+// se girando a destra il valore scende invece di salire: metti true (oppure scambia i fili esterni)
+const bool INVERTI_TEMP = false, INVERTI_LUCE = false;
+const int SOGLIA_MANOPOLA = 1;
+int tk = -100, lk = -100;   // ultimi valori mandati al gioco
+
+// media di 8 letture: valore stabile anche con fili lunghi
+int leggiManopola(int pin, bool inverti) {
+  long somma = 0;
+  for (int k = 0; k < 8; k++) somma += analogRead(pin);
+  int v = somma / 8;
+  if (inverti) v = 1023 - v;
+  return map(v, 0, 1023, 0, 100);
+}
+
+// true se una manopola si è mossa abbastanza (e aggiorna il valore da mandare)
+bool aggiornaManopole() {
+  int t = leggiManopola(P_TEMP, INVERTI_TEMP);
+  int l = leggiManopola(P_LUCE, INVERTI_LUCE);
+  bool mossa = false;
+  // ai due estremi si arriva sempre a 0 e 100 esatti, anche con la soglia
+  if (abs(t - tk) > SOGLIA_MANOPOLA || ((t == 0 || t == 100) && t != tk)) { tk = t; mossa = true; }
+  if (abs(l - lk) > SOGLIA_MANOPOLA || ((l == 0 || l == 100) && l != lk)) { lk = l; mossa = true; }
+  return mossa;
+}
+
 void inviaStato() {
   Serial.print("IR:"); Serial.print(irr);
-  Serial.print(",AR:"); Serial.println(aria);
+  Serial.print(",AR:"); Serial.print(aria);
+  Serial.print(",TK:"); Serial.print(tk);
+  Serial.print(",LK:"); Serial.println(lk);
   ultimoInvio = millis();
 }
 
@@ -98,12 +142,18 @@ void comando(String c) {
   if (c.length() == 0) return;
   ultimoDalGioco = millis();
   if (c == "K") return;
+  // luci dei tasti (arriva spesso: niente eco)
+  if (c.startsWith("T:")) {
+    String q = c.substring(2);
+    luci(q.indexOf('S') >= 0, q.indexOf('I') >= 0, q.indexOf('A') >= 0);
+    return;
+  }
   Serial.print("# ricevuto: "); Serial.println(c);   // per controllare che i comandi arrivino
   if (c == "E1") allarme = true;
   else if (c == "E0") { allarme = false; noTone(P_BUZZER); }   // fine emergenza
   else if (c == "B1") { if (!bassoRespiro) tBasso = millis(); bassoRespiro = true; }
   else if (c == "B0") bassoRespiro = false;
-  else if (c == "X") { allarme = false; bassoRespiro = false; muto = false; noTone(P_BUZZER); notaSirena = 0; }
+  else if (c == "X") { allarme = false; bassoRespiro = false; muto = false; noTone(P_BUZZER); notaSirena = 0; luci(false, false, false); }
   else if (c == "Q") { muto = true; noTone(P_BUZZER); notaSirena = 0; }
   else if (c == "R") muto = false;
   else if (c == "L") {                                   // partita persa
@@ -121,6 +171,10 @@ void setup() {
   pinMode(P_IRR, INPUT_PULLUP);
   pinMode(P_ARIA, INPUT_PULLUP);
   pinMode(P_BUZZER, OUTPUT);
+  pinMode(L_AVVIO, OUTPUT);
+  pinMode(L_IRR, OUTPUT);
+  pinMode(L_ARIA, OUTPUT);
+  luci(false, false, false);
   matrice.begin();
   scriviBiodom();                    // "biodom+" scorre una volta...
   matrice.renderBitmap(logo, 8, 12); // ...poi resta fisso il logo b+
@@ -142,6 +196,8 @@ void loop() {
   int r = digitalRead(P_ARIA) == LOW ? 1 : 0;
   bool cambio = (i != irr) || (r != aria);
   irr = i; aria = r;
+  // manopole: una riga appena si muovono
+  if (aggiornaManopole()) cambio = true;
   if (cambio || millis() - ultimoInvio > 250) inviaStato();
 
   // foglia: DESTRA quando la tocchi, STOP quando la lasci
@@ -155,6 +211,9 @@ void loop() {
     if (ch == '\n') { comando(rx); rx = ""; }
     else if (ch != '\r') rx += ch;
   }
+
+  // gioco chiuso: niente "K" da 3 secondi → luci dei tasti spente
+  if ((luceS || luceI || luceA) && millis() - ultimoDalGioco > 3000) luci(false, false, false);
 
   // gioco chiuso o pagina ricaricata: niente "K" da 3 secondi → buzzer spento
   if ((allarme || bassoRespiro) && millis() - ultimoDalGioco > 3000) {

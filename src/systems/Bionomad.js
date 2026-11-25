@@ -5,8 +5,8 @@
 //
 // Comandi del dispositivo:
 //   START  pulsante di avvio / pausa
-//   LK     manopola della luce (0..1023): più la giri, più luce
-//   TK     manopola della temperatura (0..1023)
+//   LK     manopola della luce (0..100): più la giri, più luce
+//   TK     manopola della temperatura (0..100)
 //   IR     pulsante di irrigazione: si preme UNA volta (quick time event) e versa una dose d'acqua
 //   AR     pulsante di arieggiamento: va TENUTO PREMUTO, il ventilatore soffia finché lo tieni giù
 import { PlantSensors } from "../input/PlantSensors.js";

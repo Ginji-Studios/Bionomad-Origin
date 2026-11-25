@@ -401,6 +401,9 @@ export class BioPanel {
     // task della luce: si parte al buio (in simulazione la manopola torna a zero)
     if (goal === "light" && PlantSensors.simulated("LK")) Bionomad.sim.lightKnob = 0;
     this.prev = { light: s.light, knob: s.knob };
+    // manopola vera (potenziometro): resta dov'era, quindi la task conta solo dopo averla girata
+    this.knob0 = { light: s.lightLvl ?? 0, temp: s.knob };
+    this.turned = { light: PlantSensors.simulated("LK"), temp: PlantSensors.simulated("TK") };
     // quick time event dei pulsanti: si conta da qui quante volte vengono premuti
     this.presses0 = { irr: Bionomad.pulse.irrPresses, air: Bionomad.pulse.airPresses };
     this.qte = step.qteMs ?? step.timeoutMs ?? (goal === "water" || goal === "air" ? 10000 : null);
@@ -569,14 +572,17 @@ export class BioPanel {
     this.t += delta;
     let progress = 0;
     let res = {};
+    // la manopola è stata girata da quando si è aperta la task?
+    if (!this.turned.light && Math.abs((s.lightLvl ?? 0) - this.knob0.light) > 0.04) this.turned.light = true;
+    if (!this.turned.temp && Math.abs(s.knob - this.knob0.temp) > 0.04) this.turned.temp = true;
     if (step.goal === "light") {
       // manopola nella fascia giusta per un attimo (né troppo poca né troppa luce)
-      if (Bionomad.lightOk()) this.ok += delta;
+      if (Bionomad.lightOk() && this.turned.light) this.ok += delta;
       else this.ok = Math.max(0, this.ok - delta * 0.25);
       progress = Math.min(1, this.ok / (step.holdMs ?? 1000));
       if (step.qteMs && this.elapsed > step.qteMs && progress < 1) res = { failed: true, negligence: "dark" };
     } else if (step.goal === "temp") {
-      if (Bionomad.tempOk()) this.ok += delta;
+      if (Bionomad.tempOk() && this.turned.temp) this.ok += delta;
       else this.ok = Math.max(0, this.ok - delta * 0.25);
       progress = Math.min(1, this.ok / (step.holdMs ?? 3000));
     } else if (step.goal === "water") {
