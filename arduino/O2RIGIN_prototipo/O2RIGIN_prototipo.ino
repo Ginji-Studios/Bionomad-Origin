@@ -26,6 +26,7 @@
 //               manopola temperatura A0, manopola luce A1 (filo centrale; esterni a 5V e GND)
 //               buzzer D8, foglia D0
 
+
 #include "Arduino_CapacitiveTouch.h"
 #include "Arduino_LED_Matrix.h"
 
