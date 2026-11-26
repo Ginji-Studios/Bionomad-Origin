@@ -32,10 +32,10 @@ export class EndScene extends Phaser.Scene {
       dieFrames(this, key);
       hero.setTexture(`${key}_d3`).setAngle(82).setPosition(250, 752).setTint(0xb8bfcc).setAlpha(0.85);
     }
-    this.add.ellipse(hero.x + (win ? 0 : 50), 758, win ? 80 : 150, 14, 0x1c2839, 0.35).setScrollFactor(0).setDepth(-0.5);
+    this.add.ellipse(hero.x + (win ? 0 : 50), 758, win ? 80 : 150, 14, 0x262b2c, 0.35).setScrollFactor(0).setDepth(-0.5);
     // velo morbido a destra: la card si legge su qualsiasi sfondo
     const veil = this.add.graphics().setScrollFactor(0);
-    veil.fillGradientStyle(0x0e1626, 0x0e1626, 0x0e1626, 0x0e1626, 0, 0.42, 0, 0.42);
+    veil.fillGradientStyle(0x182226, 0x182226, 0x182226, 0x182226, 0, 0.42, 0, 0.42);
     veil.fillRect(380, 0, VIEW.w - 380, VIEW.h);
     brackets(this);
 
@@ -46,17 +46,17 @@ export class EndScene extends Phaser.Scene {
     const h = 500;
     const card = this.add.graphics().setScrollFactor(0);
     for (let i = 6; i >= 1; i--) {
-      card.fillStyle(0x0e1626, 0.05);
+      card.fillStyle(0x182226, 0.05);
       card.fillRoundedRect(x - i * 2, y + 10 - i, w + i * 4, h + i * 3, 28 + i);
     }
-    card.fillStyle(0xf4f5f7, 0.97);
+    card.fillStyle(0xe6e9e5, 0.97);
     card.fillRoundedRect(x, y, w, h, 28);
 
     const city = origin.city ?? origin.label ?? "";
     txt(this, x + 48, y + 46, `${city} · FINE GIORNATA`, { size: 16, color: HEX.c3 }).setScrollFactor(0);
     txt(this, x + 48, y + 74, win ? "Giornata completata" : "Ossigeno esaurito", { size: 42, weight: "700" }).setScrollFactor(0);
     const acc = this.add.graphics().setScrollFactor(0);
-    acc.fillStyle(0xe2b33c, 1);
+    acc.fillStyle(0x7d909f, 1);
     acc.fillRoundedRect(x + 48, y + 138, 46, 5, 2.5);
 
     // esito: pill arrotondata

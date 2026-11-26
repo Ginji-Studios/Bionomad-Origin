@@ -140,6 +140,7 @@ export class TravelScene extends Phaser.Scene {
       PlantSensors.send("N");
       Sfx.announce?.();
       notification(this, t.line);
+      this.tasks.setTime(t.line);
       this.tasks.set(this.taskTitle, [t.text, this.goalLabel], 0);
       this.time.delayedCall(900, () => {
         this.mode = "bio";

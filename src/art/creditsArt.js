@@ -26,7 +26,7 @@ function backdrop(X, w, h, floor = true) {
   X.fillStyle = "rgba(122,142,169,0.35)";
   [[0.04, 0.42, 0.14], [0.2, 0.3, 0.1], [0.33, 0.5, 0.16], [0.6, 0.36, 0.12], [0.76, 0.46, 0.18]].forEach(([x, top, bw]) => X.fillRect(x * w, top * h, bw * w, h));
   if (floor) {
-    X.fillStyle = "#D5DAE2";
+    X.fillStyle = "#CDD2D0";
     X.fillRect(0, h * 0.84, w, h * 0.16);
     X.fillStyle = "rgba(36,52,75,0.14)";
     X.beginPath();
@@ -61,7 +61,7 @@ export function productArt(scene, kind, w, h) {
     const pw = 150;
     const ph = 230;
     const top = base - ph;
-    X.fillStyle = "#2F3D52";
+    X.fillStyle = "#2E4350";
     [-1, 1].forEach((d) => {
       X.beginPath();
       X.moveTo(cx + d * 60, top + 50);
@@ -102,13 +102,13 @@ export function productArt(scene, kind, w, h) {
     X.fillStyle = "rgba(255,255,255,0.5)";
     X.fillRect(cx - 42, top + 50, 5, 70);
     // display e tasti
-    X.fillStyle = "#24344B";
+    X.fillStyle = "#2E4350";
     X.beginPath();
     X.roundRect(cx - 52, top + 166, 62, 30, 6);
     X.fill();
     X.fillStyle = "#8FD0A6";
     X.fillRect(cx - 44, top + 186, 30, 3);
-    [["#E2B33C", 26], ["#3F8FE0", 46]].forEach(([col, dx]) => {
+    [["#7D909F", 26], ["#3F8FE0", 46]].forEach(([col, dx]) => {
       X.fillStyle = "#F7F6F2";
       X.beginPath();
       X.arc(cx + dx, top + 181, 9, 0, 7);
@@ -119,7 +119,7 @@ export function productArt(scene, kind, w, h) {
       X.fill();
     });
     // tubo verso la maschera
-    X.strokeStyle = "#AEB6C2";
+    X.strokeStyle = "#B3BCB7";
     X.lineWidth = 7;
     X.beginPath();
     X.moveTo(cx, top);
@@ -159,11 +159,11 @@ export function productArt(scene, kind, w, h) {
       X.fill();
     });
     // aggancio rapido
-    X.fillStyle = "#2F3D52";
+    X.fillStyle = "#2E4350";
     X.beginPath();
     X.roundRect(cx - 30, y0 + mh - 4, 60, 22, 6);
     X.fill();
-    X.fillStyle = "#E2B33C";
+    X.fillStyle = "#7D909F";
     X.fillRect(cx - 18, y0 + mh + 4, 36, 5);
   } else if (kind === "hub") {
     // HOME HUB: la stessa teca con il bonsai che si vede nel gioco, più grande
@@ -175,7 +175,7 @@ export function productArt(scene, kind, w, h) {
 
 // ---------------------------------------------------------------- ritratti del team
 const HAIR = (t) => (t > 0.8 ? "#D9CBA6" : t > 0.5 ? "#7A5A44" : t > 0.33 ? "#5B4334" : t > 0.2 ? "#4A372C" : "#24252B");
-const TOP = (t) => ["#2F3D52", "#46566E", "#6E7B8E", "#9AA3AF", "#C3C6CA", "#DEDAD1"][Math.min(5, Math.floor((1 - t) * 6))];
+const TOP = (t) => ["#2E4350", "#46566E", "#6E7B8E", "#8C9893", "#C3C6CA", "#DEDAD1"][Math.min(5, Math.floor((1 - t) * 6))];
 
 export function teamBust(scene, i, w = 176, h = 186) {
   const key = `cr_team_${i}_${w}_${h}`;
@@ -201,8 +201,10 @@ export function teamBust(scene, i, w = 176, h = 186) {
     X.closePath();
     X.fill();
     if (o.balayage) {
-      const g = X.createLinearGradient(0, hy + 30, 0, hy + 78);
+      // punte fucsia piene: sfumatura corta, così non resta una fascia grigia a metà
+      const g = X.createLinearGradient(0, hy + 26, 0, hy + 78);
       g.addColorStop(0, "rgba(217,79,154,0)");
+      g.addColorStop(0.3, "#D94F9A");
       g.addColorStop(1, "#D94F9A");
       X.fillStyle = g;
       X.fill();
@@ -220,7 +222,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
   if (o.stripes) {
     X.save();
     X.clip();
-    X.fillStyle = "#F4F5F7";
+    X.fillStyle = "#E6E9E5";
     for (let y = hy + 66; y < h; y += 14) X.fillRect(0, y, w, 6);
     X.restore();
   }
@@ -231,14 +233,14 @@ export function teamBust(scene, i, w = 176, h = 186) {
     X.fillRect(cx + 24, hy + 56, 10, 30);
   }
   if (o.vest) {
-    X.fillStyle = "#2F3D52";
+    X.fillStyle = "#2E4350";
     X.fillRect(cx - 62, hy + 70, 30, h);
     X.fillRect(cx + 32, hy + 70, 30, h);
   }
   // collo e sciarpa gialla (il segno del gioco)
   X.fillStyle = skinD;
   X.fillRect(cx - 9, hy + 30, 18, 28);
-  X.fillStyle = "#E2B33C";
+  X.fillStyle = "#7D909F";
   X.beginPath();
   X.ellipse(cx, hy + 58, 30, 9, 0, 0, 7);
   X.fill();
@@ -253,7 +255,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
   X.ellipse(cx + 30, hy + 4, 6, 9, 0, 0, 7);
   X.fill();
   if (o.earrings) {
-    X.fillStyle = "#E2B33C";
+    X.fillStyle = "#7D909F";
     X.beginPath();
     X.arc(cx - 31, hy + 15, 3, 0, 7);
     X.arc(cx + 31, hy + 15, 3, 0, 7);
@@ -295,7 +297,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
     X.fill();
   }
   if (o.hat === "cap") {
-    X.fillStyle = "#2F3D52";
+    X.fillStyle = "#2E4350";
     X.beginPath();
     X.moveTo(cx - 34, hy - 12);
     X.quadraticCurveTo(cx - 34, hy - 48, cx, hy - 48);
@@ -304,7 +306,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
     X.fill();
     X.fillRect(cx - 40, hy - 16, 80, 7);
     if (o.tuft) {
-      X.fillStyle = "#B4553F";
+      X.fillStyle = "#B4553F"; // ciuffo rosso: resta com'era
       X.beginPath();
       X.moveTo(cx - 30, hy - 10);
       X.quadraticCurveTo(cx - 14, hy - 14, cx - 4, hy - 6);
@@ -313,7 +315,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
     }
   }
   // viso: occhi, sopracciglia, naso, bocca
-  X.fillStyle = "#24344B";
+  X.fillStyle = "#2E4350";
   X.beginPath();
   X.ellipse(cx - 11, hy + 2, 3, 3.6, 0, 0, 7);
   X.ellipse(cx + 11, hy + 2, 3, 3.6, 0, 0, 7);
@@ -349,7 +351,7 @@ export function teamBust(scene, i, w = 176, h = 186) {
     X.stroke();
   }
   if (o.glasses) {
-    X.strokeStyle = "#24344B";
+    X.strokeStyle = "#2E4350";
     X.lineWidth = 2.5;
     X.beginPath();
     X.arc(cx - 11, hy + 2, 9, 0, 7);
@@ -359,6 +361,8 @@ export function teamBust(scene, i, w = 176, h = 186) {
     X.lineTo(cx + 2, hy + 1);
     X.stroke();
   }
+  // tratti distintivi che restano com'erano: biondo di Claudia, ciuffo rosso, punte fucsia di Francesca
+  c._filmOpts = { protect: [[0xd9, 0xcb, 0xa6, 40], [0xb4, 0x55, 0x3f, 40]], keepHue: [[275, 360], [0, 22]] };
   addHiRes(scene, key, c, S);
   return key;
 }

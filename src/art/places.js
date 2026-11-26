@@ -129,7 +129,7 @@ export function hub(T, cx, base, s = 1) {
   X.fillStyle = "#1A2230";
   X.fillRect(px0 + 6 * s, py0 + 5 * s, 16 * s, 7 * s);
   X.fillRect(px0 + 30 * s, py0 + 5 * s, 16 * s, 7 * s);
-  X.fillStyle = "#E2B33C";
+  X.fillStyle = "#7D909F";
   X.fillRect(px0 + 8 * s, py0 + 7 * s, 10 * s, 3 * s);
   X.fillRect(px0 + 32 * s, py0 + 7 * s, 8 * s, 3 * s);
   [[10, 20], [26, 20], [42, 20], [10, 31], [26, 31], [42, 31]].forEach(([kx, ky], i) => {
@@ -223,7 +223,7 @@ export function hub(T, cx, base, s = 1) {
   X.beginPath();
   X.roundRect(x0, gTop - LH, W, LH, 6 * s);
   X.fill();
-  X.fillStyle = "#FFF3C4";
+  X.fillStyle = "#E4E8E3";
   X.fillRect(x0 + 10 * s, gTop - 3 * s, W - 20 * s, 3 * s);
 }
 

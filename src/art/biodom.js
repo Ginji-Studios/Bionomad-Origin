@@ -1,3 +1,4 @@
+import { POSTER_IMGS } from "./posterImages.js";
 // manifesti BIODOM nel nuovo stile (illustrazione piatta): cartelloni su pali lungo la strada
 // e quadri nelle stanze. Colori pieni, inchiostro blu notte, accento giallo, piante verdi.
 import { grain } from "../world/city.js";
@@ -120,6 +121,35 @@ function smoke(X, w, h) {
 
 // contenuto del manifesto in un riquadro w x h (v = 0..3)
 export function posterBody(X, w, h, v) {
+  // manifesti veri della campagna (se le immagini sono pronte): uno in verticale, nei riquadri
+  // larghi due o tre affiancati come sulla bacheca della foto
+  if (POSTER_IMGS.every((im) => im.complete && im.naturalWidth)) {
+    X.save();
+    X.fillStyle = "#262B2C";
+    X.fillRect(0, 0, w, h);
+    const AR = 0.69;
+    let n = Math.max(1, Math.min(3, Math.floor((w + h * 0.04) / (h * AR * 0.98))));
+    if (w <= h * 1.1) n = 1;
+    const gap = n > 1 ? h * 0.04 : 0;
+    let ph = n > 1 ? h * 0.92 : h;
+    let pw = n > 1 ? ph * AR : w;
+    if (n > 1 && n * pw + (n - 1) * gap > w * 0.96) {
+      pw = (w * 0.96 - (n - 1) * gap) / n;
+      ph = pw / AR;
+    }
+    const x0 = (w - (n * pw + (n - 1) * gap)) / 2;
+    const y0 = (h - ph) / 2;
+    for (let i = 0; i < n; i++) {
+      const im = POSTER_IMGS[(v + i) % POSTER_IMGS.length];
+      // riempimento "cover": il manifesto copre il riquadro senza deformarsi
+      const s = Math.max(pw / im.naturalWidth, ph / im.naturalHeight);
+      const sw = pw / s;
+      const sh = ph / s;
+      X.drawImage(im, (im.naturalWidth - sw) / 2, (im.naturalHeight - sh) / 2, sw, sh, x0 + i * (pw + gap), y0, pw, ph);
+    }
+    X.restore();
+    return;
+  }
   const wide = w > h * 1.1;
   const m = Math.min(w, h);
   X.save();
@@ -215,13 +245,13 @@ export function biodomPoster(scene, v = 0) {
   const X = c.getContext("2d", { willReadFrequently: true });
   X.scale(S, S);
   const cw = w + 20;
-  X.fillStyle = "#3A4B63";
+  X.fillStyle = "#374E5B";
   if (tall) X.fillRect(cw / 2 - 4, h + 10, 8, legs + 10);
   else {
     X.fillRect(30, h + 10, 7, legs + 10);
     X.fillRect(cw - 37, h + 10, 7, legs + 10);
   }
-  X.fillStyle = "#3A4B63";
+  X.fillStyle = "#374E5B";
   X.fillRect(0, 0, w + 20, h + 20);
   X.save();
   X.translate(10, 10);

@@ -87,13 +87,13 @@ export class EventScene extends Phaser.Scene {
     (EXTRAS[loc] ?? []).forEach(([at, key]) => {
       const x = typeof at === "number" ? at : this.points[at];
       const npc = this.add.image(x, FEET, `${npcKey(this, this.origin.id, 6 + key)}_idle`).setOrigin(0.5, 1).setDepth(400).setScrollFactor(sf).setFlipX(true);
-      this.add.ellipse(x, FEET - 6, 70, 12, 0x24344b, 0.18).setDepth(399).setScrollFactor(sf);
+      this.add.ellipse(x, FEET - 6, 70, 12, 0x2e4350, 0.18).setDepth(399).setScrollFactor(sf);
       if (at === "man") this.man = npc;
     });
     if (this.points.boss) {
       // il capo in ufficio, in giacca scura, girato verso di te
       const boss = this.add.image(this.points.boss + 40, FEET, `${npcKey(this, this.origin.id, 12)}_idle`).setOrigin(0.5, 1).setDepth(400).setScrollFactor(sf).setFlipX(true);
-      this.add.ellipse(boss.x, FEET - 6, 70, 12, 0x24344b, 0.18).setDepth(399).setScrollFactor(sf);
+      this.add.ellipse(boss.x, FEET - 6, 70, 12, 0x2e4350, 0.18).setDepth(399).setScrollFactor(sf);
     }
 
     this.player = new Walker(this, this.packedKey, 420, FEET, { sound: true, indoor: this.indoor, speed: 230 });
@@ -115,9 +115,10 @@ export class EventScene extends Phaser.Scene {
     this.bio = new BioPanel(this);
     // sfondo ravvicinato delle task: il posto in cui si è, di giorno o di sera
     this.bioContext = { kind: ["bus", "office", "home"].includes(loc) ? loc : "street", night: this.time_ === "night" };
-    this.tasks.setDark(this.bioContext.night);
+    // interni (pareti blu) e sera: testo chiaro; all'aperto di giorno: antracite
+    this.tasks.setDark(this.bioContext.night || !OUTDOOR.has(loc));
     this.bioKeys = bioKeys(this);
-    this.night = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0x0e1626, 0).setOrigin(0).setScrollFactor(0).setDepth(1300);
+    this.night = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0x182226, 0).setOrigin(0).setScrollFactor(0).setDepth(1300);
     this.input.keyboard.on("keydown-ESC", () => goTo(this, "MenuScene"));
 
     this.stepLabels = this.event.steps.map((s) => s.text.replace(/^[+!]\s*/, ""));
@@ -199,6 +200,7 @@ export class EventScene extends Phaser.Scene {
       // svegliato nel cuore della notte: la stanza si schiarisce appena
       this.mode = "busy";
       this.tweens.add({ targets: this.night, fillAlpha: Math.max(0.35, this.duskA ?? 0), duration: 600 });
+      this.tasks.setDark(true);
       this.player.img.setTexture(`${this.player.key}_idle`);
     }
     if (step.dusk) {
@@ -206,11 +208,13 @@ export class EventScene extends Phaser.Scene {
       this.duskA = step.dusk;
       this.tweens.add({ targets: this.night, fillAlpha: step.dusk, duration: 1400, ease: "Sine.easeInOut" });
       this.bioContext.night = true;
+      if (step.dusk >= 0.35) this.tasks.setDark(true);
     }
     if (step.out != null) Bionomad.setOutside(cityTemp(this.run, step.out));
     PlantSensors.send("N");
     Sfx.announce?.();
     notification(this, step.line ?? step.text);
+    this.tasks.setTime(step.line);
     const next = this.event.steps[this.stepIndex + 1];
     const wait = next?.type === "bio" ? 1100 : step.wake ? 900 : 250;
     this.time.delayedCall(wait, () => {
@@ -253,12 +257,12 @@ export class EventScene extends Phaser.Scene {
     card.fillRoundedRect(W / 2 - 270, H / 2 - 150, 540, 300, 24);
     // X rossa in un cerchio
     const x = this.add.graphics();
-    x.fillStyle(0xb4553f, 1);
+    x.fillStyle(0x262b2c, 1);
     x.fillCircle(W / 2, H / 2 - 52, 52);
     x.lineStyle(12, 0xffffff, 1);
     x.lineBetween(W / 2 - 22, H / 2 - 74, W / 2 + 22, H / 2 - 30);
     x.lineBetween(W / 2 + 22, H / 2 - 74, W / 2 - 22, H / 2 - 30);
-    const title = txt(this, W / 2, H / 2 + 36, "EVENTO FALLITO", { size: 40, weight: "700", color: "#B4553F", origin: 0.5 });
+    const title = txt(this, W / 2, H / 2 + 36, "EVENTO FALLITO", { size: 40, weight: "700", color: "#262B2C", origin: 0.5 });
     const hint = txt(this, W / 2, H / 2 + 96, "premi START per continuare", { size: 18, color: HEX.c3, origin: 0.5 });
     c.add([dim, card, x, title, hint]);
     c.setAlpha(0);
@@ -294,7 +298,7 @@ export class EventScene extends Phaser.Scene {
     if (this.mode === "failed") return true;
     const step = this.step;
     if (this.mode !== "play" || !step || !this.near()) return false;
-    return ["place", "take", "talk", "exit", "sleep"].includes(step.type);
+    return ["place", "take", "talk", "sleep"].includes(step.type);
   }
 
   // tasto START del dispositivo: chiude la schermata di evento fallito,
@@ -415,7 +419,7 @@ export class EventScene extends Phaser.Scene {
 
   startEmergency() {
     PlantSensors.send("E1");
-    const alarm = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0xb4553f, 0).setOrigin(0).setScrollFactor(0).setDepth(1400);
+    const alarm = this.add.rectangle(0, 0, VIEW.w, VIEW.h, 0x262b2c, 0).setOrigin(0).setScrollFactor(0).setDepth(1400);
     this.tweens.add({ targets: alarm, fillAlpha: 0.08, duration: 450, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     this.alarm = alarm;
     toast(this, "EMERGENZA · IL BIONOMAD È COMPROMESSO", { duration: 2600 });
@@ -446,6 +450,34 @@ export class EventScene extends Phaser.Scene {
     if (step.type === "place") this.placePack();
     if (step.type === "take") this.takePack();
     this.completeStep();
+  }
+
+  // uscita automatica come l'entrata in casa: la porta si apre, si cammina fino al vano,
+  // si sparisce oltre la soglia, la porta si richiude e il passo è completato
+  walkOut() {
+    if (this.leaving || this.mode !== "play") return;
+    this.leaving = true;
+    this.mode = "busy";
+    this.mark.setActive(false);
+    this.mark.c.setVisible(false);
+    this.pad.highlight(false);
+    const p = this.player;
+    const dx = this.points.door;
+    const door = doorway(this, dx, { night: this.time_ === "night", depth: p.img.depth - 1 });
+    door.open();
+    p.minX = Math.min(p.minX, dx - 10);
+    p.maxX = Math.max(p.maxX, dx + 10);
+    this.autoDir = dx >= p.x ? 1 : -1;
+    this.autoWalk = dx;
+    this.autoDone = () => {
+      this.tweens.add({ targets: [p.img, p.shadow], alpha: 0, duration: 380 });
+      this.time.delayedCall(420, () => door.close());
+      this.time.delayedCall(900, () => {
+        this.leaving = false;
+        this.mode = "play";
+        this.completeStep();
+      });
+    };
   }
 
   // ci si addormenta da soli: la stanza si spegne piano, poi il passo è completato
@@ -538,11 +570,15 @@ export class EventScene extends Phaser.Scene {
     const input = this.pad.poll();
     let dir = input.dir;
     if (this.autoWalk != null) {
-      // entrata in casa: qualche passo da solo oltre la porta
-      dir = -1;
-      if (this.player.x <= this.autoWalk) {
+      // entrata in casa / uscita dall'ufficio: qualche passo da solo
+      dir = this.autoDir ?? -1;
+      if (dir < 0 ? this.player.x <= this.autoWalk : this.player.x >= this.autoWalk) {
         this.autoWalk = null;
+        this.autoDir = null;
         this.player.maxX = this.worldW - 60;
+        const cb = this.autoDone;
+        this.autoDone = null;
+        cb?.();
       }
     }
     this.player.frozen = this.mode !== "play" && this.autoWalk == null;
@@ -557,10 +593,12 @@ export class EventScene extends Phaser.Scene {
     } else if (this.mode === "play" && step) {
       const near = this.near();
       this.mark.setActive(near);
-      const needsButton = ["place", "take", "talk", "exit", "sleep"].includes(step.type);
+      const needsButton = ["place", "take", "talk", "sleep"].includes(step.type);
       this.pad.highlight(near && needsButton);
       if (input.action) this.onAction();
-      if (near && REACH_TYPES.has(step.type)) this.completeStep({ quiet: true });
+      // uscita: arrivati alla porta si esce da soli (porta che si apre, si attraversa, si richiude)
+      if (near && step.type === "exit") this.walkOut();
+      else if (near && REACH_TYPES.has(step.type)) this.completeStep({ quiet: true });
       else if (near && step.type === "sleep" && input.holding) this.fallAsleep(step);
       if (step.type === "emergency") this.updateEmergency(delta);
     }

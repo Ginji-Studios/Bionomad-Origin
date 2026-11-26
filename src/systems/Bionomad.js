@@ -109,6 +109,10 @@ export const Bionomad = {
     pulse.irrSeen = ps.irrCount;
     pulse.airSeen = ps.airCount;
     if (irrHit) {
+      // una pressione = una dose giusta: dalla terra secca si arriva sempre in mezzo alla fascia
+      // buona (una volta basta, come dice la task). Premere di nuovo quando è già bagnata la allaga.
+      const base = Math.max(s.water, pulse.fillTo ?? 0);
+      pulse.fillTo = Math.min(1, base < IDEAL.wMin ? (IDEAL.wMin + IDEAL.wMax) / 2 : base + 0.42);
       pulse.pour = POUR_MS;
       pulse.irrPresses++;
     }
@@ -119,11 +123,17 @@ export const Bionomad = {
     pulse.airRaw = air;
     pulse.pour = Math.max(0, pulse.pour - Math.min(delta, 100));
     pulse.vent = Math.max(0, pulse.vent - Math.min(delta, 100));
+    // l'acqua scorre per tutta la dose (animazione) e comunque finché non ha raggiunto la quota
+    if (pulse.fillTo != null && s.water < pulse.fillTo - 0.005) pulse.pour = Math.max(pulse.pour, 120);
+    else if (pulse.fillTo != null && pulse.pour <= 0) pulse.fillTo = null;
     s.irrigating = pulse.pour > 0;
     s.venting = pulse.vent > 0;
     // la temperatura dello zaino segue la manopola con un po' di inerzia
     s.temp += (this.target() - s.temp) * Math.min(1, dt * 0.9);
-    s.water = Math.max(0, Math.min(1, s.water + (s.irrigating ? 0.16 : -0.0035) * dt));
+    // mentre scorre la dose sale fino alla quota (non oltre): la fine della dose decide il livello
+    const fill = s.irrigating && pulse.fillTo != null ? Math.max(0.16, (pulse.fillTo - s.water) / Math.max(0.3, pulse.pour / 1000)) : 0.16;
+    s.water = Math.max(0, Math.min(1, s.water + (s.irrigating ? fill : -0.0035) * dt));
+    if (pulse.fillTo != null && s.water > pulse.fillTo) s.water = pulse.fillTo;
     s.air = Math.max(0, Math.min(1, s.air + (s.venting ? 0.26 : -0.0028) * dt));
   },
   // quanto il BIONOMAD sta "soffrendo": moltiplica il consumo di ossigeno

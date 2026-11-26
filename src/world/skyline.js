@@ -27,7 +27,8 @@ let VW = 864; // larghezza logica della vista, impostata da buildSkyline
 
 // scala di grigi -> rampa di colori piatti del nuovo stile (illustrazione vettoriale, niente retino).
 // I pixel già colorati (accenti disegnati con colori veri) restano com'erano; su tutto una grana leggera.
-const RAMP = [[0, "#1E2B3E"], [0.22, "#2E415A"], [0.42, "#4C6585"], [0.62, "#7A8EA9"], [0.8, "#ADB9CA"], [1, "#EEF0F4"]].map(([t, h]) => [t, [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))]);
+// palette del riferimento: antracite, blu petrolio, ardesia, grigio-salvia, bianco caldo
+const RAMP = [[0, "#262B2C"], [0.22, "#2E4350"], [0.42, "#4E6878"], [0.62, "#7D909F"], [0.8, "#B3BCB7"], [1, "#E4E8E3"]].map(([t, h]) => [t, [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))]);
 function ramp(v) {
   for (let i = 1; i < RAMP.length; i++)
     if (v <= RAMP[i][0]) {
@@ -49,7 +50,7 @@ export function quant(c) {
     const r = d[k];
     const g = d[k + 1];
     const b = d[k + 2];
-    const n = (rnd() - 0.5) * 3; // grana appena percettibile, niente retino
+    const n = (rnd() - 0.5) * 10; // grana marcata come nel riferimento (rumore monocromo)
     if (Math.abs(r - g) < 6 && Math.abs(g - b) < 6) {
       const v = Math.max(0, Math.min(1, (r + g + b) / 765 + LIFT * 0.5 + DAY_LIFT));
       const col = ramp(v);
@@ -560,7 +561,10 @@ export function paint(width, height, k, draw, { cell = 2, seedValue = 7, raw = f
   draw({ X, G, rnd, rect, path, fillP, lgx, facade, stone, spire, dome, tree, lamp, ground, houses, skyG, nz, GY });
   X.restore();
   // raw: niente retino (serve per le maschere dei colori d'accento)
-  if (!raw) quant(c, cell, dither);
+  if (!raw) {
+    quant(c, cell, dither);
+    c._film = true; // già nella palette e con la grana
+  }
   return c;
 }
 

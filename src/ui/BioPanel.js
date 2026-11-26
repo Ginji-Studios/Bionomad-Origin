@@ -55,21 +55,22 @@ const PW = 480;
 const GLASS = { x: PX - 190, y: 150, w: 380, h: 410 }; // finestra di vetro con la pianta
 const SOIL_Y = 512;
 const TANK = { x: PX - 170, y: 578, w: 340, h: 30 }; // serbatoio d'acqua trasparente
-const SCREEN = { x: PX - 212, y: 640, w: 210, h: 84 }; // display della temperatura
+const SCREEN = { x: PX - 78, y: 652, w: 108, h: 76 }; // display al centro, dove sul dispositivo c'è PLAY // display della temperatura
 // oggetti reali con cui si interagisce
 // tasti sullo zaino (come sul dispositivo vero): luce interna, irrigazione interna, aria
 const BTN = {
-  light: { x: PX + 52, y: 690, col: 0xe2b33c },
-  water: { x: PX + 124, y: 690, col: 0x3f8fe0 },
-  air: { x: PX + 196, y: 690, col: 0x8a99b0 }
+  // come sul dispositivo: manopola luce, acqua, aria, manopola temperatura (da freddo a caldo)
+  light: { x: PX - 182, y: 690, col: 0x7d909f },
+  water: { x: PX - 113, y: 690, col: 0x587284 },
+  air: { x: PX + 66, y: 690, col: 0x8fb3c4 },
+  temp: { x: PX + 136, y: 690, col: 0x4e6878 }
 };
 // termometro dentro il guscio, accanto al vetro (la temperatura si regola col potenziometro vero)
-const THERMO = { x: PX + PW / 2 - 30, y0: 190, y1: 540 };
 const T_MIN = 0;
 const T_MAX = 40;
 const PIPE_X = GLASS.x + GLASS.w - 22; // tubo dell'irrigazione interna (sale dal serbatoio)
 const SPRAY_Y = GLASS.y + 120; // barra con gli ugelli sopra le piante
-const GREENS = [0x5f8f62, 0x76a574, 0x4e7c55, 0x6a9a69];
+const GREENS = [0x688471, 0x7e9984, 0x577263, 0x728e79];
 
 // sfondo ravvicinato del posto in cui si è (sfocato, come in primo piano)
 function placeBackdrop(scene, kind, night) {
@@ -85,8 +86,8 @@ function placeBackdrop(scene, kind, night) {
   };
   const skyG = (y0, y1) => {
     const g = X.createLinearGradient(0, y0, 0, y1);
-    g.addColorStop(0, night ? "#1F2E46" : "#C3CCD9");
-    g.addColorStop(1, night ? "#3E5372" : "#E3E7ED");
+    g.addColorStop(0, night ? "#27323F" : "#C0C6CA");
+    g.addColorStop(1, night ? "#435363" : "#DDE1E2");
     return g;
   };
   const cityBlur = (y0, y1, x0 = 0, x1 = VIEW.w) => {
@@ -102,8 +103,8 @@ function placeBackdrop(scene, kind, night) {
     while (x < x1) {
       const w = 60 + ((n * 37) % 90);
       const h = (y1 - y0) * (0.3 + ((n * 53) % 50) / 100);
-      R(x, y1 - h, w, h, night ? ["#2B3D56", "#34496A"][n % 2] : ["#6581A3", "#8394AD", "#4C6787"][n % 3]);
-      if (night) for (let wy = y1 - h + 12; wy < y1 - 10; wy += 22) for (let wx = x + 8; wx < x + w - 10; wx += 18) if ((wx * wy) % 7 < 2) R(wx, wy, 6, 8, "#F2E1A6");
+      R(x, y1 - h, w, h, night ? ["#313E4C", "#3B495A"][n % 2] : ["#6A7C8E", "#828F9D", "#526475"][n % 3]);
+      if (night) for (let wy = y1 - h + 12; wy < y1 - 10; wy += 22) for (let wx = x + 8; wx < x + w - 10; wx += 18) if ((wx * wy) % 7 < 2) R(wx, wy, 6, 8, "#E4E8E3");
       x += w + 4;
       n++;
     }
@@ -111,55 +112,55 @@ function placeBackdrop(scene, kind, night) {
     X.restore();
   };
   if (kind === "bus") {
-    R(0, 0, VIEW.w, VIEW.h, night ? "#2A384D" : "#8C9AB0");
+    R(0, 0, VIEW.w, VIEW.h, night ? "#2F3A46" : "#8A95A2");
     cityBlur(70, 470, 0, VIEW.w);
     // montanti dei finestrini, corrimano, schienali
-    for (let x = 120; x < VIEW.w; x += 360) R(x, 60, 26, 440, night ? "#3A4B63" : "#B5BFCC");
-    R(0, 60, VIEW.w, 22, night ? "#3A4B63" : "#B5BFCC");
-    R(0, 470, VIEW.w, 30, night ? "#33445C" : "#A9B3C2");
-    X.fillStyle = night ? "#C9B37A" : "#E2B33C";
+    for (let x = 120; x < VIEW.w; x += 360) R(x, 60, 26, 440, night ? "#374E5B" : "#B2B9BF");
+    R(0, 60, VIEW.w, 22, night ? "#374E5B" : "#B2B9BF");
+    R(0, 470, VIEW.w, 30, night ? "#384552" : "#A5AEB5");
+    X.fillStyle = night ? "#B3BCB7" : "#7D909F";
     [250, 990].forEach((x) => X.fillRect(x, 0, 12, 760));
-    R(0, 500, VIEW.w, 300, night ? "#26344A" : "#6E7C93");
+    R(0, 500, VIEW.w, 300, night ? "#2C3743" : "#6C7987");
   } else if (kind === "office") {
-    R(0, 0, VIEW.w, VIEW.h, night ? "#2B3A50" : "#D5DBE4");
+    R(0, 0, VIEW.w, VIEW.h, night ? "#303C48" : "#D1D5D7");
     cityBlur(60, 420, 60, 760);
-    R(60, 410, 700, 14, night ? "#3A4B63" : "#B9C2CE");
-    for (let x = 60; x < 760; x += 175) R(x, 60, 8, 360, night ? "#3A4B63" : "#B9C2CE");
+    R(60, 410, 700, 14, night ? "#374E5B" : "#B6BCC1");
+    for (let x = 60; x < 760; x += 175) R(x, 60, 8, 360, night ? "#374E5B" : "#B6BCC1");
     // monitor sfocato e lampada da scrivania
     X.filter = "blur(4px)";
-    R(880, 300, 260, 160, "#24344B");
-    R(895, 315, 230, 130, night ? "#5E7EA8" : "#9FB6D3");
-    R(1000, 460, 20, 60, "#3A4B63");
+    R(880, 300, 260, 160, "#2E4350");
+    R(895, 315, 230, 130, night ? "#66798E" : "#A2AFBC");
+    R(1000, 460, 20, 60, "#374E5B");
     X.filter = "none";
     // piano della scrivania
-    R(0, 640, VIEW.w, 160, night ? "#3D4C61" : "#C7CFD9");
-    R(0, 636, VIEW.w, 8, night ? "#56657B" : "#E3E8EF");
+    R(0, 640, VIEW.w, 160, night ? "#404C59" : "#C4C9CC");
+    R(0, 636, VIEW.w, 8, night ? "#566371" : "#D7DBD6");
   } else if (kind === "home") {
-    R(0, 0, VIEW.w, VIEW.h, night ? "#2E3A4E" : "#E1DDD5");
+    R(0, 0, VIEW.w, VIEW.h, night ? "#313C48" : "#D7D8D3");
     cityBlur(70, 380, 820, 1200);
-    R(810, 60, 400, 14, night ? "#44526A" : "#C9C3B8");
-    R(810, 380, 400, 14, night ? "#44526A" : "#C9C3B8");
+    R(810, 60, 400, 14, night ? "#465260" : "#BEBFBA");
+    R(810, 380, 400, 14, night ? "#465260" : "#BEBFBA");
     // divano sfocato e lampada calda
     X.filter = "blur(5px)";
-    R(40, 470, 380, 200, night ? "#3F4D66" : "#9AA7BA");
-    R(20, 440, 60, 230, night ? "#3F4D66" : "#9AA7BA");
-    X.fillStyle = night ? "rgba(242,225,166,0.35)" : "rgba(242,225,166,0.2)";
+    R(40, 470, 380, 200, night ? "#424E5C" : "#8C9893");
+    R(20, 440, 60, 230, night ? "#424E5C" : "#8C9893");
+    X.fillStyle = night ? "rgba(222,225,222,0.35)" : "rgba(222,225,222,0.2)";
     X.beginPath();
     X.arc(260, 200, 160, 0, 7);
     X.fill();
     X.filter = "none";
-    R(0, 680, VIEW.w, 120, night ? "#2A3546" : "#B8AFA2");
+    R(0, 680, VIEW.w, 120, night ? "#2E3842" : "#AAABA8");
   } else {
     // strada: la città sfocata dietro, il marciapiede in basso
     cityBlur(0, 620);
-    R(0, 600, VIEW.w, 70, night ? "#3A475D" : "#59667C");
-    R(0, 668, VIEW.w, 4, "#E6E9EE");
-    R(0, 672, VIEW.w, 130, night ? "#56637A" : "#A6B1C2");
+    R(0, 600, VIEW.w, 70, night ? "#3D4855" : "#586572");
+    R(0, 668, VIEW.w, 4, "#E0E3E3");
+    R(0, 672, VIEW.w, 130, night ? "#55626F" : "#A3ACB4");
   }
   // velo chiaro/scuro per far risaltare lo zaino
   const v = X.createRadialGradient(PX, 450, 120, PX, 450, 700);
-  v.addColorStop(0, night ? "rgba(20,30,48,0)" : "rgba(255,255,255,0.18)");
-  v.addColorStop(1, night ? "rgba(20,30,48,0.45)" : "rgba(36,52,75,0.18)");
+  v.addColorStop(0, night ? "rgba(29,37,46,0)" : "rgba(247,248,247,0.18)");
+  v.addColorStop(1, night ? "rgba(29,37,46,0.45)" : "rgba(43,55,67,0.18)");
   X.fillStyle = v;
   X.fillRect(0, 0, VIEW.w, VIEW.h);
   grain(c, 6, kind.length + (night ? 7 : 1));
@@ -186,7 +187,7 @@ function packTextures(scene) {
   {
     const [c, X] = hiCanvas(VIEW.w, VIEW.h);
     // spallacci dietro
-    X.fillStyle = "#2F3D52";
+    X.fillStyle = "#2E4350";
     [-1, 1].forEach((d) => {
       X.beginPath();
       X.moveTo(PX + d * 200, TOP + 150);
@@ -196,7 +197,7 @@ function packTextures(scene) {
       X.fill();
     });
     // ombra portata
-    X.fillStyle = "rgba(20,30,48,0.22)";
+    X.fillStyle = "rgba(29,37,46,0.22)";
     X.beginPath();
     X.ellipse(PX + 18, BOT - 10, PW / 2 + 30, 40, 0, 0, 7);
     X.fill();
@@ -208,17 +209,17 @@ function packTextures(scene) {
     shell.lineTo(PX + PW / 2, BOT);
     shell.lineTo(PX - PW / 2, BOT);
     shell.closePath();
-    X.fillStyle = "#ECEAE4";
+    X.fillStyle = "#E3E4E0";
     X.fill(shell);
     X.save();
     X.clip(shell);
     // lato in ombra a destra, luce a sinistra
-    X.fillStyle = "#D8D5CD";
+    X.fillStyle = "#CFD0CB";
     X.fillRect(PX + PW / 2 - 56, TOP, 56, BOT - TOP);
-    X.fillStyle = "rgba(255,255,255,0.55)";
+    X.fillStyle = "rgba(247,248,247,0.55)";
     X.fillRect(PX - PW / 2 + 16, TOP + 120, 10, BOT - TOP - 180);
     // cucitura
-    X.strokeStyle = "#D1CEC6";
+    X.strokeStyle = "#C8C9C5";
     X.lineWidth = 3;
     X.setLineDash([10, 8]);
     X.beginPath();
@@ -231,21 +232,21 @@ function packTextures(scene) {
     X.setLineDash([]);
     X.restore();
     // bocchettone per l'acqua in cima
-    X.fillStyle = "#C9CDD3";
+    X.fillStyle = "#C4C8C9";
     X.beginPath();
     X.roundRect(PX - 50, TOP - 20, 100, 28, 8);
     X.fill();
-    X.fillStyle = "#AEB6C2";
+    X.fillStyle = "#B3BCB7";
     X.beginPath();
     X.ellipse(PX, TOP - 20, 50, 9, 0, 0, 7);
     X.fill();
     // pannello dei tasti a destra del display
-    X.fillStyle = "#D9D6CE";
+    X.fillStyle = "#D0D1CC";
     X.beginPath();
-    X.roundRect(PX + 14, 640, 222, 100, 18);
+    X.roundRect(PX - 226, 638, 406, 104, 22);
     X.fill();
     // cornice del vetro
-    X.fillStyle = "#D9D6CE";
+    X.fillStyle = "#D0D1CC";
     X.beginPath();
     X.moveTo(GLASS.x - 12, GLASS.y + GLASS.h + 12);
     X.lineTo(GLASS.x - 12, GLASS.y + 150);
@@ -255,7 +256,7 @@ function packTextures(scene) {
     X.closePath();
     X.fill();
     // cornice del display
-    X.fillStyle = "#D9D6CE";
+    X.fillStyle = "#C4C8C3";
     X.beginPath();
     X.roundRect(SCREEN.x - 8, SCREEN.y - 8, SCREEN.w + 16, SCREEN.h + 16, 14);
     X.fill();
@@ -302,7 +303,7 @@ function packTextures(scene) {
     H.lineTo(96, 46);
     H.stroke();
     // nocche
-    H.strokeStyle = "rgba(160,120,95,0.45)";
+    H.strokeStyle = "rgba(132,123,118,0.45)";
     H.lineWidth = 2;
     [[52, 92, 62, 82], [60, 100, 72, 90]].forEach(([x0, y0, x1, y1]) => {
       H.beginPath();
@@ -332,7 +333,7 @@ function packTextures(scene) {
       H.ellipse(40 + i * 3, 42 + i * 13, 12, 7, 0.2, 0, 7);
       H.fill();
     }
-    H.strokeStyle = "rgba(160,120,95,0.5)";
+    H.strokeStyle = "rgba(132,123,118,0.5)";
     H.lineWidth = 2;
     for (let i = 1; i < 4; i++) {
       H.beginPath();
@@ -360,6 +361,32 @@ function mixC(a, b, k) {
 }
 
 const GOAL_NAME = { light: "MANOPOLA LUCE", temp: "MANOPOLA TEMP", water: "TASTO ACQUA", air: "TASTO ARIA" };
+// colore della task (solo palette del brand): la scheda, l'icona e l'alone del comando da usare
+const GOAL_COL = { light: 0x7d909f, temp: 0x4e6878, water: 0x587284, air: 0x8fb3c4 };
+// simbolo del comando (uguale a quello disegnato sul tasto dello zaino)
+function glyph(g, id, x, y, col, s = 1) {
+  g.fillStyle(col, 1);
+  g.lineStyle(3 * s, col, 1);
+  if (id === "light") {
+    g.fillCircle(x, y, 5 * s);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g.lineBetween(x + Math.cos(a) * 8 * s, y + Math.sin(a) * 8 * s, x + Math.cos(a) * 11.5 * s, y + Math.sin(a) * 11.5 * s);
+    }
+  } else if (id === "water") {
+    g.fillCircle(x, y + 3 * s, 6 * s);
+    g.fillTriangle(x - 5.6 * s, y + 1 * s, x + 5.6 * s, y + 1 * s, x, y - 10 * s);
+  } else if (id === "air") {
+    g.lineBetween(x - 9 * s, y - 5 * s, x + 6 * s, y - 5 * s);
+    g.lineBetween(x - 9 * s, y, x + 9 * s, y);
+    g.lineBetween(x - 9 * s, y + 5 * s, x + 3 * s, y + 5 * s);
+  } else {
+    // manopola della temperatura: disco con la tacca (niente termometro)
+    g.lineStyle(2.4 * s, col, 1);
+    g.strokeCircle(x, y, 9 * s);
+    g.lineBetween(x, y, x + 5.5 * s, y - 5.5 * s);
+  }
+}
 
 export class BioPanel {
   constructor(scene) {
@@ -421,8 +448,8 @@ export class BioPanel {
     this.dev = scene.add.graphics();
     c.add([this.glass, this.leaves, this.front, this.dev]);
     this.disp = {
-      big: txt(scene, SCREEN.x + 18, SCREEN.y + 32, "", { size: 34, weight: "500", color: HEX.c0, origin: [0, 0.5] }),
-      out: txt(scene, SCREEN.x + 18, SCREEN.y + 66, "", { size: 14, color: "#C9D3E0", origin: [0, 0.5] })
+      big: txt(scene, SCREEN.x + SCREEN.w / 2, SCREEN.y + 30, "", { size: 22, weight: "500", color: HEX.c0, origin: 0.5 }),
+      out: txt(scene, SCREEN.x + SCREEN.w / 2, SCREEN.y + 58, "", { size: 11, color: "#C7CDD1", origin: 0.5 })
     };
     c.add(Object.values(this.disp));
     // l'oggetto reale dell'obiettivo e la mano del giocatore
@@ -454,18 +481,32 @@ export class BioPanel {
     this.fx = scene.add.graphics();
     c.add(this.fx);
     // scheda con l'indicazione (a destra in alto)
-    const label = txt(scene, VIEW.w - 352, 112, GOAL_NAME[goal], { size: 13, color: HEX.c3 });
-    const hintT = txt(scene, VIEW.w - 352, 134, hint ?? "", { size: 16, color: HEX.c4, wrap: 300 });
-    const ch = Math.max(128, hintT.height + 80);
+    const gcol = GOAL_COL[goal] ?? 0x587284;
+    const label = txt(scene, VIEW.w - 314, 112, GOAL_NAME[goal], { size: 13, weight: "500", color: HEX.c4 });
+    const hintT = txt(scene, VIEW.w - 352, 140, hint ?? "", { size: 16, color: HEX.c4, wrap: 300 });
+    const ch = Math.max(128, hintT.height + 86);
     this.barY = 96 + ch - 22;
     const card = scene.add.graphics();
     card.fillStyle(C.c4, 0.12);
     card.fillRoundedRect(VIEW.w - 372, 100, 340, ch, 18);
     card.fillStyle(C.c0, 0.96);
     card.fillRoundedRect(VIEW.w - 372, 96, 340, ch, 18);
+    // una velatura del colore della task e una banda a sinistra: si capisce a colpo d'occhio
+    // quale comando usare; accanto al nome, lo stesso simbolo che c'è sul tasto
+    card.fillStyle(gcol, 0.1);
+    card.fillRoundedRect(VIEW.w - 372, 96, 340, ch, 18);
+    card.fillStyle(gcol, 1);
+    card.fillRoundedRect(VIEW.w - 372, 96 + 18, 5, ch - 36, 2.5);
+    card.fillStyle(gcol, 1);
+    card.fillCircle(VIEW.w - 336, 119, 15);
+    glyph(card, goal, VIEW.w - 336, 119, 0xe6e9e5, 0.85);
     c.add([card, label, hintT]);
+    // indicatore sul comando da usare (freccia che dondola e anello del colore della task)
+    this.cue = scene.add.graphics();
     this.bar = scene.add.graphics();
     c.add(this.bar);
+    c.add(this.cue);
+    this.cueCol = gcol;
     this.makeTouch(c);
     // entrata morbida: il pannello sfuma e lo zaino sale dal basso
     c.setAlpha(0);
@@ -528,8 +569,8 @@ export class BioPanel {
     if (g === "water" && PlantSensors.simulated("IR")) zone(BTN.water.x, BTN.water.y, 76, 90, () => (scene._simIrr = true), () => (scene._simIrr = false));
     if (g === "air" && PlantSensors.simulated("AR")) zone(BTN.air.x, BTN.air.y, 76, 90, () => (scene._simAir = true), () => (scene._simAir = false));
     if (g === "temp")
-      // termometro a schermo, sempre attivo: metà alta = più caldo, metà bassa = più freddo; o trascina su/giù
-      dial(THERMO.x, (THERMO.y0 + THERMO.y1) / 2, 110, THERMO.y1 - THERMO.y0 + 40, (p) => (p.y < (THERMO.y0 + THERMO.y1) / 2 ? 1 : -1), "knob", "knobDir");
+      // manopola della temperatura a schermo: metà destra = più caldo, metà sinistra = più freddo; o trascina su/giù
+      dial(BTN.temp.x, BTN.temp.y, 160, 120, (p) => (p.x >= BTN.temp.x ? 1 : -1), "knob", "knobDir");
   }
 
   close() {
@@ -627,7 +668,7 @@ export class BioPanel {
     const pill = scene.add.container(PX, GLASS.y + 150);
     const g = scene.add.graphics();
     const label = ok ? "FATTO  ·  +O₂" : res.negligence === "dark" ? "TROPPO TARDI" : "TEMPO SCADUTO";
-    const t = txt(scene, 14, 0, label, { size: 24, weight: "500", origin: [0.5, 0.5], color: ok ? "#2F5A60" : "#1B2528" });
+    const t = txt(scene, 14, 0, label, { size: 24, weight: "500", origin: [0.5, 0.5], color: ok ? "#3C545B" : "#222A2E" });
     const w = t.width + 90;
     g.fillStyle(C.c4, 0.18);
     g.fillRoundedRect(-w / 2, -28 + 5, w, 56, 28);
@@ -693,8 +734,8 @@ export class BioPanel {
     const bend = Math.min(70, len * 0.14) * (left ? 1 : -1);
     const ex = (wx + sx) / 2 + (dy / len) * bend;
     const ey = (wy + sy) / 2 - (dx / len) * bend;
-    const COAT = 0x9aa3af;
-    const COAT_D = 0x838c9a;
+    const COAT = 0x8c9893;
+    const COAT_D = 0x7e8892;
     const quad = (x0, y0, x1, y1, w0, w1, col, cap = true) => {
       const ang = Math.atan2(y1 - y0, x1 - x0) + Math.PI / 2;
       const c0 = Math.cos(ang);
@@ -709,7 +750,7 @@ export class BioPanel {
       if (cap) A.fillCircle(x1, y1, w1);
     };
     // ombra morbida sotto il braccio
-    A.fillStyle(0x1c2839, 0.18);
+    A.fillStyle(0x262b2c, 0.18);
     A.fillCircle(ex + 14, ey + 18, 60);
     // braccio e avambraccio (la manica si stringe verso il polso)
     quad(sx, sy, ex, ey, 74, 60, COAT_D);
@@ -726,7 +767,7 @@ export class BioPanel {
     A.lineStyle(3, COAT_D, 1);
     for (let i = -1; i <= 1; i++) A.lineBetween(ex + nx * 30 + ux * i * 16, ey + ny * 30 + uy * i * 16, ex - nx * 10 + ux * (i * 16 + 10), ey - ny * 10 + uy * (i * 16 + 10));
     // polsino con la riga gialla
-    quad(wx - ux * 34, wy - uy * 34, wx - ux * 4, wy - uy * 4, 41, 40, 0x6e7889, false);
+    quad(wx - ux * 34, wy - uy * 34, wx - ux * 4, wy - uy * 4, 41, 40, 0x6a7681, false);
     quad(wx - ux * 26, wy - uy * 26, wx - ux * 20, wy - uy * 20, 41.5, 41.5, Y_ACCENT, false);
   }
 
@@ -767,11 +808,11 @@ export class BioPanel {
       glassPts.push({ x: PX + Math.cos(a) * (GLASS.w / 2), y: GLASS.y + 150 + Math.sin(a) * 150 });
     }
     glassPts.push({ x: GLASS.x + GLASS.w, y: GLASS.y + GLASS.h });
-    G.fillStyle(mixC(0xc6d6ea, 0xf4ecc8, Math.min(1, lv * 1.3)), 1);
+    G.fillStyle(mixC(0xc7cfd5, 0xe4e8e3, Math.min(1, lv * 1.3)), 1);
     G.fillPoints(glassPts, true);
     if (lit) {
       // luce accesa: il cono caldo della lampada sulle piante, intenso quanto la manopola
-      G.fillStyle(0xf6e7a8, (0.45 + 0.08 * Math.sin(t * 4)) * Math.min(1, lv * 1.2));
+      G.fillStyle(0xe4e8e3, (0.45 + 0.08 * Math.sin(t * 4)) * Math.min(1, lv * 1.2));
       G.fillTriangle(PX, GLASS.y + 14, GLASS.x + 10, SOIL_Y, GLASS.x + GLASS.w - 10, SOIL_Y);
     }
 
@@ -798,7 +839,7 @@ export class BioPanel {
       }
       L.fillPoints(pts, true);
     }
-    L.fillStyle(0x8a8478, 0.85);
+    L.fillStyle(0x7d8282, 0.85);
     this.dust.forEach(([x, y]) => L.fillCircle(x, y, 3.5));
     // terra (più scura quando è bagnata) e serbatoio d'acqua trasparente
     const w = Phaser.Math.Clamp(s.water, 0, 1);
@@ -806,9 +847,9 @@ export class BioPanel {
     const wet = [0x4f, 0x40, 0x36];
     L.fillStyle(Phaser.Display.Color.GetColor(...dry.map((v, i) => Math.round(v + (wet[i] - v) * w))), 1);
     L.fillRect(GLASS.x, SOIL_Y, GLASS.w, GLASS.y + GLASS.h - SOIL_Y);
-    L.fillStyle(0xdfe7f1, 1);
+    L.fillStyle(0xdbe0e3, 1);
     L.fillRoundedRect(TANK.x, TANK.y, TANK.w, TANK.h, 8);
-    L.fillStyle(0x5f8fd0, 0.85);
+    L.fillStyle(0x587284, 0.85);
     const lvl = Math.max(0.06, w);
     L.fillRoundedRect(TANK.x + 4, TANK.y + 4, (TANK.w - 8) * lvl, TANK.h - 8, 5);
 
@@ -819,20 +860,20 @@ export class BioPanel {
     F.fillRect(GLASS.x + 22, GLASS.y + 80, 12, 240);
     // irrigazione interna: tubo che sale dal serbatoio e barra con gli ugelli sopra le piante
     const flowing = s.irrigating;
-    F.lineStyle(9, 0xaeb6c2, 1);
+    F.lineStyle(9, 0xb3bcb7, 1);
     F.lineBetween(PIPE_X, TANK.y, PIPE_X, SPRAY_Y);
     F.lineBetween(PIPE_X, SPRAY_Y, GLASS.x + 40, SPRAY_Y);
     for (let i = 0; i < 6; i++) {
-      F.fillStyle(0x8f99a8, 1);
+      F.fillStyle(0x8b949f, 1);
       F.fillRect(GLASS.x + 52 + i * 52, SPRAY_Y + 3, 8, 8);
     }
     if (flowing) {
       // l'acqua scorre nel tubo (trattini che salgono) ed esce a pioggia dagli ugelli
-      F.lineStyle(4, 0x5f8fd0, 1);
+      F.lineStyle(4, 0x587284, 1);
       for (let y = TANK.y - ((t * 260) % 24); y > SPRAY_Y; y -= 24) F.lineBetween(PIPE_X, y, PIPE_X, Math.max(SPRAY_Y, y - 12));
       for (let x = PIPE_X - ((t * 260) % 24); x > GLASS.x + 40; x -= 24) F.lineBetween(x, SPRAY_Y, Math.max(GLASS.x + 40, x - 12), SPRAY_Y);
       for (let i = 0; i < 6; i++) {
-        F.fillStyle(0x6f9fdc, 0.35);
+        F.fillStyle(0x7e96b3, 0.35);
         F.fillTriangle(GLASS.x + 56 + i * 52, SPRAY_Y + 10, GLASS.x + 40 + i * 52, SOIL_Y, GLASS.x + 72 + i * 52, SOIL_Y);
       }
       if (Math.random() < delta / 8) {
@@ -845,13 +886,13 @@ export class BioPanel {
       d.vy += delta * 0.0012;
       d.x += d.vx * delta;
       d.y += d.vy * delta;
-      F.fillStyle(0x5f8fd0, 0.9);
+      F.fillStyle(0x587284, 0.9);
       F.fillCircle(d.x, d.y, 3.5);
       return d.y < SOIL_Y + 2;
     });
     if (s.water > 0.92) {
       // troppa acqua: trabocca dal bocchettone e cola lungo il guscio fino a terra
-      F.fillStyle(0x5f8fd0, 0.6);
+      F.fillStyle(0x587284, 0.6);
       F.fillEllipse(PX, BOT - 18, 460 + Math.sin(t * 2) * 20, 26);
       for (let i = 0; i < 5; i++) F.fillCircle(PX - 200 + i * 100, ((t * 170 + i * 70) % 200) + 600, 5);
       F.fillRect(GLASS.x + 30, SOIL_Y - 10, GLASS.w - 60, 14);
@@ -869,7 +910,7 @@ export class BioPanel {
     if (s.temp < IDEAL.tMin - 0.5) {
       // freddo: brina sul vetro
       const a = Phaser.Math.Clamp((IDEAL.tMin - s.temp) / 10, 0.2, 0.8);
-      F.fillStyle(0xf2f8ff, a);
+      F.fillStyle(0xedf1f2, a);
       for (let i = 0; i < 36; i++) {
         const ang = (i / 36) * Math.PI;
         F.fillCircle(PX - Math.cos(ang) * (GLASS.w / 2 - 8), GLASS.y + 150 - Math.sin(ang) * 142, 6 + (i % 3) * 4);
@@ -880,7 +921,7 @@ export class BioPanel {
       const a = Phaser.Math.Clamp((s.temp - IDEAL.tMax) / 10, 0.25, 0.75);
       F.fillStyle(0xffffff, a * 0.5);
       for (let i = 0; i < 30; i++) F.fillCircle(GLASS.x + 24 + ((i * 47) % (GLASS.w - 48)), GLASS.y + 100 + ((i * 71) % 260), 3.5);
-      F.lineStyle(3, 0xe2a03c, a);
+      F.lineStyle(3, 0x587284, a);
       for (let i = 0; i < 4; i++) {
         const x0 = GLASS.x - 70 + i * 170;
         const y0 = TOP + 60 - ((t * 60 + i * 40) % 120);
@@ -893,86 +934,127 @@ export class BioPanel {
     // ---------- lampada accesa, ghiera della temperatura, display
     const D = this.dev;
     D.clear();
+    // freccia sul comando della task: dondola piano, del colore della task
+    if (this.cue && !this.done && BTN[goal]) {
+      const Q = this.cue;
+      Q.clear();
+      const tk = BTN[goal];
+      const tx = tk.x;
+      const ty = tk.y - 50;
+      const bob = Math.sin(t * 4) * 4;
+      Q.fillStyle(0x2e4350, 0.18);
+      Q.fillTriangle(tx - 13, ty - 12 + bob + 3, tx + 13, ty - 12 + bob + 3, tx, ty + 5 + bob + 3);
+      Q.fillStyle(this.cueCol, 1);
+      Q.fillTriangle(tx - 13, ty - 12 + bob, tx + 13, ty - 12 + bob, tx, ty + 5 + bob);
+      Q.lineStyle(2, 0xe6e9e5, 1);
+      Q.strokeTriangle(tx - 13, ty - 12 + bob, tx + 13, ty - 12 + bob, tx, ty + 5 + bob);
+      Q.lineStyle(3, this.cueCol, 0.55 + 0.35 * Math.sin(t * 4));
+      Q.strokeCircle(tk.x, tk.y, goal === "light" || goal === "temp" ? 40 : 30);
+    } else this.cue?.clear();
     // luce interna: striscia LED in cima al vetro (accesa calda, spenta scura)
-    D.fillStyle(mixC(0x2b3d56, 0xfff3c4, Math.min(1, lv * 1.3)), 1);
+    D.fillStyle(mixC(0x313e4c, 0xe4e8e3, Math.min(1, lv * 1.3)), 1);
     D.fillRoundedRect(PX - 70, GLASS.y + 6, 140, 12, 6);
     if (lit) {
-      D.fillStyle(0xfff3c4, (0.25 + 0.05 * Math.sin(t * 5)) * Math.min(1, lv * 1.3));
+      D.fillStyle(0xe4e8e3, (0.25 + 0.05 * Math.sin(t * 5)) * Math.min(1, lv * 1.3));
       D.fillEllipse(PX, GLASS.y + 14, 240, 40);
     }
     // feritoie dell'aria sul fianco del vetro
-    D.fillStyle(0x9aa7ba, 1);
+    D.fillStyle(0x8c9893, 1);
     for (let i = 0; i < 5; i++) D.fillRoundedRect(GLASS.x - 8, GLASS.y + 200 + i * 40, 14, 22, 4);
-    // tasti dello zaino: luce, irrigazione, aria (il tasto dell'obiettivo si illumina)
+    // comandi dello zaino, in fila come sul dispositivo: manopola LUCE, ACQUA, display, ARIA,
+    // manopola TEMP. Il comando della task ha l'alone del suo colore.
+    const A0 = -Math.PI * 1.25;
+    const A1 = Math.PI * 0.25;
+    const ang = (v) => A0 + v * (A1 - A0);
+    const KR = 30; // raggio dell'anello delle manopole
+    const halo = (k, base) => {
+      for (let i = 3; i >= 1; i--) {
+        D.fillStyle(k.col, 0.09 * (4 - i));
+        D.fillCircle(k.x, k.y, base + i * 6 + Math.sin(t * 5) * 1.5);
+      }
+    };
+    const knobBody = (k, v, hot) => {
+      D.fillStyle(0xbfc1bd, 1);
+      D.fillCircle(k.x, k.y + 3, 22);
+      D.fillStyle(0x2e4350, 1);
+      D.fillCircle(k.x, k.y, 20);
+      D.fillStyle(0x374e5b, 1);
+      D.fillCircle(k.x, k.y - 2, 15);
+      const a = ang(v);
+      D.lineStyle(4, hot ? 0xe6e9e5 : 0x8c9893, 1);
+      D.lineBetween(k.x + Math.cos(a) * 6, k.y + Math.sin(a) * 6, k.x + Math.cos(a) * 17, k.y + Math.sin(a) * 17);
+    };
     Object.entries(BTN).forEach(([id, k]) => {
       const on = id === goal;
-      if (id === "light") {
-        // manopola della luce: anello con la fascia giusta, tacca gialla che segue la manopola vera
-        const A0 = -Math.PI * 1.25;
-        const A1 = Math.PI * 0.25;
-        const ang = (v) => A0 + v * (A1 - A0);
-        if (on) {
-          for (let i = 3; i >= 1; i--) {
-            D.fillStyle(k.col, 0.08 * (4 - i) * (0.6 + lv * 0.4));
-            D.fillCircle(k.x, k.y, 32 + i * 7 + Math.sin(t * 5) * 2);
+      if (id === "light" || id === "temp") {
+        if (on) halo(k, KR);
+        const v = id === "light" ? lv : Phaser.Math.Clamp(s.knob, 0, 1);
+        if (id === "temp") {
+          // da FREDDO (grigio-azzurro) a CALDO (petrolio)
+          for (let i = 0; i < 12; i++) {
+            D.lineStyle(5, mixC(0xc7d6dd, 0x2e4350, i / 11), 1);
+            D.beginPath();
+            D.arc(k.x, k.y, KR, ang(i / 12), ang((i + 1) / 12) + 0.02, false);
+            D.strokePath();
           }
-        }
-        D.lineStyle(6, 0xd3dbe6, 1);
-        D.beginPath();
-        D.arc(k.x, k.y, 36, A0, A1, false);
-        D.strokePath();
-        if (on) {
-          D.lineStyle(6, 0x5a8e92, 0.75);
+          const b0 = Bionomad.knobFor(IDEAL.tMin);
+          const b1 = Bionomad.knobFor(IDEAL.tMax);
+          if (on && b1 > b0) {
+            D.lineStyle(9, 0xe6e9e5, 0.5);
+            D.beginPath();
+            D.arc(k.x, k.y, KR, ang(b0), ang(b1), false);
+            D.strokePath();
+          }
+          // fiocco di neve (freddo) e onde di calore (caldo) alle due estremità
+          const ex = k.x - 27;
+          const ey = k.y + 27;
+          D.lineStyle(1.6, 0x587284, 1);
+          for (let i = 0; i < 3; i++) {
+            const q = (i / 3) * Math.PI;
+            D.lineBetween(ex - Math.cos(q) * 4.5, ey - Math.sin(q) * 4.5, ex + Math.cos(q) * 4.5, ey + Math.sin(q) * 4.5);
+          }
+          D.lineStyle(1.6, 0x2e4350, 1);
+          for (let j = 0; j < 3; j++) {
+            D.beginPath();
+            for (let q = 0; q <= 5; q++) D.lineTo(k.x + 21 + j * 4 + Math.sin(q * 1.3) * 1.4, ey + 5 - q * 2);
+            D.strokePath();
+          }
+        } else {
+          // luce: binario chiaro, parte accesa più chiara, fascia giusta durante la task
+          D.lineStyle(5, 0xc6ccc6, 1);
           D.beginPath();
-          D.arc(k.x, k.y, 36, ang(IDEAL.lMin), ang(IDEAL.lMax), false);
+          D.arc(k.x, k.y, KR, A0, A1, false);
           D.strokePath();
+          if (on) {
+            D.lineStyle(9, 0x678289, 0.5);
+            D.beginPath();
+            D.arc(k.x, k.y, KR, ang(IDEAL.lMin), ang(IDEAL.lMax), false);
+            D.strokePath();
+          }
+          if (lv > 0.01) {
+            D.lineStyle(3, 0x7d909f, 1);
+            D.beginPath();
+            D.arc(k.x, k.y, KR, A0, ang(lv), false);
+            D.strokePath();
+          }
+          // poca luce (puntino) e tanta luce (sole) alle due estremità
+          D.fillStyle(0x8c9893, 1);
+          D.fillCircle(k.x - 27, k.y + 27, 2.5);
+          glyph(D, "light", k.x + 27, k.y + 27, lit ? 0x2e4350 : 0x8c9893, 0.45);
         }
-        if (lv > 0.01) {
-          D.lineStyle(3, 0xf6c94c, 1);
-          D.beginPath();
-          D.arc(k.x, k.y, 36, A0, ang(lv), false);
-          D.strokePath();
-        }
-        D.fillStyle(0xc9c6be, 1);
-        D.fillCircle(k.x, k.y + 3, 27);
-        D.fillStyle(0x24344b, 1);
-        D.fillCircle(k.x, k.y, 25);
-        const a = ang(lv);
-        D.lineStyle(5, on || lit ? 0xf6c94c : 0x9aa7ba, 1);
-        D.lineBetween(k.x + Math.cos(a) * 8, k.y + Math.sin(a) * 8, k.x + Math.cos(a) * 21, k.y + Math.sin(a) * 21);
+        knobBody(k, v, on || (id === "light" && lit));
         return;
       }
-      const pressed = (id === "water" && s.irrigating) || (id === "air" && s.venting) || (id === "light" && lit);
-      if (on) {
-        for (let i = 3; i >= 1; i--) {
-          D.fillStyle(k.col, 0.1 * (4 - i));
-          D.fillCircle(k.x, k.y, 30 + i * 7 + Math.sin(t * 5) * 2);
-        }
-      }
-      D.fillStyle(0xc9c6be, 1);
-      D.fillCircle(k.x, k.y + 3, 29);
-      D.fillStyle(pressed ? 0xe4e1d9 : 0xf4f2ec, 1);
-      D.fillCircle(k.x, k.y + (pressed ? 2 : 0), 27);
-      const col = on || pressed ? k.col : 0x9aa7ba;
+      if (on) halo(k, 22);
+      const pressed = (id === "water" && s.irrigating) || (id === "air" && s.venting);
       const cy = k.y + (pressed ? 2 : 0);
-      if (id === "light") {
-        D.fillStyle(col, 1);
-        D.fillCircle(k.x, cy, 7);
-        D.lineStyle(3.5, col, 1);
-        for (let i = 0; i < 8; i++) {
-          const a = (i / 8) * Math.PI * 2;
-          D.lineBetween(k.x + Math.cos(a) * 11, cy + Math.sin(a) * 11, k.x + Math.cos(a) * 16, cy + Math.sin(a) * 16);
-        }
-      } else if (id === "water") {
-        D.fillStyle(col, 1);
-        D.fillCircle(k.x, cy + 4, 8);
-        D.fillTriangle(k.x - 7.5, cy + 1, k.x + 7.5, cy + 1, k.x, cy - 14);
-      } else {
-        D.lineStyle(3.5, col, 1);
-        D.lineBetween(k.x - 12, cy - 6, k.x + 8, cy - 6);
-        D.lineBetween(k.x - 12, cy, k.x + 12, cy);
-        D.lineBetween(k.x - 12, cy + 6, k.x + 4, cy + 6);
-      }
+      D.fillStyle(0xbfc1bd, 1);
+      D.fillCircle(k.x, k.y + 3, 25);
+      D.fillStyle(pressed ? 0xdadbd7 : 0xebece8, 1);
+      D.fillCircle(k.x, cy, 23);
+      D.lineStyle(1.5, on ? k.col : 0xd0d1cc, 1);
+      D.strokeCircle(k.x, cy, 23);
+      glyph(D, id, k.x, cy, on || pressed ? (id === "air" ? 0x587284 : k.col) : 0x8c9893, 1.05);
     });
     // ---------- temperatura: termometro nel guscio e piastra sotto la terra che scalda o raffredda
     {
@@ -982,7 +1064,7 @@ export class BioPanel {
       const hk = this.heat;
       // piastra a serpentina sotto la terra (si vede dal vetro)
       const my = SOIL_Y + 30;
-      const col = hk > 0.05 ? mixC(0x9aa7ba, 0xe0763c, Math.min(1, hk * 1.4)) : hk < -0.05 ? mixC(0x9aa7ba, 0x6fc3ff, Math.min(1, -hk * 1.4)) : 0x9aa7ba;
+      const col = hk > 0.05 ? mixC(0x8c9893, 0x4e6878, Math.min(1, hk * 1.4)) : hk < -0.05 ? mixC(0x8c9893, 0x8fb3c4, Math.min(1, -hk * 1.4)) : 0x8c9893;
       if (Math.abs(hk) > 0.05) {
         D.lineStyle(14, col, 0.25 * Math.min(1, Math.abs(hk) * 1.5));
         D.beginPath();
@@ -1001,43 +1083,26 @@ export class BioPanel {
           const y0 = SOIL_Y - 10 - k * 260;
           const al = Math.sin(k * Math.PI) * Math.min(1, Math.abs(hk) * 1.6);
           if (hk > 0) {
-            D.lineStyle(3, 0xe0763c, al * 0.8);
+            D.lineStyle(3, 0x4e6878, al * 0.8);
             D.beginPath();
             for (let j = 0; j <= 6; j++) D.lineTo(x0 + Math.sin(j / 1.4 + t * 5 + i) * 5, y0 - j * 7);
             D.strokePath();
           } else {
-            D.fillStyle(0xdff3ff, al);
+            D.fillStyle(0xe1eaed, al);
             D.fillCircle(x0 + Math.sin(t * 2 + i) * 6, y0, 3.5);
-            D.lineStyle(1.5, 0x6fc3ff, al);
+            D.lineStyle(1.5, 0x8fb3c4, al);
             D.lineBetween(x0 - 6, y0, x0 + 6, y0);
             D.lineBetween(x0, y0 - 6, x0, y0 + 6);
           }
         }
       }
-      // termometro: scala 0-40 °C, fascia giusta 18-24 evidenziata, colonnina che sale e scende
-      const ty = (v) => THERMO.y1 - ((v - T_MIN) / (T_MAX - T_MIN)) * (THERMO.y1 - THERMO.y0);
-      D.fillStyle(0xd9d6ce, 1);
-      D.fillRoundedRect(THERMO.x - 14, THERMO.y0 - 14, 28, THERMO.y1 - THERMO.y0 + 50, 14);
-      D.fillStyle(0xf4f5f7, 1);
-      D.fillRoundedRect(THERMO.x - 7, THERMO.y0 - 6, 14, THERMO.y1 - THERMO.y0 + 10, 7);
-      D.fillStyle(0x5a8e92, 0.35);
-      D.fillRect(THERMO.x - 7, ty(IDEAL.tMax), 14, ty(IDEAL.tMin) - ty(IDEAL.tMax));
-      const tcol = mixC(0x6fc3ff, 0xe0763c, Phaser.Math.Clamp((s.temp - 10) / 20, 0, 1));
-      const top = Math.max(THERMO.y0, ty(Phaser.Math.Clamp(s.temp, T_MIN, T_MAX)));
-      D.fillStyle(tcol, 1);
-      D.fillRoundedRect(THERMO.x - 4, top, 8, THERMO.y1 + 4 - top, 4);
-      D.fillCircle(THERMO.x, THERMO.y1 + 18, 12);
-      // tacca dove la manopola vera sta portando la temperatura
-      const tt = ty(Phaser.Math.Clamp(tgt, T_MIN, T_MAX));
-      D.fillStyle(0x24344b, 1);
-      D.fillTriangle(THERMO.x - 20, tt - 6, THERMO.x - 20, tt + 6, THERMO.x - 11, tt);
     }
-    D.fillStyle(0x24344b, 1);
+    D.fillStyle(0x2e4350, 1);
     D.fillRoundedRect(SCREEN.x, SCREEN.y, SCREEN.w, SCREEN.h, 10);
     const ok = Bionomad.tempOk();
-    this.disp.big.setText(`${s.temp.toFixed(1)}°C`).setColor(ok ? "#F4F5F7" : "#F0A08C");
+    this.disp.big.setText(`${s.temp.toFixed(1)}°C`).setColor(ok ? "#E6E9E5" : "#7D909F");
     this.disp.out.setText(`FUORI ${Math.round(s.out)}°C`);
-    D.fillStyle(0x8fd0a6, 1);
+    D.fillStyle(0x9fc0ad, 1);
     D.fillRect(PX - 170, TANK.y + TANK.h + 14, 340, 4);
 
     // ---------- bus affollato: le persone coprono lo zaino finché la luce è spenta
@@ -1049,13 +1114,13 @@ export class BioPanel {
       if (lit && this.litAt == null) this.litAt = this.t;
       const k2 = lit ? Math.max(0, 1 - (this.t - this.litAt) / 600) : 1;
       if (k2 > 0) {
-        CR.fillStyle(0x2b3a50, 0.94 * k2);
+        CR.fillStyle(0x303c48, 0.94 * k2);
         CR.fillRoundedRect(-60 - (1 - k2) * 360, 110, 470, 760, 140);
         CR.fillCircle(170 - (1 - k2) * 360, 80, 78);
-        CR.fillStyle(0x3a4b63, 0.94 * k2);
+        CR.fillStyle(0x374e5b, 0.94 * k2);
         CR.fillRoundedRect(VIEW.w - 300 + (1 - k2) * 360, 160, 470, 720, 140);
         CR.fillCircle(VIEW.w - 110 + (1 - k2) * 360, 120, 72);
-        CR.fillStyle(0x0e1626, 0.28 * k2);
+        CR.fillStyle(0x182226, 0.28 * k2);
         CR.fillRect(0, 0, VIEW.w, VIEW.h);
       }
     }
@@ -1070,7 +1135,7 @@ export class BioPanel {
       const pulseR = (goal === "light" ? 50 : 46) + Math.sin(t * 8) * 3;
       X.lineStyle(6, 0xffffff, 0.5);
       X.strokeCircle(at.x, at.y, pulseR);
-      X.lineStyle(6, left < 0.3 ? 0xb4553f : Y_ACCENT, 1);
+      X.lineStyle(6, left < 0.3 ? 0x262b2c : Y_ACCENT, 1);
       X.beginPath();
       X.arc(at.x, at.y, pulseR, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2, false);
       X.strokePath();
@@ -1087,7 +1152,7 @@ export class BioPanel {
     const limit = goal === "light" ? (step.qteMs && progress < 1 ? step.qteMs : null) : pressed ? null : this.qte;
     if (limit) {
       const left = Math.max(0, 1 - this.elapsed / limit);
-      B.fillStyle(left < 0.3 ? 0xb4553f : Y_ACCENT, 1);
+      B.fillStyle(left < 0.3 ? 0x262b2c : Y_ACCENT, 1);
       B.fillRoundedRect(VIEW.w - 352, this.barY + 12, 300 * left, 4, 2);
     }
   }

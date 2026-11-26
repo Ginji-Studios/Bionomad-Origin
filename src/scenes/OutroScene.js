@@ -13,7 +13,7 @@ import { C, canvasImage, fadeIn, goTo, HEX, skylineLayers, txt, VIEW } from "../
 const FEET = 764;
 const BAR = 84; // altezza delle bande nere da cinema
 const SEAT = 44;
-const NIGHT = 0x0e1626; // blu notte di bande e stanza al buio // altezza della seduta del divano = bacino nella posa seduta (px a schermo)
+const NIGHT = 0x182226; // blu notte di bande e stanza al buio // altezza della seduta del divano = bacino nella posa seduta (px a schermo)
 
 // cutscene di fine giornata: rientro a casa di notte, lo zaino torna sull'hub a ricaricarsi,
 // le luci si abbassano. Inquadrature con bande da cinema e zoom lenti; didascalie battute a macchina.
@@ -124,11 +124,11 @@ export class OutroScene extends Phaser.Scene {
     this.tweens.add({ targets: top, y: BAR - VIEW.h / 2, duration: 700, ease: "Cubic.easeOut" });
     this.tweens.add({ targets: bot, y: VIEW.h - BAR, duration: 700, ease: "Cubic.easeOut" });
     const line = this.ui$(this.add.graphics().setDepth(3001));
-    line.fillStyle(0xe2b33c, 1);
+    line.fillStyle(0x7d909f, 1);
     line.fillRect(40, VIEW.h - BAR / 2 - 1, 6, 6);
-    this.cap = this.ui$(txt(this, 60, VIEW.h - BAR / 2 + 2, "", { size: 24, color: "#F4F5F7", origin: [0, 0.5] }).setDepth(3001));
-    this.ui$(txt(this, VIEW.w - 40, BAR / 2, "TOCCA PER SALTARE", { size: 16, color: "#9AA7BA", origin: [1, 0.5] }).setDepth(3001));
-    this.ui$(txt(this, 40, BAR / 2, "FINE GIORNATA", { size: 16, color: "#9AA7BA", origin: [0, 0.5] }).setDepth(3001));
+    this.cap = this.ui$(txt(this, 60, VIEW.h - BAR / 2 + 2, "", { size: 24, color: "#E6E9E5", origin: [0, 0.5] }).setDepth(3001));
+    this.ui$(txt(this, VIEW.w - 40, BAR / 2, "TOCCA PER SALTARE", { size: 16, color: "#8C9893", origin: [1, 0.5] }).setDepth(3001));
+    this.ui$(txt(this, 40, BAR / 2, "FINE GIORNATA", { size: 16, color: "#8C9893", origin: [0, 0.5] }).setDepth(3001));
   }
 
   caption(text) {

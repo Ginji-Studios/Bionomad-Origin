@@ -28,12 +28,20 @@ export function ensureMenuDayBg(scene) {
 export function menuBackdrop(day = false) {
   const W = 2560;
   const compose = (time) => {
-    const b = buildCity("milano", { viewW: W, viewH: VIEW.h, time, zone: 1 });
+    const b = buildCity("milano", { viewW: W, viewH: VIEW.h, time, zone: 0 });
     const c = document.createElement("canvas");
     c.width = W;
     c.height = VIEW.h;
     const x = c.getContext("2d", { willReadFrequently: true });
-    b.layers.forEach(({ canvas }) => x.drawImage(canvas, Math.round(-(canvas.width - W) / 2), 0));
+    b.layers.forEach(({ canvas, f }) => {
+      if (f !== 1) return x.drawImage(canvas, Math.round(-(canvas.width - W) / 2), 0);
+      // primo piano: il Duomo (x logico 520) al centro della parte libera dello schermo,
+      // la strada continua a sinistra con la coda dello stesso livello
+      const off = Math.round(1500 - 520 * b.k);
+      x.drawImage(canvas, off, 0);
+      x.drawImage(canvas, off - canvas.width, 0);
+    });
+    c._film = true; // i livelli hanno già palette e grana: niente secondo passaggio
     return c;
   };
   if (day === "dusk") {
@@ -43,8 +51,9 @@ export function menuBackdrop(day = false) {
     x.globalAlpha = 0.5;
     x.drawImage(d, 0, 0);
     x.globalAlpha = 0.18;
-    x.fillStyle = "#E2B33C";
+    x.fillStyle = "#7D909F";
     x.fillRect(0, 0, W, VIEW.h);
+    c._film = true;
     return c;
   }
   return compose(day ? "day" : "night");
@@ -69,41 +78,15 @@ export class MenuScene extends Phaser.Scene {
     this.bg = bg;
     this.bgX = -(2560 - VIEW.w) / 2;
     bg.x = Math.round(this.bgX);
-    // ciclo giorno/notte: la versione di giorno sfuma sopra quella di notte,
-    // il sole e la luna attraversano il cielo sopra i tetti
+    // Milano di giorno, come nel riferimento: cielo grigio-salvia granuloso, niente ciclo notte
     ensureMenuDayBg(this);
-    bg.setDepth(-3);
-    this.bgDay = this.add.image(bg.x, 0, "menu_bg_day").setOrigin(0).setAlpha(0).setDepth(-2.5);
-    this.bgDusk = this.add.image(bg.x, 0, "menu_bg_dusk").setOrigin(0).setAlpha(0).setDepth(-2);
-    // sole e luna retinati come il resto della città (stesso retino a 5 colori)
-    if (!this.textures.exists("menu_sun")) {
-      const disc = (key, col, halo) => {
-        const c = document.createElement("canvas");
-        c.width = c.height = 200;
-        const x = c.getContext("2d", { willReadFrequently: true });
-        const g = x.createRadialGradient(100, 100, 30, 100, 100, 100);
-        g.addColorStop(0, halo);
-        g.addColorStop(1, "rgba(255,255,255,0)");
-        x.fillStyle = g;
-        x.fillRect(0, 0, 200, 200);
-        x.fillStyle = col;
-        x.beginPath();
-        x.arc(100, 100, 34, 0, 7);
-        x.fill();
-        this.textures.addCanvas(key, c);
-      };
-      disc("menu_sun", "#F6F3EA", "rgba(246,243,234,0.45)");
-      disc("menu_moon", "#E9ECF2", "rgba(233,236,242,0.18)");
-    }
-    this.sun = this.add.image(0, 0, "menu_sun").setDepth(-1);
-    this.moon = this.add.image(0, 0, "menu_moon").setDepth(-1);
-    this.dayT = 0.62; // si parte di notte
+    bg.setTexture("menu_bg_day").setDepth(-3);
     // l'operatore con il suo BIONOMAD, in grande sulla strada
     // l'operatore cammina sul posto mentre la città gli scorre dietro
     this.opKey = operatorKey(this, "a", "milano");
     careFrames(this, this.opKey);
     this.bareKey = holdFrames(this, operatorKey(this, "a", "milano", { bare: true, mask: true }));
-    this.opImg = this.add.image(940, 776, `${this.opKey}_idle`).setOrigin(0.5, 1).setScale(2);
+    this.opImg = this.add.image(1120, 776, `${this.opKey}_idle`).setOrigin(0.5, 1).setScale(2);
     this.packImg = this.add.image(0, 0, "pack_item").setOrigin(0).setScale(2).setVisible(false);
     this.opImg.setDepth(10);
     this.glow = this.add.ellipse(0, 0, 52, 34, 0x8fd0a6, 0.25).setDepth(12).setVisible(false);
@@ -130,7 +113,7 @@ export class MenuScene extends Phaser.Scene {
       for (let i = 0; i <= 48; i++) {
         const u = i / 48;
         // pieno fino a ~400 px, poi cala dolcemente fino a ~1150 px
-        const k = u < 0.36 ? 1 : Math.max(0, 1 - (u - 0.36) / 0.56);
+        const k = u < 0.3 ? 1 : Math.max(0, 1 - (u - 0.3) / 0.32);
         const a = 0.5 * k + 0.5 * ease(k);
         const m = ease(Math.min(1, Math.max(0, (u - 0.28) / 0.4)));
         const col = from.map((v, j) => Math.round(v + (to[j] - v) * m));
@@ -140,10 +123,11 @@ export class MenuScene extends Phaser.Scene {
       x.fillRect(0, 0, W, 8);
       this.textures.addCanvas(key, c);
     };
-    veil("menu_veil3", [236, 239, 244], [212, 218, 228]);
-    this.veilDay = this.add.image(0, 0, "menu_veil3").setOrigin(0).setDisplaySize(VIEW.w, VIEW.h).setDepth(20);
+    // velo carta → cielo (palette del riferimento), sparisce prima dell'operatore
+    veil("menu_veil4", [230, 233, 229], [198, 204, 198]);
+    this.veilDay = this.add.image(0, 0, "menu_veil4").setOrigin(0).setDisplaySize(VIEW.w, VIEW.h).setDepth(20);
     // logo biodom+ vettoriale e firma
-    this.add.image(72, 78, "logo_biodom_l").setOrigin(0, 0.5).setTint(0x24344b).setDepth(21);
+    this.add.image(72, 78, "logo_biodom_l").setOrigin(0, 0.5).setTint(0x2e4350).setDepth(21);
     txt(this, 72, 112, "PRESENTA", { size: 12, color: HEX.c3 }).setDepth(21).setLetterSpacing?.(4);
     // titolo vettoriale
     if (!this.textures.exists("menu_title2")) addHiRes(this, "menu_title2", titleVector(), 3);
@@ -169,14 +153,14 @@ export class MenuScene extends Phaser.Scene {
         pill.clear();
         arrow.clear();
         if (on) {
-          pill.fillStyle(0x24344b, 1);
-          pill.fillRoundedRect(72, y - 32, Math.max(330, t.width + 150), 64, 32);
+          pill.fillStyle(0x2e4350, 1);
+          pill.fillRoundedRect(72, y - 32, Math.max(330, t.width + 150), 64, 6);
           arrow.fillStyle(Y_ACCENT, 1);
           const ax = 72 + Math.max(330, t.width + 150) - 44;
           arrow.fillTriangle(ax, y - 9, ax, y + 9, ax + 14, y);
         }
-        t.setColor(on ? "#F4F5F7" : HEX.c4);
-        num.setColor(on ? "#E2B33C" : HEX.c3);
+        t.setColor(on ? "#E6E9E5" : HEX.c4);
+        num.setColor(on ? "#7D909F" : HEX.c3);
       };
       const press = () => {
         Sfx.blip?.();
@@ -193,7 +177,7 @@ export class MenuScene extends Phaser.Scene {
     this.select(0);
     // piè di pagina: il tasto START del dispositivo
     const foot = this.add.graphics().setDepth(21);
-    foot.lineStyle(2, 0x24344b, 1);
+    foot.lineStyle(2, 0x2e4350, 1);
     foot.strokeCircle(92, VIEW.h - 70, 18);
     foot.fillStyle(Y_ACCENT, 1);
     foot.fillTriangle(86, VIEW.h - 80, 86, VIEW.h - 60, 102, VIEW.h - 70);
@@ -221,7 +205,6 @@ export class MenuScene extends Phaser.Scene {
     // deriva di 4 px al secondo, avanti e indietro in 80 s
     this.bgX = -(2560 - VIEW.w) / 2 + Math.sin(time / 12700) * 160;
     this.bg.x = Math.round(this.bgX);
-    this.dayNight(delta);
     const CYCLE = 9200;
     const prev = this.cycle;
     this.cycle = (this.cycle + delta) % CYCLE;
@@ -274,38 +257,13 @@ export class MenuScene extends Phaser.Scene {
     // a metà della cura la pianta rilascia ossigeno
   }
 
-  // ciclo di 24 s: metà giorno, metà notte, con alba e tramonto sfumati
-  dayNight(delta) {
-    this.dayT = (this.dayT + delta / 24000) % 1;
-    const p = this.dayT;
-    const smooth = (u) => u * u * (3 - 2 * u);
-    const edge = 0.1;
-    let day;
-    if (p < edge) day = smooth(0.5 + p / (2 * edge));
-    else if (p < 0.5 - edge) day = 1;
-    else if (p < 0.5 + edge) day = smooth(1 - (p - (0.5 - edge)) / (2 * edge));
-    else if (p < 1 - edge) day = 0;
-    else day = smooth((p - (1 - edge)) / (2 * edge) * 0.5);
-    // passaggio in tre tempi: la luce dell'alba/tramonto sale a metà della transizione e poi svanisce
-    this.bgDay.setAlpha(day).setX(this.bg.x);
-    this.bgDusk.setAlpha(Math.sin(Math.PI * day) * 0.9).setX(this.bg.x);
-    // arco solo sulla metà destra del cielo, lontano dal titolo
-    const arc = (u) => [740 + u * 440, 300 - Math.sin(Math.PI * u) * 190];
-    const su = (p + edge) / (0.5 + 2 * edge);
-    const mu = (p - 0.5 + edge + (p < 0.5 - edge ? 1 : 0)) / (0.5 + 2 * edge);
-    if (su >= 0 && su <= 1) this.sun.setVisible(true).setPosition(...arc(su).map(Math.round)).setAlpha(Math.min(1, Math.sin(Math.PI * su) * 3));
-    else this.sun.setVisible(false);
-    if (mu >= 0 && mu <= 1) this.moon.setVisible(true).setPosition(...arc(mu).map(Math.round)).setAlpha(Math.min(1, Math.sin(Math.PI * mu) * 3));
-    else this.moon.setVisible(false);
-  }
-
   // bollicine di O₂ che salgono dallo zaino (pixel quadrati, nei colori del gioco)
   bubbles(n = 9) {
     const px = this.packImg.x + 28;
     const py = this.packImg.y + 14;
     for (let i = 0; i < n; i++) {
       const size = 4 + (i % 3) * 2;
-      const b = this.add.circle(px + (Math.random() - 0.5) * 30, py, size / 2 + 1, 0xf4f5f7).setAlpha(0).setDepth(13);
+      const b = this.add.circle(px + (Math.random() - 0.5) * 30, py, size / 2 + 1, 0xe6e9e5).setAlpha(0).setDepth(13);
       this.tweens.add({
         targets: b,
         y: py - 120 - Math.random() * 90,
@@ -346,16 +304,16 @@ function titleVector() {
   c.height = H * S;
   const X = c.getContext("2d");
   X.scale(S, S);
-  X.fillStyle = "#24344B";
+  X.fillStyle = "#2E4350";
   X.font = '800 104px "Helvetica Neue", "Inter", Arial, sans-serif';
   X.textBaseline = "alphabetic";
   X.fillText("O", 0, 100);
   const ow = X.measureText("O").width;
-  X.fillStyle = "#E2B33C";
+  X.fillStyle = "#7D909F";
   X.font = '800 52px "Helvetica Neue", "Inter", Arial, sans-serif';
   X.fillText("2", ow + 2, 116);
   const tw = X.measureText("2").width;
-  X.fillStyle = "#24344B";
+  X.fillStyle = "#2E4350";
   X.font = '800 104px "Helvetica Neue", "Inter", Arial, sans-serif';
   if ("letterSpacing" in X) X.letterSpacing = "-2px";
   X.fillText("RIGIN", ow + tw + 6, 100);

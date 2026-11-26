@@ -568,8 +568,8 @@ function side(T, ph, o) {
 const COATS = ["#2F3D52", "#46566E", "#6E7B8E", "#9AA3AF", "#C3C6CA", "#DEDAD1", "#ECE8DF", "#BCA88A"];
 const SKINS = { light: ["#EED9C6", "#E2C4AA"], mid: ["#C99A76", "#B4835F"], dark: ["#93684A", "#7C553A"] };
 const HAIRS = ["#24252B", "#3B2E28", "#6A4C38", "#D9C597", "#E6E1D6"];
-const YELLOW = "#E2B33C";
-const YELLOW_D = "#C99A27";
+const YELLOW = "#4E6878"; // sciarpa: ardesia scura (niente giallo, solo palette del brand)
+const YELLOW_D = "#3F5866";
 const SHOE = "#1F2733";
 const darker = (h, k = 0.18) => {
   const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));

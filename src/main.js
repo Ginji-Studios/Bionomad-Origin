@@ -4,12 +4,28 @@ import { gameConfig } from "./config/gameConfig.js";
 import { PauseScene } from "./scenes/PauseScene.js";
 import { setupTouchControls } from "./input/TouchControls.js";
 import { PlantSensors } from "./input/PlantSensors.js";
+import { filmOverlay } from "./ui/film.js";
+import { filmLook } from "./art/filmLook.js";
+
+// stile del riferimento OVUNQUE: ogni disegno che diventa texture (personaggi, zaino, oggetti,
+// illustrazioni, crediti, tutorial) passa dalla palette smorzata + grana prima di entrare nel gioco.
+// Escluse le texture interne di Phaser ("__…") e i canvas marcati _noFilm (logo del brand).
+const addCanvas0 = Phaser.Textures.TextureManager.prototype.addCanvas;
+Phaser.Textures.TextureManager.prototype.addCanvas = function (key, source, skipCache) {
+  // escluse anche le strisce sottili (sfumature allungate a tutto schermo): la grana stirata
+  // diventerebbe righe; la pellicola sopra il gioco le copre già
+  const thin = source && (source.width < 48 || source.height < 48);
+  if (source && !thin && !String(key).startsWith("__") && !source._noFilm) filmLook(source, source._filmOpts);
+  return addCanvas0.call(this, key, source, skipCache);
+};
 
 const game = new Phaser.Game({
   ...gameConfig,
   parent: "game"
 });
 window.game = game;
+// grana e bande di luce sopra tutto il gioco (stile del riferimento)
+game.events.once("ready", () => filmOverlay(game.canvas));
 setupTouchControls();
 // pagina ricaricata: se l'Arduino era già stato autorizzato, si ricollega da solo
 PlantSensors.autoConnect();

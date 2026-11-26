@@ -147,7 +147,7 @@ export class TutorialScene extends Phaser.Scene {
       [180, 160, 260, 0x2f5a60, 0.55],
       [1090, 620, 300, 0x3e6e75, 0.45],
       [980, 120, 180, 0x5a8e92, 0.3],
-      [300, 700, 200, 0x24344b, 0.6]
+      [300, 700, 200, 0x2e4350, 0.6]
     ].map(([x, y, r, col, a], i) => {
       const o = this.add.image(x, y, orbTex(this)).setTint(col).setAlpha(a).setScale(r / 128);
       this.tweens.add({ targets: o, x: x + (i % 2 ? -40 : 40), y: y + (i < 2 ? 24 : -24), scale: (r / 128) * 1.12, duration: 7000 + i * 1300, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
@@ -237,8 +237,8 @@ export class TutorialScene extends Phaser.Scene {
   // simbolo grande in alto: cosa insegna la pagina (+O₂ / −O₂ / ◀ ● ▶ / respiro)
   badge(label, caption) {
     // capitolo · titolo · spiegazione, come il menu: piccolo numero giallo, titolo chiaro
-    const kick = txt(this, VIEW.w / 2, 30, `PRIMA DI USCIRE · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#E2B33C", origin: 0.5 });
-    const title = txt(this, VIEW.w / 2, 66, label, { size: 36, weight: "700", color: "#F4F5F7", origin: 0.5 });
+    const kick = txt(this, VIEW.w / 2, 30, `PRIMA DI USCIRE · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#7D909F", origin: 0.5 });
+    const title = txt(this, VIEW.w / 2, 66, label, { size: 36, weight: "700", color: "#E6E9E5", origin: 0.5 });
     this.layer.add([kick, title]);
     if (caption) this.layer.add(txt(this, VIEW.w / 2, 104, caption, { size: 17, color: "#B8C6D6", origin: 0.5 }));
   }
@@ -365,7 +365,7 @@ export class TutorialScene extends Phaser.Scene {
     cm.fillRoundedRect(550, 140, 660, 500, 12);
     this.city.setMask(cm.createGeometryMask());
     const street = this.add.graphics();
-    street.fillStyle(0xd5dae2, 1);
+    street.fillStyle(0xcdd2d0, 1);
     street.fillRoundedRect(550, 560, 660, 80, { tl: 0, tr: 0, bl: 12, br: 12 });
     street.fillStyle(C.c3, 1);
     street.fillRect(550, 560, 660, 2);
@@ -394,7 +394,7 @@ export class TutorialScene extends Phaser.Scene {
     pressed.setAngle(touching ? Math.sin(tt / 120) * 1.5 : 0).setAlpha(1);
     other.setAngle(0).setAlpha(touching ? 0.6 : 1);
     if (touching) {
-      g.lineStyle(4, 0xe2b33c, 0.9);
+      g.lineStyle(4, 0x7d909f, 0.9);
       g.strokeCircle(leaf[0], leaf[1], 18 + (tt % 400) / 40);
     }
     // la mano arriva sulla foglia e poi si stacca
@@ -483,9 +483,9 @@ export class TutorialScene extends Phaser.Scene {
     if (kind === "start") {
       g.fillStyle(0xc9c6be, 1);
       g.fillCircle(cx, cy, 46);
-      g.fillStyle(on ? 0x24344b : 0x3a4b63, 1);
+      g.fillStyle(on ? 0x2e4350 : 0x374e5b, 1);
       g.fillCircle(cx, cy + (on ? 3 : 0), 34);
-      g.fillStyle(0xf4f5f7, 1);
+      g.fillStyle(0xe6e9e5, 1);
       if (on) {
         g.fillRect(cx - 10, cy - 12, 7, 26);
         g.fillRect(cx + 3, cy - 12, 7, 26);
@@ -493,22 +493,22 @@ export class TutorialScene extends Phaser.Scene {
     } else if (kind === "light") {
       g.fillStyle(0xc9c6be, 1);
       g.fillRoundedRect(cx - 34, cy - 54, 68, 108, 12);
-      g.fillStyle(on ? 0xe2b33c : 0x8a99b0, 1);
+      g.fillStyle(on ? 0x7d909f : 0x7d909f, 1);
       g.fillRoundedRect(cx - 22, on ? cy - 44 : cy + 2, 44, 42, 8);
       if (on) {
-        g.fillStyle(0xe2b33c, 0.25);
+        g.fillStyle(0x7d909f, 0.25);
         g.fillCircle(cx, cy - 100, 40);
       }
     } else if (kind === "knob") {
       const ang = -2.4 + Math.sin(u * Math.PI * 2) * 1.6 + 1.6;
       g.fillStyle(0xc9c6be, 1);
       g.fillCircle(cx, cy, 48);
-      g.fillStyle(0x24344b, 1);
+      g.fillStyle(0x2e4350, 1);
       g.fillCircle(cx, cy, 36);
-      g.lineStyle(6, 0xf4f5f7, 1);
+      g.lineStyle(6, 0xe6e9e5, 1);
       g.lineBetween(cx, cy, cx + Math.cos(ang) * 30, cy + Math.sin(ang) * 30);
       // display: zaino / esterno
-      g.fillStyle(0x24344b, 1);
+      g.fillStyle(0x2e4350, 1);
       g.fillRoundedRect(cx - 60, cy - 140, 120, 50, 8);
       g.fillStyle(0x8fd0a6, 1);
       g.fillRect(cx - 50, cy - 102, 40 + 60 * ((ang + 2.4) / 3.2), 4);
@@ -518,7 +518,7 @@ export class TutorialScene extends Phaser.Scene {
       g.fillStyle(0x3f67a8, 1);
       g.fillCircle(cx, cy + 40 + (on ? 3 : 0), 28);
       // livello dell'acqua con la fascia giusta
-      g.fillStyle(0xe3e8ef, 1);
+      g.fillStyle(0xd7dbd6, 1);
       g.fillRoundedRect(cx - 18, cy - 130, 36, 120, 8);
       g.fillStyle(0x8fd0a6, 0.6);
       g.fillRect(cx - 18, cy - 130 + 120 * 0.25, 36, 120 * 0.35);
@@ -528,26 +528,26 @@ export class TutorialScene extends Phaser.Scene {
     } else if (kind === "air") {
       g.fillStyle(0xc9c6be, 1);
       g.fillCircle(cx, cy + 40, 40);
-      g.fillStyle(0xf4f5f7, 1);
+      g.fillStyle(0xe6e9e5, 1);
       g.fillCircle(cx, cy + 40 + (u < 0.8 ? 3 : 0), 28);
-      g.fillStyle(0x8a99b0, 1);
+      g.fillStyle(0x7d909f, 1);
       for (let i = 0; i < 5; i++) {
         const k = (u * 3 + i / 5) % 1;
         if (u < 0.8) g.fillCircle(cx - 30 + i * 15, cy - 20 - k * 120, 5 * (1 - k) + 2);
       }
-      g.fillStyle(0xe3e8ef, 1);
+      g.fillStyle(0xd7dbd6, 1);
       g.fillRoundedRect(cx - 50, cy - 160, 100, 10, 5);
-      g.fillStyle(0x24344b, 1);
+      g.fillStyle(0x2e4350, 1);
       g.fillRoundedRect(cx - 50, cy - 160, 100 * Math.min(1, u / 0.8), 10, 5);
     } else if (kind === "notify") {
       const { note, ok } = tile;
       const p = (t % 6000) / 6000;
       note.setAlpha(p > 0.05 ? 1 : 0);
-      g.fillStyle(0xe2b33c, 1);
+      g.fillStyle(0x7d909f, 1);
       if (p > 0.05) g.fillCircle(x + 440, y + 80, 12);
       // la mano preme l'irrigazione, la barra sale nella fascia giusta
       const lvl = Math.min(0.62, Math.max(0, (p - 0.2) * 1.4));
-      g.fillStyle(0xe3e8ef, 1);
+      g.fillStyle(0xd7dbd6, 1);
       g.fillRoundedRect(x + 460, y + 200, 360, 16, 8);
       g.fillStyle(0x8fd0a6, 0.6);
       g.fillRect(x + 460 + 360 * 0.4, y + 200, 360 * 0.35, 16);
@@ -596,8 +596,8 @@ export class TutorialScene extends Phaser.Scene {
     const isKnob = act.id === "temp" || act.id === "light";
     const kv = isKnob ? Math.min(1, Math.max(0, (u - 0.25) / 0.6)) : 0;
     // a riposo (e con PLAY) il LED resta bianco; con gli altri tasti prende il colore del comando
-    const WHITE = 0xf4f5f7;
-    const ledCol = after && u < 0.95 ? { light: mixCol(WHITE, 0xf6c94c, 0.25 + kv * 0.75), water: 0x6fc3ff, air: 0xd9dee6, temp: mixCol(0x5f8fd0, 0xd0864f, kv), play: WHITE }[act.id] : WHITE;
+    const WHITE = 0xe6e9e5;
+    const ledCol = after && u < 0.95 ? { light: mixCol(WHITE, 0xb3bcb7, 0.25 + kv * 0.75), water: 0x8fb3c4, air: 0xd9dee6, temp: mixCol(0x587284, 0x4e6878, kv), play: WHITE }[act.id] : WHITE;
     const lit = after && u < 0.95 && act.id !== "play";
     this.ledK = ease(this.ledK ?? 0.55, lit ? 1 : 0.55, 150);
     this.ledC = this.ledC == null ? ledCol : mixCol(this.ledC, ledCol, Math.min(1, dt / 120));
@@ -670,7 +670,7 @@ export class TutorialScene extends Phaser.Scene {
       };
       g.fillStyle(0xb9b4aa, 1);
       g.fillPoints(disc(r + 1, -1.5), true);
-      g.fillStyle(knobI ? 0x24344b : on && press ? 0xe4e1d9 : 0xf9f8f4, 1);
+      g.fillStyle(knobI ? 0x2e4350 : on && press ? 0xe4e1d9 : 0xf9f8f4, 1);
       g.fillPoints(disc(r), true);
       if (!knobI) {
         g.fillStyle(0xffffff, 0.8);
@@ -679,7 +679,7 @@ export class TutorialScene extends Phaser.Scene {
       g.lineStyle(on ? 2.5 : 1.5, on ? k.glow : 0xc9c5bb, 1);
       g.strokePoints(disc(r + 0.5), true);
       // simbolo del comando sul tasto (e tacca sulla manopola)
-      miniIcon(g, knobI ? "knob" + k.id : k.id, b.x, b.y, on ? k.glow : 0x8a99b0, on && knobI ? kv : 0.3);
+      miniIcon(g, knobI ? "knob" + k.id : k.id, b.x, b.y, on ? k.glow : 0x7d909f, on && knobI ? kv : 0.3);
     });
     // --- fila dei comandi grandi (come sul dispositivo)
     CTRL_ROW.forEach((k, i) => {
@@ -857,7 +857,7 @@ export class TutorialScene extends Phaser.Scene {
     m.fillRoundedRect(150, 140, 980, 500, 14);
     city.setMask(m.createGeometryMask());
     const street = this.add.graphics();
-    street.fillStyle(0xd5dae2, 1);
+    street.fillStyle(0xcdd2d0, 1);
     street.fillRoundedRect(150, 560, 980, 80, { tl: 0, tr: 0, bl: 14, br: 14 });
     this.bDash = this.add.graphics();
     dieFrames(this, this.op);
@@ -929,9 +929,9 @@ export class TutorialScene extends Phaser.Scene {
     const fainted = v <= 0 && tf > 2100;
     if (fainted) {
       // velo scuro e scritta, come il game over del gioco
-      g.fillStyle(0x1c2839, 0.45);
+      g.fillStyle(0x262b2c, 0.45);
       g.fillRoundedRect(150, 140, 980, 500, 14);
-      g.fillStyle(0xf4f5f7, 1);
+      g.fillStyle(0xe6e9e5, 1);
       g.fillRoundedRect(640 - 150, 330, 300, 64, 32);
     }
     this.faintTxt.setVisible(fainted);
@@ -950,11 +950,11 @@ export class TutorialScene extends Phaser.Scene {
     const x0 = VIEW.w / 2 - (segW * (LAST + 1) + 12 * LAST) / 2;
     for (let i = 0; i <= LAST; i++) {
       const sx = x0 + i * (segW + 12);
-      b.fillStyle(0xf4f5f7, 0.18);
+      b.fillStyle(0xe6e9e5, 0.18);
       b.fillRoundedRect(sx, 740, segW, 6, 3);
       const p = i < this.page ? 1 : i === this.page ? Math.min(1, this.t / pageMs(i)) : 0;
       if (p > 0.02) {
-        b.fillStyle(i === this.page ? 0xe2b33c : 0xf4f5f7, 1);
+        b.fillStyle(i === this.page ? 0x7d909f : 0xe6e9e5, 1);
         b.fillRoundedRect(sx, 740, Math.max(6, segW * p), 6, 3);
       }
     }
@@ -984,11 +984,12 @@ const MACHINE = {
   disp: ms(140, 0, 95) // centro del display
 };
 const CTRL_ROW = [
-  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0xe2b33c, cap: "Gira la manopola: più la giri, più luce. Il LED diventa giallo." },
+  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0x7d909f, cap: "Gira la manopola: più la giri, più luce. Il LED diventa giallo." },
   { id: "water", label: "ACQUA", x: 810, y: 380, glow: 0x3f8fe0, cap: "Premi una volta, in tempo: LED azzurro, nel gioco parte l'irrigazione." },
-  { id: "air", label: "ARIA", x: 920, y: 380, glow: 0x9aa7ba, cap: "Premi una volta, in tempo: LED bianco, nel gioco la ventola soffia aria pulita." },
-  { id: "play", label: "PLAY", x: 1030, y: 380, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
-  { id: "temp", label: "TEMP", x: 1150, y: 380, glow: 0xd0864f, cap: "Gira la manopola: il LED segue il colore scelto. Tieni tra 17 e 25 °C." }
+  // PLAY al centro, come sul dispositivo vero; ARIA subito dopo
+  { id: "play", label: "PLAY", x: 920, y: 380, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
+  { id: "air", label: "ARIA", x: 1030, y: 380, glow: 0x8c9893, cap: "Premi una volta, in tempo: LED bianco, nel gioco la ventola soffia aria pulita." },
+  { id: "temp", label: "TEMP", x: 1150, y: 380, glow: 0x4e6878, cap: "Gira la manopola: il LED segue il colore scelto. Tieni tra 17 e 25 °C." }
 ];
 
 // illustrazione vettoriale del dispositivo, come il prototipo: blocco bianco dagli spigoli
@@ -1052,7 +1053,7 @@ export function machineArt(scene) {
     X.fillStyle = "rgba(0,0,0,0.12)";
     X.fillRect(bx + lean * 0.4, by - h, w * 2, h);
     X.restore();
-    X.strokeStyle = "#D9C98F";
+    X.strokeStyle = "#B3BCB7";
     X.lineWidth = 1.6;
     X.stroke(path);
   };
@@ -1212,7 +1213,7 @@ export function machineArt(scene) {
   X.fill();
   X.fillStyle = "#4FA36E";
   X.fillRect(vx - 6, vy - 16, 12, 14);
-  X.fillStyle = "#B88A5A";
+  X.fillStyle = "#7D909F";
   X.fillRect(vx - 7, vy - 44, 14, 7);
   // display grande sul lato destro, con il gioco acceso (città di notte, luna, operatore)
   const d0 = P(38, 0, 30);
@@ -1238,7 +1239,7 @@ export function machineArt(scene) {
   X.translate(sx0, sy0);
   X.transform(1, MG.A[1] / MG.A[0], 0, 1, 0, 0);
   const sw = (L - 76) * MG.A[0];
-  X.fillStyle = "#E9ECF2";
+  X.fillStyle = "#E2E6E2";
   X.beginPath();
   X.arc(sw * 0.62, 18, 7, 0, 7);
   X.fill();
@@ -1252,13 +1253,13 @@ export function machineArt(scene) {
   X.fillStyle = "rgba(233,236,239,0.35)";
   [34, 46, 58].forEach((y) => X.fillRect(8, y, 60, 6));
   // operatore piccolino
-  X.fillStyle = "#9AA3AF";
+  X.fillStyle = "#8C9893";
   X.fillRect(sw * 0.66, 76, 8, 28);
   X.fillStyle = "#E8CFB8";
   X.beginPath();
   X.arc(sw * 0.66 + 4, 71, 5, 0, 7);
   X.fill();
-  X.fillStyle = "#E2B33C";
+  X.fillStyle = "#7D909F";
   X.fillRect(sw * 0.66, 78, 8, 3);
   X.restore();
   // incavi dei tasti in fila sopra il display (i tasti si accendono nell'animazione)
@@ -1306,31 +1307,31 @@ function drawCtrl(g, k, onK, pressed, t, knob) {
     for (let i = 0; i < 16; i++) {
       const a = -Math.PI * 1.25 + (i / 15) * Math.PI * 1.5;
       const u = i / 15;
-      const col = isL ? mixCol(0xb9b4aa, 0xf6c94c, 0.35 + u * 0.65) : Phaser.Display.Color.GetColor(Math.round(0x5f + (0xd0 - 0x5f) * u), Math.round(0x8f + (0x86 - 0x8f) * u), Math.round(0xd0 + (0x4f - 0xd0) * u));
-      g.fillStyle(u <= knob ? col : 0xd3dbe6, 1);
+      const col = isL ? mixCol(0xb9b4aa, 0xb3bcb7, 0.35 + u * 0.65) : Phaser.Display.Color.GetColor(Math.round(0x5f + (0xd0 - 0x5f) * u), Math.round(0x8f + (0x86 - 0x8f) * u), Math.round(0xd0 + (0x4f - 0xd0) * u));
+      g.fillStyle(u <= knob ? col : 0xc6ccc6, 1);
       g.fillCircle(x + Math.cos(a) * 60, y + Math.sin(a) * 60, 5);
     }
     g.fillStyle(0xd9d5cc, 1);
     g.fillCircle(x, y, 46);
-    g.fillStyle(0x24344b, 1);
+    g.fillStyle(0x2e4350, 1);
     g.fillCircle(x, y, 38);
     const a = -Math.PI * 1.25 + knob * Math.PI * 1.5;
-    g.lineStyle(6, isL ? 0xf6c94c : 0xd0864f, 1);
+    g.lineStyle(6, isL ? 0xb3bcb7 : 0x4e6878, 1);
     g.lineBetween(x + Math.cos(a) * 14, y + Math.sin(a) * 14, x + Math.cos(a) * 32, y + Math.sin(a) * 32);
     if (isL) {
       // piccolo sole al centro della manopola della luce
-      g.fillStyle(0xf6c94c, 0.35 + knob * 0.65);
+      g.fillStyle(0xb3bcb7, 0.35 + knob * 0.65);
       g.fillCircle(x - Math.cos(a) * 14, y - Math.sin(a) * 14, 4);
     }
     return;
   }
-  g.fillStyle(0x24344b, 0.12);
+  g.fillStyle(0x2e4350, 0.12);
   g.fillCircle(x, y + 4, 44);
   g.fillStyle(pressed ? 0xe4e1d9 : 0xf4f2ec, 1);
   g.fillCircle(x, y + (pressed ? 3 : 0), 44);
-  g.lineStyle(2 + 2 * lvl, mixCol(0xd3dbe6, glow, lvl), 1);
+  g.lineStyle(2 + 2 * lvl, mixCol(0xc6ccc6, glow, lvl), 1);
   g.strokeCircle(x, y + (pressed ? 3 : 0), 44);
-  const col = mixCol(0x9aa7ba, glow, lvl);
+  const col = mixCol(0x8c9893, glow, lvl);
   const cy = y + (pressed ? 3 : 0);
   if (k.id === "light") {
     g.fillStyle(col, 1);
@@ -1364,9 +1365,9 @@ function drawCtrl(g, k, onK, pressed, t, knob) {
 // mano del tutorial: indice teso (punta in x,y), solo mano e polsino (niente braccio lungo
 // che passa sopra le scritte)
 function drawHand(h, x, y, grip) {
-  h.fillStyle(0x9aa3af, 1);
+  h.fillStyle(0x8c9893, 1);
   h.fillRoundedRect(x - 2, y + 58, 40, 30, 8);
-  h.fillStyle(0xe2b33c, 1);
+  h.fillStyle(0x7d909f, 1);
   h.fillRect(x - 2, y + 56, 40, 7);
   h.fillStyle(0xd6b89e, 1);
   h.fillEllipse(x + 20, y + 42, 44, 36);
@@ -1424,7 +1425,7 @@ function potPlantArt(scene) {
       X.stroke();
     }
     X.restore();
-    X.strokeStyle = "#D9C98F";
+    X.strokeStyle = "#B3BCB7";
     X.lineWidth = 2;
     X.stroke(path);
   });
@@ -1489,7 +1490,7 @@ function miniIcon(g, id, x, y, col, knob = 0.3) {
   } else {
     // manopola: tacca che indica la posizione (arancio per la temperatura, gialla per la luce)
     const a = -Math.PI * 1.25 + knob * Math.PI * 1.5;
-    g.lineStyle(2.4, col === 0x8a99b0 ? (id === "knoblight" ? 0xf6c94c : 0xd0864f) : col, 1);
+    g.lineStyle(2.4, col === 0x7d909f ? (id === "knoblight" ? 0xb3bcb7 : 0x4e6878) : col, 1);
     g.lineBetween(x + Math.cos(a) * 3, y + Math.sin(a) * 3, x + Math.cos(a) * 10, y + Math.sin(a) * 10);
   }
 }
@@ -1513,7 +1514,7 @@ function screenArt(scene, id) {
   pts.forEach(([x, y], i) => (i ? X.lineTo(x, y) : X.moveTo(x, y)));
   X.closePath();
   X.clip();
-  const bg = { light: ["#5A4E2E", "#2A2A2A"], water: ["#264A73", "#16263D"], air: ["#3C4E66", "#1E2B40"], play: ["#3D5272", "#1E2B40"], temp: ["#6A3F2E", "#2A1F28"] }[id];
+  const bg = { light: ["#5A4E2E", "#2A2A2A"], water: ["#264A73", "#16263D"], air: ["#3C4E66", "#1E2B40"], play: ["#3D5272", "#1E2B40"], temp: ["#363A38", "#2A1F28"] }[id];
   const gr = X.createLinearGradient(0, pts[2][1], 0, pts[0][1]);
   gr.addColorStop(0, bg[0]);
   gr.addColorStop(1, bg[1]);
@@ -1529,11 +1530,11 @@ function screenArt(scene, id) {
     X.fillText(t, x, y);
   };
   if (id === "light") {
-    X.fillStyle = "#F6D36B";
+    X.fillStyle = "#E4E8E3";
     X.beginPath();
     X.arc(sw / 2, 48, 16, 0, 7);
     X.fill();
-    X.strokeStyle = "#F6D36B";
+    X.strokeStyle = "#E4E8E3";
     X.lineWidth = 4;
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
@@ -1572,7 +1573,7 @@ function screenArt(scene, id) {
     T("ventola attiva", sw / 2 - 52, 110, 11, "rgba(233,236,239,0.7)", "normal");
   } else if (id === "play") {
     // il gioco parte: città di notte, luna, operatore e START
-    X.fillStyle = "#E9ECF2";
+    X.fillStyle = "#E2E6E2";
     X.beginPath();
     X.arc(sw * 0.62, 18, 7, 0, 7);
     X.fill();
@@ -1588,7 +1589,7 @@ function screenArt(scene, id) {
     X.lineTo(32, 55);
     X.fill();
     T("START", 38, 61, 13, "#8FD0A6");
-    X.fillStyle = "#9AA3AF";
+    X.fillStyle = "#8C9893";
     X.fillRect(sw * 0.66, 76, 8, 28);
     X.fillStyle = "#E8CFB8";
     X.beginPath();
@@ -1598,8 +1599,8 @@ function screenArt(scene, id) {
     T("21.0°C", sw / 2 - 52, 62, 26);
     T("FUORI 12°C", sw / 2 - 42, 90, 12, "rgba(233,236,239,0.75)", "normal");
     const g2 = X.createLinearGradient(20, 0, sw - 20, 0);
-    g2.addColorStop(0, "#5F8FD0");
-    g2.addColorStop(1, "#D0864F");
+    g2.addColorStop(0, "#587284");
+    g2.addColorStop(1, "#4E6878");
     X.fillStyle = g2;
     X.fillRect(20, 102, sw - 40, 6);
     X.fillStyle = "#FFFFFF";
