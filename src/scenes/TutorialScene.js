@@ -6,6 +6,236 @@ import { careFrames, dieFrames, operatorKey, WALK_FRAMES } from "../art/people.j
 import { addHiRes } from "../art/hires.js";
 import { brackets, button, C, fadeIn, goTo, HEX, o2Hud, txt, VIEW } from "../ui/hud.js";
 import { plantNav } from "../input/plantNav.js";
+// ---------- il dispositivo O₂RIGIN di fronte, disegnato nello stile del gioco (vettoriale piatto,
+// palette del brand): corpo bianco dagli spigoli morbidi, vaschetta con le sansevierie zebrate,
+// cinque comandi sopra il display (manopola luce, acqua, play, aria, manopola temperatura),
+// display con il menu del gioco, scritta biodom+ e i due vasi laterali.
+// Coordinate di riferimento 407×346 (le stesse usate per gli aloni e il display).
+const DEVICE_MAP = {
+  w: 407,
+  h: 346,
+  ctrl: { light: [157, 164], water: [187, 164], play: [218, 164], air: [249, 164], temp: [281, 164] },
+  screen: [161, 189, 115, 89]
+};
+const POT_BOX = { L: [56, 150, 72, 186], R: [310, 150, 76, 186] };
+const DEV_S = 3;
+
+function devRnd(seed) {
+  let x = seed;
+  return () => (x = (x * 16807) % 2147483647) / 2147483647;
+}
+// foglia di sansevieria zebrata: lama lunga e appuntita, verde scuro con bande chiare ondulate
+function zebraLeaf(X, bx, by, tx, ty, w, rnd) {
+  const lean = (tx - bx) * 0.35;
+  const path = new Path2D();
+  path.moveTo(bx - w / 2, by);
+  path.quadraticCurveTo(bx - w / 2 + lean, (by + ty) / 2, tx, ty);
+  path.quadraticCurveTo(bx + w / 2 + lean, (by + ty) / 2, bx + w / 2, by);
+  path.closePath();
+  X.fillStyle = ["#2F5A3E", "#356243", "#3B6B4A", "#2A5238"][(rnd() * 4) | 0];
+  X.fill(path);
+  X.save();
+  X.clip(path);
+  X.strokeStyle = "#B7C9BC";
+  X.lineWidth = 1.4;
+  const ph = rnd() * 6;
+  const xa = Math.min(bx, tx) - w;
+  const xb = Math.max(bx, tx) + w;
+  for (let y = by - 4; y > ty; y -= 5.2) {
+    X.beginPath();
+    for (let x = xa; x <= xb; x += 2) {
+      const yy = y + Math.sin(x * 0.9 + ph + y * 0.3) * 1.3;
+      if (x === xa) X.moveTo(x, yy);
+      else X.lineTo(x, yy);
+    }
+    X.stroke();
+  }
+  // ombra sul lato destro della lama
+  X.fillStyle = "rgba(20,34,30,0.25)";
+  X.beginPath();
+  X.moveTo(bx + 0.5, by);
+  X.quadraticCurveTo(bx + 0.5 + lean, (by + ty) / 2, tx, ty);
+  X.quadraticCurveTo(bx + w / 2 + lean, (by + ty) / 2, bx + w / 2, by);
+  X.fill();
+  X.restore();
+}
+function leafTuft(X, x0, x1, by, topMin, topMax, n, seed, spread = 26) {
+  const rnd = devRnd(seed);
+  const mid = (x0 + x1) / 2;
+  const leaves = [];
+  for (let i = 0; i < n; i++) {
+    const bx = x0 + rnd() * (x1 - x0);
+    const centre = 1 - Math.abs(bx - mid) / ((x1 - x0) / 2);
+    leaves.push({ bx, tx: bx + (rnd() - 0.5) * spread + (bx - mid) * 0.45, ty: topMax + (1 - centre * 0.5 - rnd() * 0.5) * (topMin - topMax), w: 11 + rnd() * 7 });
+  }
+  // prima le foglie più alte (dietro), poi le più basse (davanti)
+  leaves.sort((a, b) => a.ty - b.ty).forEach((l) => zebraLeaf(X, l.bx, by, l.tx, l.ty, l.w, rnd));
+}
+function drawPot(X, side) {
+  const L = side === "L";
+  const x0 = L ? 74 : 316;
+  const x1 = L ? 124 : 366;
+  leafTuft(X, x0 + 6, x1 - 6, 272, 212, 160, 15, L ? 7 : 11, 24);
+  // ombra a terra
+  X.fillStyle = "rgba(38,43,44,0.12)";
+  X.beginPath();
+  X.ellipse((x0 + x1) / 2 + (L ? 0 : 6), 331, (x1 - x0) / 2 + 6, 4, 0, 0, 7);
+  X.fill();
+  // vaso bianco dal fronte tondo
+  X.fillStyle = "#E9EBE7";
+  X.beginPath();
+  X.roundRect(x0, 268, x1 - x0, 62, [4, 4, 14, 14]);
+  X.fill();
+  X.fillStyle = "#D8DBD7";
+  X.fillRect(L ? x0 + 2 : x1 - 12, 274, 10, 50);
+  X.fillStyle = "#4A4440";
+  X.fillRect(x0 + 3, 266, x1 - x0 - 6, 4);
+}
+function drawDevice(X) {
+  drawPot(X, "L");
+  drawPot(X, "R");
+  // piante della vaschetta in cima
+  leafTuft(X, 140, 302, 142, 62, 2, 52, 3, 40);
+  // ombra a terra
+  X.fillStyle = "rgba(38,43,44,0.16)";
+  X.beginPath();
+  X.ellipse(219, 331, 104, 6, 0, 0, 7);
+  X.fill();
+  // corpo
+  X.fillStyle = "#EEEFEB";
+  X.beginPath();
+  X.roundRect(122, 138, 194, 192, [6, 6, 18, 18]);
+  X.fill();
+  // fianchi in leggera ombra (uguali: il dispositivo è simmetrico) e base curva più scura
+  X.fillStyle = "#E2E4E0";
+  X.fillRect(122, 146, 9, 160);
+  X.fillRect(307, 146, 9, 160);
+  X.fillStyle = "#D7DAD5";
+  X.beginPath();
+  X.roundRect(122, 304, 194, 26, [0, 0, 18, 18]);
+  X.fill();
+  // bordo della vaschetta con la terra
+  X.fillStyle = "#4A4440";
+  X.fillRect(128, 136, 182, 7);
+  X.fillStyle = "#F6F7F4";
+  X.fillRect(122, 143, 194, 3);
+  // comandi
+  Object.entries(DEVICE_MAP.ctrl).forEach(([id, [x, y]]) => {
+    const knob = id === "light" || id === "temp";
+    X.fillStyle = "#C9CCC7";
+    X.beginPath();
+    X.arc(x, y + 1, knob ? 9.5 : 8.5, 0, 7);
+    X.fill();
+    X.fillStyle = id === "play" ? "#CFDCD3" : "#F7F8F5";
+    X.beginPath();
+    X.arc(x, y, knob ? 8.5 : 7.5, 0, 7);
+    X.fill();
+    if (knob) {
+      X.strokeStyle = "#2E4350";
+      X.lineWidth = 2.2;
+      X.beginPath();
+      X.arc(x, y, 7.4, 0, 7);
+      X.stroke();
+      const a = id === "light" ? -2.3 : -0.8;
+      X.lineWidth = 2;
+      X.beginPath();
+      X.moveTo(x, y);
+      X.lineTo(x + Math.cos(a) * 6, y + Math.sin(a) * 6);
+      X.stroke();
+    } else {
+      X.strokeStyle = id === "play" ? "#9DB7A6" : "#D3D6D1";
+      X.lineWidth = 1.2;
+      X.beginPath();
+      X.arc(x, y, 7, 0, 7);
+      X.stroke();
+    }
+  });
+  // display: cornice grigia e il menu del gioco in miniatura
+  const [sx, sy, sw, sh] = DEVICE_MAP.screen;
+  X.fillStyle = "#5B6163";
+  X.beginPath();
+  X.roundRect(sx - 5, sy - 5, sw + 10, sh + 10, 9);
+  X.fill();
+  X.fillStyle = "#C6CCC6";
+  X.beginPath();
+  X.roundRect(sx, sy, sw, sh, 5);
+  X.fill();
+  X.save();
+  X.beginPath();
+  X.roundRect(sx, sy, sw, sh, 5);
+  X.clip();
+  // città con il Duomo
+  X.fillStyle = "#A9B3AE";
+  [[sx + 52, 34], [sx + 64, 24], [sx + 96, 40], [sx + 106, 28]].forEach(([x, h]) => X.fillRect(x, sy + sh - 16 - h, 11, h));
+  X.fillStyle = "#587284";
+  X.fillRect(sx + 72, sy + sh - 40, 26, 24);
+  X.beginPath();
+  X.moveTo(sx + 72, sy + sh - 40);
+  X.lineTo(sx + 85, sy + sh - 52);
+  X.lineTo(sx + 98, sy + sh - 40);
+  X.fill();
+  X.fillRect(sx + 84, sy + sh - 64, 2, 14);
+  X.fillStyle = "#D7DBD6";
+  X.fillRect(sx, sy + sh - 16, sw, 16);
+  // velo chiaro a sinistra con il titolo e le voci
+  X.fillStyle = "rgba(230,233,229,0.92)";
+  X.fillRect(sx, sy, sw * 0.46, sh);
+  X.fillStyle = "#2E4350";
+  X.font = "700 9px Helvetica, Arial, sans-serif";
+  X.fillText("O₂RIGIN", sx + 6, sy + 24);
+  X.fillRect(sx + 6, sy + 33, 36, 6);
+  X.fillStyle = "#7D909F";
+  X.fillRect(sx + 6, sy + 45, 28, 2);
+  X.fillRect(sx + 6, sy + 52, 22, 2);
+  // operatore sulla strada
+  X.fillStyle = "#2E4350";
+  X.fillRect(sx + 102, sy + sh - 32, 4, 16);
+  X.beginPath();
+  X.arc(sx + 104, sy + sh - 35, 2.6, 0, 7);
+  X.fill();
+  X.restore();
+  // scritta biodom+
+  X.fillStyle = "#2E4350";
+  X.font = "500 10px Helvetica, Arial, sans-serif";
+  X.textAlign = "center";
+  X.fillText("biodom", 216, 312);
+  const bw2 = X.measureText("biodom").width;
+  X.font = "500 8px Helvetica, Arial, sans-serif";
+  X.fillText("+", 216 + bw2 / 2 + 3, 306);
+  X.textAlign = "left";
+}
+function deviceArt(scene) {
+  const key = "tut_device1";
+  if (scene.textures.exists(key)) return key;
+  const c = document.createElement("canvas");
+  c.width = DEVICE_MAP.w * DEV_S;
+  c.height = DEVICE_MAP.h * DEV_S;
+  const X = c.getContext("2d");
+  X.scale(DEV_S, DEV_S);
+  drawDevice(X);
+  c._filmOpts = { keepHue: [[90, 170]] }; // il verde delle sansevierie resta verde
+  addHiRes(scene, key, c, DEV_S);
+  return key;
+}
+// un vaso laterale da solo (pagina 1: pianta di sinistra / di destra)
+function sidePotArt(scene, side) {
+  const key = `tut_sidepot1_${side}`;
+  if (scene.textures.exists(key)) return key;
+  const [bx, by, bw, bh] = POT_BOX[side];
+  const c = document.createElement("canvas");
+  c.width = bw * DEV_S;
+  c.height = bh * DEV_S;
+  const X = c.getContext("2d");
+  X.scale(DEV_S, DEV_S);
+  X.translate(-bx, -by);
+  drawPot(X, side);
+  c._filmOpts = { keepHue: [[90, 170]] };
+  addHiRes(scene, key, c, DEV_S);
+  return key;
+}
+// dispositivo nella pagina dei comandi: posizione e scala
+const PH = { x: 64, y: 176, s: 1.42 };
+const ph = (x, y) => ({ x: PH.x + x * PH.s, y: PH.y + y * PH.s });
 
 // tutorial senza testo: quattro "schermate video" animate che scorrono da sole,
 // come le storie sul telefono. Si capisce tutto dalle immagini:
@@ -237,7 +467,7 @@ export class TutorialScene extends Phaser.Scene {
   // simbolo grande in alto: cosa insegna la pagina (+O₂ / −O₂ / ◀ ● ▶ / respiro)
   badge(label, caption) {
     // capitolo · titolo · spiegazione, come il menu: piccolo numero giallo, titolo chiaro
-    const kick = txt(this, VIEW.w / 2, 30, `PRIMA DI USCIRE · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#7D909F", origin: 0.5 });
+    const kick = txt(this, VIEW.w / 2, 30, `TUTORIAL · ${String(this.page + 1).padStart(2, "0")} / ${String(LAST + 1).padStart(2, "0")}`, { size: 14, color: "#7D909F", origin: 0.5 });
     const title = txt(this, VIEW.w / 2, 66, label, { size: 36, weight: "700", color: "#E6E9E5", origin: 0.5 });
     this.layer.add([kick, title]);
     if (caption) this.layer.add(txt(this, VIEW.w / 2, 104, caption, { size: 17, color: "#B8C6D6", origin: 0.5 }));
@@ -349,11 +579,12 @@ export class TutorialScene extends Phaser.Scene {
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
     // due piante vere: toccare quella di sinistra fa andare a sinistra, quella di destra a destra
-    this.plantL = this.add.image(180, 590, potPlantArt(this)).setOrigin(0.5, 1).setScale(0.66);
-    this.plantR = this.add.image(400, 590, potPlantArt(this)).setOrigin(0.5, 1).setScale(0.66);
+    // i due vasi ai lati del dispositivo, disegnati nello stile del gioco
+    this.plantL = this.add.image(180, 620, sidePotArt(this, "L")).setOrigin(0.5, 1).setScale(2);
+    this.plantR = this.add.image(400, 620, sidePotArt(this, "R")).setOrigin(0.5, 1).setScale(2);
     this.layer.add([this.plantL, this.plantR]);
-    this.layer.add(txt(this, 180, 330, "◀ SINISTRA", { size: 15, color: HEX.c3, origin: 0.5 }));
-    this.layer.add(txt(this, 400, 330, "DESTRA ▶", { size: 15, color: HEX.c3, origin: 0.5 }));
+    this.layer.add(txt(this, 180, 220, "◀ SINISTRA", { size: 15, color: HEX.c3, origin: 0.5 }));
+    this.layer.add(txt(this, 400, 220, "DESTRA ▶", { size: 15, color: HEX.c3, origin: 0.5 }));
     // cartellino sotto il vaso: quale foglia si sta toccando
     this.leafTag = txt(this, 290, 626, "", { size: 20, origin: 0.5 });
     this.layer.add(this.leafTag);
@@ -387,7 +618,7 @@ export class TutorialScene extends Phaser.Scene {
     const touching = tt > 500 && tt < PAGE_MS / 2 - 400;
     const g = this.moveG;
     g.clear();
-    const leaf = right ? [406, 420] : [186, 420];
+    const leaf = right ? [404, 380] : [176, 380];
     // la pianta toccata si piega un poco e si illumina
     const pressed = right ? this.plantR : this.plantL;
     const other = right ? this.plantL : this.plantR;
@@ -453,17 +684,27 @@ export class TutorialScene extends Phaser.Scene {
   pageControls() {
     this.badge("PRENDITI CURA DI LEI", "QUANDO LA PIANTA HA BISOGNO DI TE, IL SUO COMANDO SI ACCENDE");
     this.card(40, 140, VIEW.w - 80, 560);
-    this.layer.add(this.add.image(MG.ox, MG.oy, machineArt(this)).setOrigin(0).setScale(MG.k));
-    // lo schermo della macchina reagisce al comando usato (una schermata per comando)
+    // il dispositivo O₂RIGIN di fronte (stile del gioco); il display mostra il comando usato
     this.screens = {};
-    CTRL_ROW.forEach((k) => {
-      const im = this.add.image(MG.ox, MG.oy, screenArt(this, k.id)).setOrigin(0).setScale(MG.k).setVisible(false);
-      this.screens[k.id] = im;
-      this.layer.add(im);
-    });
+    const km = deviceArt(this);
+    this.photo = true;
+    if (km) {
+      this.layer.add(this.add.image(PH.x, PH.y, km).setOrigin(0).setScale(PH.s));
+      const [sx, sy, sw, sh] = DEVICE_MAP.screen;
+      const a = ph(sx, sy);
+      this.scrLabel = txt(this, a.x + (sw * PH.s) / 2, a.y + sh * PH.s * 0.74, "", { size: 15, weight: "500", color: "#E6E9E5", origin: 0.5 }).setDepth(5);
+    } else {
+      this.layer.add(this.add.image(MG.ox, MG.oy, machineArt(this)).setOrigin(0).setScale(MG.k));
+      CTRL_ROW.forEach((k) => {
+        const im = this.add.image(MG.ox, MG.oy, screenArt(this, k.id)).setOrigin(0).setScale(MG.k).setVisible(false);
+        this.screens[k.id] = im;
+        this.layer.add(im);
+      });
+    }
     const g = this.add.graphics();
     const hand = this.add.graphics();
     this.layer.add([g, hand]);
+    if (this.scrLabel) this.layer.add(this.scrLabel);
     // nome del comando SOPRA i tasti, descrizione SOTTO
     const name = txt(this, 925, 250, "", { size: 34, weight: "500", origin: 0.5 });
     const cap = txt(this, 925, 560, "", { size: 19, color: HEX.c3, origin: 0.5, align: "center", wrap: 520 });
@@ -601,7 +842,52 @@ export class TutorialScene extends Phaser.Scene {
     const lit = after && u < 0.95 && act.id !== "play";
     this.ledK = ease(this.ledK ?? 0.55, lit ? 1 : 0.55, 150);
     this.ledC = this.ledC == null ? ledCol : mixCol(this.ledC, ledCol, Math.min(1, dt / 120));
-    {
+    if (this.photo) {
+      // sul dispositivo: alone attorno al comando acceso e display che mostra il comando
+      CTRL_ROW.forEach((k, i) => {
+        const gk = this.glowK[i];
+        if (gk < 0.02) return;
+        const p = ph(...DEVICE_MAP.ctrl[k.id]);
+        g.fillStyle(k.glow, gk * (0.18 + 0.1 * Math.sin(t / 120)));
+        g.fillCircle(p.x, p.y, 24);
+        g.lineStyle(3, k.glow, gk);
+        g.strokeCircle(p.x, p.y, 17);
+      });
+      const [sx, sy, sw, sh] = DEVICE_MAP.screen;
+      const a = ph(sx, sy);
+      const W = sw * PH.s;
+      const Hh = sh * PH.s;
+      this.scrK = ease(this.scrK ?? 0, after && u < 0.97 ? 1 : 0, 160);
+      if (this.scrK > 0.01) {
+        g.fillStyle(0x2e4350, this.scrK);
+        g.fillRoundedRect(a.x, a.y, W, Hh, 8);
+        const big = { x: a.x + W / 2, y: a.y + Hh * 0.4 };
+        // simbolo del comando in grande al centro del display
+        const gg = g;
+        gg.fillStyle(0xe6e9e5, this.scrK);
+        gg.lineStyle(4, 0xe6e9e5, this.scrK);
+        if (act.id === "play") gg.fillTriangle(big.x - 10, big.y - 16, big.x - 10, big.y + 16, big.x + 16, big.y);
+        else if (act.id === "water") {
+          gg.fillCircle(big.x, big.y + 6, 11);
+          gg.fillTriangle(big.x - 10.4, big.y + 2, big.x + 10.4, big.y + 2, big.x, big.y - 19);
+        } else if (act.id === "air") {
+          gg.lineBetween(big.x - 18, big.y - 9, big.x + 11, big.y - 9);
+          gg.lineBetween(big.x - 18, big.y, big.x + 18, big.y);
+          gg.lineBetween(big.x - 18, big.y + 9, big.x + 5, big.y + 9);
+        } else {
+          // manopola: arco e tacca che gira
+          gg.lineStyle(4, 0xe6e9e5, 0.35 * this.scrK);
+          gg.beginPath();
+          gg.arc(big.x, big.y, 16, -Math.PI * 1.25, Math.PI * 0.25, false);
+          gg.strokePath();
+          gg.lineStyle(4, 0xe6e9e5, this.scrK);
+          gg.beginPath();
+          gg.arc(big.x, big.y, 16, -Math.PI * 1.25, -Math.PI * 1.25 + Math.max(0.05, kv) * Math.PI * 1.5, false);
+          gg.strokePath();
+        }
+        this.scrLabel.setText(label).setAlpha(this.scrK);
+      } else this.scrLabel.setAlpha(0);
+    } else {
       const H0 = MG.H + 1;
       // anello rotondo sul coperchio, attorno alla vaschetta (in prospettiva diventa un'ellisse);
       // la metà dietro le piante è coperta dalle foglie, quindi appena accennata
@@ -645,9 +931,9 @@ export class TutorialScene extends Phaser.Scene {
       draw(back, 0.25);
       draw(front, 1);
     }
-    // tasto illuminato anche sulla macchina
+    // tasto illuminato anche sulla macchina (solo nel disegno vettoriale; sulla foto c'è l'alone)
     // i tasti della macchina: chiari, quello attivo acceso col suo colore
-    M.btn.forEach((b, i) => {
+    if (!this.photo) M.btn.forEach((b, i) => {
       const k = CTRL_ROW[i];
       const on = i === idx;
       const gk = this.glowK[i];
