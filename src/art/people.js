@@ -568,12 +568,16 @@ function side(T, ph, o) {
 const COATS = ["#2F3D52", "#46566E", "#6E7B8E", "#9AA3AF", "#C3C6CA", "#DEDAD1", "#ECE8DF", "#BCA88A"];
 const SKINS = { light: ["#EED9C6", "#E2C4AA"], mid: ["#C99A76", "#B4835F"], dark: ["#93684A", "#7C553A"] };
 const HAIRS = ["#24252B", "#3B2E28", "#6A4C38", "#D9C597", "#E6E1D6"];
-const YELLOW = "#4E6878"; // sciarpa: ardesia scura (niente giallo, solo palette del brand)
-const YELLOW_D = "#3F5866";
+const YELLOW = "#2E4350"; // sciarpa: blu petrolio (niente giallo, solo palette del brand)
+const YELLOW_D = "#263845";
 const SHOE = "#1F2733";
 const darker = (h, k = 0.18) => {
   const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   return "#" + c.map((v) => Math.round(v * (1 - k)).toString(16).padStart(2, "0")).join("");
+};
+const lighter = (h, k = 0.18) => {
+  const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return "#" + c.map((v) => Math.round(v + (255 - v) * k).toString(16).padStart(2, "0")).join("");
 };
 // zaino BIONOMAD: capsula bianca con la cupola di vetro azzurro e la piantina verde (agave)
 function packFlat(X, px, py, a = 0, walking = false) {
@@ -677,22 +681,45 @@ function figure(T, ph, o) {
     if (crouch) solve(hip[0] + 4 * crouch, hip[1] + 40 * crouch, 60 + (s ? -8 : 6) - 10 * crouch);
     if (sit) solve(hip0[0] - 4 * sit, hip0[1] + 36 * sit, hip0[0] + (s ? 30 : 36) * sit + (1 - sit) * (s ? -2 : 4));
     const c = front ? legC : darker(legC, 0.25);
+    // pantalone affusolato: coscia più piena, caviglia sottile, piega di luce sul davanti
     X.strokeStyle = c;
-    X.lineWidth = 7;
+    X.lineWidth = 8;
     X.beginPath();
     X.moveTo(hip[0], hip[1]);
     X.lineTo(kx, ky);
+    X.stroke();
+    X.lineWidth = 6.5;
+    X.beginPath();
+    X.moveTo(kx, ky);
     X.lineTo(fx, fy - 3);
     X.stroke();
-    // scarpa a punta arrotondata
+    X.strokeStyle = lighter(c, front ? 0.16 : 0.08);
+    X.lineWidth = 1.1;
+    X.beginPath();
+    X.moveTo(hip[0] + 2.5, hip[1] + 2);
+    X.lineTo(kx + 2.5, ky);
+    X.lineTo(fx + 2.2, fy - 5);
+    X.stroke();
+    // orlo del pantalone sulla scarpa
+    X.strokeStyle = darker(c, 0.2);
+    X.lineWidth = 2;
+    X.beginPath();
+    X.moveTo(fx - 3.5, fy - 4);
+    X.lineTo(fx + 3.5, fy - 4);
+    X.stroke();
+    // scarpa: tomaia con riflesso, suola chiara, tacco
     X.fillStyle = front ? SHOE : darker(SHOE, 0.2);
     X.beginPath();
-    X.moveTo(fx - 5, fy + 3);
+    X.moveTo(fx - 5, fy + 2.5);
     X.lineTo(fx - 5, fy - 5);
-    X.quadraticCurveTo(fx + 6, fy - 6, fx + 12, fy);
-    X.lineTo(fx + 12, fy + 3);
+    X.quadraticCurveTo(fx + 5, fy - 6.5, fx + 11, fy - 1);
+    X.quadraticCurveTo(fx + 13.5, fy + 0.5, fx + 12.5, fy + 2.5);
     X.closePath();
     X.fill();
+    X.fillStyle = front ? "#8C9893" : "#6F7A78";
+    X.fillRect(fx - 5.5, fy + 2, 18.5, 1.8);
+    X.fillStyle = "rgba(230,233,229,0.35)";
+    X.fillRect(fx + 3, fy - 4.2, 4.5, 1.1);
   };
   const arm = (s, front) => {
     const sw = walking ? -Math.sin(a + s) : 0;
@@ -732,16 +759,46 @@ function figure(T, ph, o) {
       hx += (44 + tap * 0.5 - hx) * r;
       hy += (70 + tap - bob - hy) * r;
     }
-    X.strokeStyle = front ? coat : darker(coat, 0.2);
-    X.lineWidth = o.garment === "parka" ? 9 : o.garment === "kurta" ? 6 : 7;
+    const sc = front ? coat : darker(coat, 0.2);
+    const aw = o.garment === "parka" ? 9 : o.garment === "kurta" ? 6 : 7.5;
+    X.strokeStyle = sc;
+    X.lineWidth = aw;
     X.beginPath();
     X.moveTo(sh[0], sh[1]);
     X.lineTo(ex, ey);
     X.lineTo(hx, hy);
     X.stroke();
-    X.fillStyle = front ? sk[0] : sk[1];
+    // piega d'ombra sul lato della manica e gomito
+    X.strokeStyle = darker(sc, 0.14);
+    X.lineWidth = 1.6;
     X.beginPath();
-    X.arc(hx, hy + 1, 3.6, 0, 7);
+    X.moveTo(sh[0] - 2, sh[1] + 4);
+    X.lineTo(ex - 2.5, ey);
+    X.lineTo(hx - 2.2, hy - 3);
+    X.stroke();
+    // polsino
+    const ang = Math.atan2(hy - ey, hx - ex);
+    const ux = Math.cos(ang);
+    const uy = Math.sin(ang);
+    X.strokeStyle = darker(sc, 0.22);
+    X.lineWidth = 2.2;
+    X.beginPath();
+    X.moveTo(hx - ux * 2 - uy * (aw / 2), hy - uy * 2 + ux * (aw / 2));
+    X.lineTo(hx - ux * 2 + uy * (aw / 2), hy - uy * 2 - ux * (aw / 2));
+    X.stroke();
+    // mano: palmo allungato nel verso dell'avambraccio, pollice e un tono d'ombra
+    const hc = front ? sk[0] : sk[1];
+    X.fillStyle = hc;
+    X.beginPath();
+    X.ellipse(hx + ux * 3.2, hy + uy * 3.2, 4.4, 3.1, ang, 0, 7);
+    X.fill();
+    X.fillStyle = darker(hc, 0.1);
+    X.beginPath();
+    X.ellipse(hx + ux * 4 - uy * 1.6, hy + uy * 4 + ux * 1.6, 2.6, 1.4, ang, 0, 7);
+    X.fill();
+    X.fillStyle = hc;
+    X.beginPath();
+    X.ellipse(hx + ux * 2 + uy * 2.6, hy + uy * 2 - ux * 2.6, 2.2, 1.3, ang - 0.6, 0, 7);
     X.fill();
   };
   if (walking) {
@@ -790,16 +847,55 @@ function figure(T, ph, o) {
   X.lineTo(47 - puff, cy + 12);
   X.quadraticCurveTo(47 - puff, cy + 1, 52 - puff, cy);
   X.fill();
-  // piega d'ombra sul retro
-  X.fillStyle = darker(coat, 0.12);
-  X.fillRect(47 - puff, cy + 14, 6, 26 + long);
+  // volume: luce sul davanti, ombra sul retro, pieghe morbide verso l'orlo
+  X.save();
+  X.clip();
+  X.fillStyle = darker(coat, 0.13);
+  X.fillRect(44 - puff, cy, 10, 60 + long);
+  X.fillStyle = lighter(coat, 0.12);
+  X.fillRect(73 + puff, cy + 8, 9, 60 + long);
+  X.strokeStyle = darker(coat, 0.1);
+  X.lineWidth = 1.2;
+  [[58, 0.0], [66, 0.5]].forEach(([x0, k]) => {
+    X.beginPath();
+    X.moveTo(x0, cy + 44 + long * 0.2);
+    X.quadraticCurveTo(x0 - 1 + k, cy + 40 + long * 0.7, x0 - 3 + k * 2, cy + 40 + long);
+    X.stroke();
+  });
+  // orlo più scuro
+  X.fillStyle = darker(coat, 0.16);
+  X.fillRect(44 - puff, cy + 38 + long, 40, 3);
+  X.restore();
   if (garment === "trench") {
-    // cintura annodata e revers
-    X.fillStyle = darker(coat, 0.2);
-    X.fillRect(47, cy + 34, 33, 4);
-    X.fillRect(70, cy + 36, 3, 9);
+    // bavero con il revers a punta, doppia fila di bottoni, cintura con fibbia, tasca con patta
+    X.fillStyle = lighter(coat, 0.1);
+    X.beginPath();
+    X.moveTo(66, cy + 1);
+    X.lineTo(76, cy + 2);
+    X.lineTo(73, cy + 16);
+    X.lineTo(70, cy + 11);
+    X.closePath();
+    X.fill();
+    X.strokeStyle = darker(coat, 0.18);
+    X.lineWidth = 1;
+    X.stroke();
+    X.fillStyle = darker(coat, 0.3);
+    [[72.5, cy + 22], [72.5, cy + 29], [69, cy + 22], [69, cy + 29]].forEach(([bx, by]) => {
+      X.beginPath();
+      X.arc(bx, by, 1.1, 0, 7);
+      X.fill();
+    });
+    X.fillStyle = darker(coat, 0.22);
+    X.fillRect(46, cy + 34, 34, 4);
+    X.fillStyle = lighter(coat, 0.25);
+    X.fillRect(71, cy + 33.5, 4, 5);
+    X.fillStyle = darker(coat, 0.22);
+    X.fillRect(72.2, cy + 34.7, 1.6, 2.6);
+    X.fillRect(70, cy + 37, 2.5, 10);
+    X.fillStyle = darker(coat, 0.1);
+    X.fillRect(62, cy + 46, 11, 2.5);
     X.strokeStyle = darker(coat, 0.16);
-    X.lineWidth = 1.2;
+    X.lineWidth = 1.1;
     X.beginPath();
     X.moveTo(70, cy + 2);
     X.lineTo(74, cy + 30);
@@ -863,9 +959,21 @@ function figure(T, ph, o) {
   X.ellipse(hx, hy, 9, 10.5, 0, 0, 7);
   X.fill();
   X.beginPath();
-  X.moveTo(hx + 7, hy - 2);
-  X.lineTo(hx + 11, hy + 2);
-  X.lineTo(hx + 7, hy + 4);
+  X.moveTo(hx + 7, hy - 2.5);
+  X.quadraticCurveTo(hx + 11.5, hy + 1.5, hx + 7.5, hy + 3.5);
+  X.fill();
+  // guancia in ombra verso la nuca e orecchio
+  X.fillStyle = sk[1];
+  X.beginPath();
+  X.ellipse(hx - 4, hy + 3, 5, 6.5, 0, 0, 7);
+  X.fill();
+  X.fillStyle = sk[0];
+  X.beginPath();
+  X.ellipse(hx + 1.5, hy, 7.6, 9.6, 0, 0, 7);
+  X.fill();
+  X.fillStyle = darker(sk[1], 0.06);
+  X.beginPath();
+  X.ellipse(hx - 2.5, hy + 1, 2.4, 3.2, 0, 0, 7);
   X.fill();
   // capelli
   X.fillStyle = hairC;
@@ -878,6 +986,13 @@ function figure(T, ph, o) {
   X.lineTo(hx - 4, hy + 4);
   X.closePath();
   X.fill();
+  // riflesso tra i capelli
+  X.strokeStyle = lighter(hairC, 0.22);
+  X.lineWidth = 1.1;
+  X.beginPath();
+  X.moveTo(hx - 7, hy - 6);
+  X.quadraticCurveTo(hx - 2, hy - 11, hx + 5, hy - 8);
+  X.stroke();
   if (hair === "long") poly([[hx - 10, hy - 2], [hx - 3, hy], [hx - 4, hy + 18], [hx - 13, hy + 18]], hairC);
   if (hair === "bun") {
     X.beginPath();
@@ -923,29 +1038,71 @@ function figure(T, ph, o) {
     X.closePath();
     X.fill();
   }
-  // occhio
+  // occhio e sopracciglio
   X.fillStyle = "#1E2430";
-  X.fillRect(hx + 4, hy - 2, 2, 2);
+  X.beginPath();
+  X.ellipse(hx + 5, hy - 1, 1.1, 1.4, 0, 0, 7);
+  X.fill();
+  X.strokeStyle = darker(hairC, 0.05);
+  X.lineWidth = 1;
+  X.beginPath();
+  X.moveTo(hx + 3, hy - 4.2);
+  X.lineTo(hx + 7, hy - 4.6);
+  X.stroke();
   if (o.mask === false) return;
   // respiratore: mascherina chiara con il filtro, tubo sopra la spalla fino allo zaino
-  X.fillStyle = "#D6DAE0";
+  // elastico verso l'orecchio
+  X.strokeStyle = "#3A4A55";
+  X.lineWidth = 1.2;
+  X.beginPath();
+  X.moveTo(hx + 3, hy + 4);
+  X.lineTo(hx - 2.5, hy + 0.5);
+  X.stroke();
+  // coppa del respiratore: chiara con bordo scuro e ombra sotto
+  X.fillStyle = "#E1E5E2";
   X.beginPath();
   X.moveTo(hx + 2, hy + 2);
-  X.quadraticCurveTo(hx + 10, hy, hx + 13, hy + 4);
-  X.quadraticCurveTo(hx + 13, hy + 10, hx + 6, hy + 11);
-  X.quadraticCurveTo(hx + 1, hy + 10, hx + 2, hy + 2);
+  X.quadraticCurveTo(hx + 10, hy - 0.5, hx + 13, hy + 4);
+  X.quadraticCurveTo(hx + 13.5, hy + 10.5, hx + 6, hy + 11.5);
+  X.quadraticCurveTo(hx + 1, hy + 10.5, hx + 2, hy + 2);
   X.fill();
-  X.fillStyle = "#8D99AA";
+  X.strokeStyle = "#8C9893";
+  X.lineWidth = 1;
+  X.stroke();
+  X.fillStyle = "rgba(46,67,80,0.18)";
   X.beginPath();
-  X.arc(hx + 12, hy + 7, 3, 0, 7);
+  X.ellipse(hx + 6, hy + 9, 5, 2, 0, 0, 7);
   X.fill();
+  // filtro tondo con la ghiera e le fessure
+  X.fillStyle = "#4E6878";
+  X.beginPath();
+  X.arc(hx + 12, hy + 7, 3.6, 0, 7);
+  X.fill();
+  X.fillStyle = "#7D909F";
+  X.beginPath();
+  X.arc(hx + 12, hy + 7, 2.4, 0, 7);
+  X.fill();
+  X.strokeStyle = "#2E4350";
+  X.lineWidth = 0.7;
+  X.beginPath();
+  X.moveTo(hx + 10.5, hy + 6.2);
+  X.lineTo(hx + 13.5, hy + 6.2);
+  X.moveTo(hx + 10.5, hy + 7.8);
+  X.lineTo(hx + 13.5, hy + 7.8);
+  X.stroke();
   if (o.pack !== false) {
-    X.strokeStyle = "#AEB6C2";
-    X.lineWidth = 2.5;
+    // tubo corrugato: base più scura e anelli chiari
+    X.strokeStyle = "#7D909F";
+    X.lineWidth = 3;
     X.beginPath();
     X.moveTo(37, 69 - bob);
     X.bezierCurveTo(34, 50 - bob, 54, 56 - bob, hx + 6, hy + 11);
     X.stroke();
+    X.strokeStyle = "#C6CCC6";
+    X.lineWidth = 1.6;
+    X.setLineDash([1.4, 1.6]);
+    X.stroke();
+    X.setLineDash([]);
   }
 }
 
@@ -1211,7 +1368,12 @@ export const SS = 2;
 function sideFrame(w, h, k, ph, o) {
   return finish(paint(w * SS, h * SS, k * SS, (T) => figure(T, ph, o), { seedValue: 11, cell: 1, raw: true }), { rim: false, outline: false, pad: 3 * SS });
 }
-const addHi = (scene, key, canvas) => addHiRes(scene, key, canvas, SS);
+// i personaggi sono già disegnati con la palette: il filtro della pellicola li tocca appena
+// (grana e un filo di smorzatura), così gli abiti restano blu petrolio / ardesia e non grigi
+const addHi = (scene, key, canvas) => {
+  canvas._filmOpts = { keep: 0.88, mix: 0.08, keepHue: [[90, 170]] };
+  return addHiRes(scene, key, canvas, SS);
+};
 
 function finish(c, { rim = true, outline = true, pad = 3 } = {}) {
   const out = document.createElement("canvas");
@@ -1378,7 +1540,7 @@ export const OPERATORS = [
 // abiti degli operatori per città
 const OP_LOOK = {
   // MILANO: trench lungo da città (grigio-blu / cammello) con la cintura, cappello
-  milano: { a: { hair: "short", hat: "cap", top: 0.42, hairTone: 0.1, garment: "trench" }, b: { hair: "long", top: 0.55, hairTone: 0.12, garment: "trench", coat: "#BCA88A" } },
+  milano: { a: { hair: "short", hat: "cap", top: 0.42, hairTone: 0.1, garment: "trench", coat: "#587284" }, b: { hair: "long", top: 0.55, hairTone: 0.12, garment: "trench", coat: "#9AABB0", hairC: "#3E2B22" } },
   // NEW DELHI: caldo e smog: kurta di lino chiaro più corta, pantaloni leggeri, dupatta gialla
   delhi: { a: { hair: "short", top: 0.62, legs: 0.5, hairTone: 0.06, scarfT: 0.35, garment: "kurta", coat: "#DCE3EA", legC: "#8C96A6" }, b: { hair: "braid", hat: "scarf", top: 0.4, legs: 0.6, hairTone: 0.06, scarfT: 0.75, garment: "kurta", coat: "#E6DCCB", legC: "#5D6778" } },
   // REYKJAVÍK: freddo: piumino imbottito con le cuciture, cappuccio col pelo, berretto

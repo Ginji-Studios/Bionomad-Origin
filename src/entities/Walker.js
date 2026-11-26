@@ -16,7 +16,8 @@ export class Walker {
     this.phase = 0;
     this.facing = 1;
     this.frozen = false;
-    this.shadow = scene.add.ellipse(x, feetY - 6, 70, 12, 0x1c2839, 0.55).setDepth(depth - 1);
+    // ombra morbida sotto i piedi, più piccola e leggera
+    this.shadow = scene.add.ellipse(x, feetY - 5, 54, 9, 0x2e4350, 0.28).setDepth(depth - 1);
     this.img = scene.add.image(x, feetY, `${key}_idle`).setOrigin(0.5, 1).setDepth(depth);
     this.minX = 60;
     this.maxX = 1220;

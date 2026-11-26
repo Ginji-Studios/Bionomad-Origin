@@ -24,7 +24,7 @@ function ramp(v) {
   return RAMP[RAMP.length - 1][1];
 }
 
-export function filmLook(c, { grain = 10, seed = 9, keep, protect = [], keepHue = null } = {}) {
+export function filmLook(c, { grain = 10, seed = 9, keep, mix, protect = [], keepHue = null } = {}) {
   if (!c || c._film || !c.getContext) return c;
   const w = c.width;
   const h = c.height;
@@ -81,6 +81,7 @@ export function filmLook(c, { grain = 10, seed = 9, keep, protect = [], keepHue 
       t = 0.6;
     }
     if (keep != null) k = keep;
+    if (mix != null) t = mix;
     const grey = L * 255;
     const pr = ramp(L);
     s = (s * 16807) % 2147483647;
