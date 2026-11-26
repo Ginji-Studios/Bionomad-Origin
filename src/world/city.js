@@ -112,7 +112,45 @@ function tower(x, w, h, c, o = {}) {
   }
   if (o.vstripes) for (let a = x + 6; a < x + w - 4; a += o.vstripes) R(a, top + 6, 2, h - 6, shadeOf(c, 0.12));
   if (o.cap) R(x - 2, top - 3, w + 4, 4, lightOf(c, 0.15));
+  surface(x, top, w, h, c);
   return top;
+}
+// texture delle superfici come nel riferimento: vetrate scure con i riflessi del cielo in
+// diagonale e qualche puntino di luce, facciate medie con le lesene verticali sottili
+function surface(x, top, w, h, c) {
+  const L = lum(c);
+  if (w < 14 || h < 30) return;
+  X.save();
+  X.beginPath();
+  X.rect(x, top, w, h);
+  X.clip();
+  if (L < 120 && rnd() < 0.7) {
+    // riflessi: due o tre bande diagonali chiare e una riga sottile più luminosa
+    const n = 2 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const y0 = top + rnd() * h;
+      const bw = 8 + rnd() * 26;
+      X.fillStyle = `rgba(205,218,226,${0.06 + rnd() * 0.09})`;
+      X.beginPath();
+      X.moveTo(x - 10, y0);
+      X.lineTo(x + w + 10, y0 - w * 0.9);
+      X.lineTo(x + w + 10, y0 - w * 0.9 + bw);
+      X.lineTo(x - 10, y0 + bw);
+      X.fill();
+    }
+    X.strokeStyle = "rgba(225,232,236,0.18)";
+    X.lineWidth = 1;
+    const y1 = top + rnd() * h;
+    X.beginPath();
+    X.moveTo(x, y1);
+    X.lineTo(x + w, y1 - w * 0.9);
+    X.stroke();
+    // puntini di luce sparsi
+    for (let i = 0; i < (w * h) / 900; i++) R(x + rnd() * w, top + rnd() * h, 2, 1, "rgba(235,238,236,0.75)");
+  } else if (L >= 100 && L < 175 && rnd() < 0.5) {
+    for (let a = x + 3; a < x + w; a += 4 + ((rnd() * 3) | 0)) R(a, top + 4, 1, h, "rgba(20,38,56,0.12)");
+  }
+  X.restore();
 }
 function spire(x, base, h, wd, c) {
   poly([[x - wd, base], [x, base - h], [x + wd, base]], c);
@@ -148,6 +186,24 @@ function treeBlob(x, y, r, c) {
   ell(x, y, r, r * 1.1, c);
   ell(x - r * 0.6, y + r * 0.3, r * 0.7, r * 0.7, c);
   ell(x + r * 0.6, y + r * 0.35, r * 0.7, r * 0.7, c);
+  // chioma "marmorizzata" come nel riferimento: onde chiare e scure dentro la sagoma
+  X.save();
+  X.beginPath();
+  X.ellipse(x, y, r, r * 1.1, 0, 0, 7);
+  X.ellipse(x - r * 0.6, y + r * 0.3, r * 0.7, r * 0.7, 0, 0, 7);
+  X.ellipse(x + r * 0.6, y + r * 0.35, r * 0.7, r * 0.7, 0, 0, 7);
+  X.clip();
+  X.lineWidth = Math.max(1.5, r * 0.14);
+  for (let k = -r * 1.2; k < r * 1.4; k += r * 0.32) {
+    X.strokeStyle = tint(k % (r * 0.64) < r * 0.32 ? lightOf(c, 0.28) : shadeOf(c, 0.2));
+    X.beginPath();
+    for (let a = -r * 1.4; a <= r * 1.4; a += 2) {
+      const yy = y + k + Math.sin(a / (r * 0.35) + k) * r * 0.12 - a * 0.35;
+      a === -r * 1.4 ? X.moveTo(x + a, yy) : X.lineTo(x + a, yy);
+    }
+    X.stroke();
+  }
+  X.restore();
 }
 
 // cisterna d'acqua sul tetto (gambe sottili e serbatoio)
@@ -267,6 +323,18 @@ function sky(w) {
   }
   X.fillStyle = g;
   X.fillRect(0, 0, w, VH);
+  if (!NIGHT) {
+    // masse di nuvole grigie morbide nel cielo (più scure del cielo, sfumate)
+    X.save();
+    X.filter = "blur(22px)";
+    X.fillStyle = "rgba(130,140,136,0.22)";
+    for (let x = 40; x < w; x += 260 + rnd() * 220) {
+      X.beginPath();
+      X.ellipse(x, 60 + rnd() * 110, 140 + rnd() * 120, 36 + rnd() * 26, 0, 0, 7);
+      X.fill();
+    }
+    X.restore();
+  }
   if (NIGHT) {
     X.fillStyle = "#E9ECF2";
     X.beginPath();
@@ -286,6 +354,28 @@ function cloud(x, y, s) {
   X.ellipse(x + 20 * s, y + 3 * s, 22 * s, 9 * s, 0, 0, 7);
   X.ellipse(x - 2 * s, y - 8 * s, 18 * s, 12 * s, 0, 0, 7);
   X.fill();
+}
+// nuvole bianche piatte (fondo dritto, cime morbide), basse sull'orizzonte dietro i palazzi
+function flatCloud(x, y, s) {
+  X.save();
+  X.beginPath();
+  X.rect(x - 140 * s, y - 60 * s, 280 * s, 60 * s);
+  X.clip();
+  X.fillStyle = NIGHT ? "rgba(120,140,170,0.25)" : "#E6E9E5";
+  X.beginPath();
+  X.ellipse(x, y, 90 * s, 26 * s, 0, 0, 7);
+  X.ellipse(x - 60 * s, y + 2, 60 * s, 16 * s, 0, 0, 7);
+  X.ellipse(x + 70 * s, y + 2, 64 * s, 14 * s, 0, 0, 7);
+  X.ellipse(x - 14 * s, y - 10 * s, 46 * s, 26 * s, 0, 0, 7);
+  X.fill();
+  // ombra morbida sulla pancia
+  X.fillStyle = NIGHT ? "rgba(0,0,0,0)" : "rgba(170,180,176,0.35)";
+  X.fillRect(x - 140 * s, y - 6 * s, 280 * s, 6 * s);
+  X.restore();
+}
+function flatClouds(w) {
+  for (let x = 90; x < w; x += 300 + rnd() * 260) flatCloud(x, BASE - 150 - rnd() * 60, 0.7 + rnd() * 0.6);
+  for (let x = 200; x < w; x += 520 + rnd() * 300) cloud(x, 70 + rnd() * 50, 0.6 + rnd() * 0.4);
 }
 function clouds(w) {
   for (let x = 120; x < w; x += 330 + rnd() * 260) cloud(x, 70 + rnd() * 70, 0.8 + rnd() * 0.6);
@@ -800,8 +890,7 @@ export function buildCity(cityId, { viewW = 1280, viewH = 800, time = "day", zon
     [0, sky],
     [0.12, (w) => {
       if (CITY === "reykjavik") mountains(w, true);
-      else if (CITY === "milano") ridges(w);
-      else ridges(w, { y: BASE - 120, amp: 14 });
+      else flatClouds(w);
       birds(w);
     }],
     [0.3, def.far],

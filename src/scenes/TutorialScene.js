@@ -575,7 +575,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 1: si cammina toccando le foglie del vaso vero (o con le frecce)
 
   pageMove() {
-    this.badge("UN PASSO, UNA FOGLIA", "TOCCA LA PIANTA DI SINISTRA O DI DESTRA PER MUOVERTI");
+    this.badge("UN PASSO, UNA FOGLIA", "TIENI LA MANO SULLE FOGLIE DEI VASI LATERALI: SINISTRA TORNI INDIETRO, DESTRA VAI AVANTI");
     this.frame(60, 130, 460, 520);
     this.frame(540, 130, 680, 520);
     // due piante vere: toccare quella di sinistra fa andare a sinistra, quella di destra a destra
@@ -682,10 +682,11 @@ export class TutorialScene extends Phaser.Scene {
   // la macchina BIONOMAD vera (il dispositivo fisico) e i suoi comandi: a turno ogni tasto
   // si illumina, la mano lo preme e la macchina reagisce
   pageControls() {
-    this.badge("PRENDITI CURA DI LEI", "QUANDO LA PIANTA HA BISOGNO DI TE, IL SUO COMANDO SI ACCENDE");
+    this.badge("PRENDITI CURA DI LEI", "QUANDO LA PIANTA HA BISOGNO DI QUALCOSA TE LO CHIEDE: RISPONDI CON IL COMANDO GIUSTO");
     this.card(40, 140, VIEW.w - 80, 560);
     // il dispositivo O₂RIGIN di fronte (stile del gioco); il display mostra il comando usato
     this.screens = {};
+    // dispositivo O₂RIGIN di fronte, nello stile del gioco
     const km = deviceArt(this);
     this.photo = true;
     if (km) {
@@ -1130,7 +1131,7 @@ export class TutorialScene extends Phaser.Scene {
   // ---------- pagina 4: il respiro cala da solo; curare lo riporta su; a zero si sviene
 
   pageBreath() {
-    this.badge("RESPIRA CON LEI", "SE LEI STA BENE, RESPIRI ANCHE TU · SE L'OSSIGENO FINISCE, SVIENI");
+    this.badge("RESPIRA CON LEI", "PIÙ LA PIANTA STA BENE, PIÙ OSSIGENO TI DÀ · SE LA TRASCURI L'O₂ SCENDE E SVIENI");
     this.frame(140, 130, 1000, 520);
     // sfondo: la città del gioco (come nella pagina del movimento), dentro la scheda
     const city = this.add.tileSprite(150, 140, 980, 420, studioTex(this)).setOrigin(0);
@@ -1152,7 +1153,7 @@ export class TutorialScene extends Phaser.Scene {
     // l'indicatore del respiro vero del gioco (pillola in alto)
     this.o2 = o2Hud(this);
     this.o2.c.setPosition(640 - 150, 166).setDepth(0);
-    this.faintTxt = txt(this, 640, 362, "SVENUTO · O₂ 0%", { size: 20, weight: "500", origin: 0.5 }).setVisible(false);
+    this.faintTxt = txt(this, 640, 362, "OSSIGENO FINITO · SVENUTO", { size: 20, weight: "500", origin: 0.5 }).setVisible(false);
     this.layer.add([city, street, this.bDash, this.walker, this.breathG, this.o2.c, this.faintTxt]);
   }
 
@@ -1270,19 +1271,19 @@ const MACHINE = {
   disp: ms(140, 0, 95) // centro del display
 };
 const CTRL_ROW = [
-  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0x7d909f, cap: "Gira la manopola: più la giri, più luce. Il LED diventa giallo." },
-  { id: "water", label: "ACQUA", x: 810, y: 380, glow: 0x3f8fe0, cap: "Premi una volta, in tempo: LED azzurro, nel gioco parte l'irrigazione." },
+  { id: "light", label: "LUCE", x: 700, y: 380, glow: 0x7d909f, cap: "Ruota la manopola per regolare la lampada: la pianta non vuole né troppa né troppo poca luce." },
+  { id: "water", label: "ACQUA", x: 810, y: 380, glow: 0x3f8fe0, cap: "Quando la terra è secca premi una volta: parte l'irrigazione. Premere ancora allaga il vaso." },
   // PLAY al centro, come sul dispositivo vero; ARIA subito dopo
-  { id: "play", label: "PLAY", x: 920, y: 380, glow: 0x4cbf72, cap: "Avvia il gioco, mette in pausa." },
-  { id: "air", label: "ARIA", x: 1030, y: 380, glow: 0x8c9893, cap: "Premi una volta, in tempo: LED bianco, nel gioco la ventola soffia aria pulita." },
-  { id: "temp", label: "TEMP", x: 1150, y: 380, glow: 0x4e6878, cap: "Gira la manopola: il LED segue il colore scelto. Tieni tra 17 e 25 °C." }
+  { id: "play", label: "PLAY", x: 920, y: 380, glow: 0x4cbf72, cap: "Avvia la partita e conferma le scelte. Tienilo premuto per mettere in pausa." },
+  { id: "air", label: "ARIA", x: 1030, y: 380, glow: 0x8c9893, cap: "Premi una volta per accendere la ventola: entra aria pulita e la pianta torna a respirare." },
+  { id: "temp", label: "TEMP", x: 1150, y: 380, glow: 0x4e6878, cap: "Ruota verso il freddo o verso il caldo: la pianta sta bene tra 17 e 25 °C." }
 ];
 
 // illustrazione vettoriale del dispositivo, come il prototipo: blocco bianco dagli spigoli
 // morbidi, vaschetta con le sansevierie sul coperchio, provetta NFC, tasti e grande display sul
 // lato destro, due vasi agganciati (uno davanti a sinistra, uno dietro a destra)
 export function machineArt(scene) {
-  const key = "tut_machine5";
+  const key = "tut_machine6";
   if (scene.textures.exists(key)) return key;
   const S = 2;
   const W = 640;
@@ -1324,24 +1325,26 @@ export function machineArt(scene) {
     path.quadraticCurveTo(bx - w * 1.1 + lean * 0.3, by - h * 0.55, bx + lean, by - h);
     path.quadraticCurveTo(bx + w * 1.1 + lean * 0.3, by - h * 0.55, bx + w, by);
     path.closePath();
-    X.fillStyle = "#2E5B4B";
+    X.fillStyle = ["#2F5A3E", "#356243", "#3B6B4A", "#2A5238"][Math.abs(Math.round(bx * 7 + h)) % 4];
     X.fill(path);
     X.save();
     X.clip(path);
-    X.strokeStyle = "rgba(160,196,170,0.45)";
-    X.lineWidth = 1.2;
-    for (let y = by - 8; y > by - h; y -= 9) {
+    // bande chiare ondulate della sansevieria zebrata (come le piante del prototipo)
+    X.strokeStyle = "#B7C9BC";
+    X.lineWidth = 2;
+    const ph0 = (bx * 0.37) % 6;
+    for (let y = by - 6; y > by - h; y -= 7.5) {
       X.beginPath();
-      X.moveTo(bx - w * 1.4, y + 3);
-      X.quadraticCurveTo(bx, y - 2, bx + w * 1.4, y + 3);
+      for (let x = bx - w * 1.6 + Math.min(0, lean); x <= bx + w * 1.6 + Math.max(0, lean); x += 2) {
+        const yy = y + Math.sin(x * 0.7 + ph0 + y * 0.25) * 1.8;
+        if (x === bx - w * 1.6 + Math.min(0, lean)) X.moveTo(x, yy);
+        else X.lineTo(x, yy);
+      }
       X.stroke();
     }
-    X.fillStyle = "rgba(0,0,0,0.12)";
+    X.fillStyle = "rgba(0,0,0,0.14)";
     X.fillRect(bx + lean * 0.4, by - h, w * 2, h);
     X.restore();
-    X.strokeStyle = "#B3BCB7";
-    X.lineWidth = 1.6;
-    X.stroke(path);
   };
   const tuft = (bx, by, h, n, sc = 1) => {
     for (let i = 0; i < n; i++) {
@@ -1484,23 +1487,6 @@ export function machineArt(scene) {
     }
   }
   X.restore();
-  // provetta NFC con l'anello verde, sul coperchio davanti a sinistra
-  const [vx, vy] = P(34, 54, Hh);
-  X.fillStyle = "#1F2B3D";
-  X.beginPath();
-  X.ellipse(vx, vy, 16, 7, -0.25, 0, 7);
-  X.fill();
-  X.strokeStyle = "#5FD39A";
-  X.lineWidth = 2.5;
-  X.stroke();
-  X.fillStyle = "rgba(220,236,242,0.95)";
-  X.beginPath();
-  X.roundRect(vx - 6, vy - 40, 12, 40, 5);
-  X.fill();
-  X.fillStyle = "#4FA36E";
-  X.fillRect(vx - 6, vy - 16, 12, 14);
-  X.fillStyle = "#7D909F";
-  X.fillRect(vx - 7, vy - 44, 14, 7);
   // display grande sul lato destro, con il gioco acceso (città di notte, luna, operatore)
   const d0 = P(38, 0, 30);
   const d1 = P(L - 22, 0, 30);
@@ -1571,6 +1557,7 @@ export function machineArt(scene) {
   // vaso sinistro: davanti, agganciato in basso al lato sinistro
   const lp = P(-26, Sd - 50, 20);
   pot(lp[0], lp[1] - 30, 52, 90, 110);
+  c._filmOpts = { keepHue: [[90, 170]] }; // il verde delle sansevierie resta verde
   addHiRes(scene, key, c, S);
   return key;
 }
