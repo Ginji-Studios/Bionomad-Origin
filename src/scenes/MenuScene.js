@@ -202,9 +202,7 @@ export class MenuScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.bg) return;
-    // deriva di 4 px al secondo, avanti e indietro in 80 s
-    this.bgX = -(2560 - VIEW.w) / 2 + Math.sin(time / 12700) * 160;
-    this.bg.x = Math.round(this.bgX);
+    // sfondo fermo (la deriva lenta sembrava uno scatto)
     const CYCLE = 9200;
     const prev = this.cycle;
     this.cycle = (this.cycle + delta) % CYCLE;

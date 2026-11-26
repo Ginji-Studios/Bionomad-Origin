@@ -55,15 +55,15 @@ const PW = 480;
 const GLASS = { x: PX - 190, y: 150, w: 380, h: 410 }; // finestra di vetro con la pianta
 const SOIL_Y = 512;
 const TANK = { x: PX - 170, y: 578, w: 340, h: 30 }; // serbatoio d'acqua trasparente
-const SCREEN = { x: PX - 78, y: 652, w: 108, h: 76 }; // display al centro, dove sul dispositivo c'è PLAY // display della temperatura
+const SCREEN = { x: PX - 54, y: 652, w: 108, h: 76 }; // display al centro, dove sul dispositivo c'è PLAY // display della temperatura
 // oggetti reali con cui si interagisce
 // tasti sullo zaino (come sul dispositivo vero): luce interna, irrigazione interna, aria
 const BTN = {
   // come sul dispositivo: manopola luce, acqua, aria, manopola temperatura (da freddo a caldo)
-  light: { x: PX - 182, y: 690, col: 0x7d909f },
-  water: { x: PX - 113, y: 690, col: 0x587284 },
-  air: { x: PX + 66, y: 690, col: 0x8fb3c4 },
-  temp: { x: PX + 136, y: 690, col: 0x4e6878 }
+  light: { x: PX - 159, y: 690, col: 0x7d909f },
+  water: { x: PX - 90, y: 690, col: 0x587284 },
+  air: { x: PX + 90, y: 690, col: 0x8fb3c4 },
+  temp: { x: PX + 159, y: 690, col: 0x4e6878 }
 };
 // termometro dentro il guscio, accanto al vetro (la temperatura si regola col potenziometro vero)
 const T_MIN = 0;
@@ -213,11 +213,10 @@ function packTextures(scene) {
     X.fill(shell);
     X.save();
     X.clip(shell);
-    // lato in ombra a destra, luce a sinistra
-    X.fillStyle = "#CFD0CB";
-    X.fillRect(PX + PW / 2 - 56, TOP, 56, BOT - TOP);
-    X.fillStyle = "rgba(247,248,247,0.55)";
-    X.fillRect(PX - PW / 2 + 16, TOP + 120, 10, BOT - TOP - 180);
+    // bordi in leggera ombra, uguali ai due lati (zaino simmetrico)
+    X.fillStyle = "#D6D7D2";
+    X.fillRect(PX - PW / 2, TOP, 30, BOT - TOP);
+    X.fillRect(PX + PW / 2 - 30, TOP, 30, BOT - TOP);
     // cucitura
     X.strokeStyle = "#C8C9C5";
     X.lineWidth = 3;
@@ -243,7 +242,7 @@ function packTextures(scene) {
     // pannello dei tasti a destra del display
     X.fillStyle = "#D0D1CC";
     X.beginPath();
-    X.roundRect(PX - 226, 638, 406, 104, 22);
+    X.roundRect(PX - 203, 638, 406, 104, 22);
     X.fill();
     // cornice del vetro
     X.fillStyle = "#D0D1CC";
@@ -860,25 +859,37 @@ export class BioPanel {
     F.fillRect(GLASS.x + 22, GLASS.y + 80, 12, 240);
     // irrigazione interna: tubo che sale dal serbatoio e barra con gli ugelli sopra le piante
     const flowing = s.irrigating;
+    // due tubi uguali ai lati (zaino simmetrico) e la barra con gli ugelli in mezzo
+    const PL = GLASS.x + 22;
+    const nz = (i) => GLASS.x + GLASS.w / 2 + (i - 2.5) * 52;
     F.lineStyle(9, 0xb3bcb7, 1);
     F.lineBetween(PIPE_X, TANK.y, PIPE_X, SPRAY_Y);
-    F.lineBetween(PIPE_X, SPRAY_Y, GLASS.x + 40, SPRAY_Y);
+    F.lineBetween(PL, TANK.y, PL, SPRAY_Y);
+    F.lineBetween(PL, SPRAY_Y, PIPE_X, SPRAY_Y);
     for (let i = 0; i < 6; i++) {
       F.fillStyle(0x8b949f, 1);
-      F.fillRect(GLASS.x + 52 + i * 52, SPRAY_Y + 3, 8, 8);
+      F.fillRect(nz(i) - 4, SPRAY_Y + 3, 8, 8);
     }
     if (flowing) {
-      // l'acqua scorre nel tubo (trattini che salgono) ed esce a pioggia dagli ugelli
+      // l'acqua sale nei due tubi (trattini) e corre verso il centro, poi piove dagli ugelli
       F.lineStyle(4, 0x587284, 1);
-      for (let y = TANK.y - ((t * 260) % 24); y > SPRAY_Y; y -= 24) F.lineBetween(PIPE_X, y, PIPE_X, Math.max(SPRAY_Y, y - 12));
-      for (let x = PIPE_X - ((t * 260) % 24); x > GLASS.x + 40; x -= 24) F.lineBetween(x, SPRAY_Y, Math.max(GLASS.x + 40, x - 12), SPRAY_Y);
+      const off = (t * 260) % 24;
+      for (let y = TANK.y - off; y > SPRAY_Y; y -= 24) {
+        F.lineBetween(PIPE_X, y, PIPE_X, Math.max(SPRAY_Y, y - 12));
+        F.lineBetween(PL, y, PL, Math.max(SPRAY_Y, y - 12));
+      }
+      const mid = GLASS.x + GLASS.w / 2;
+      for (let d = off; d < PIPE_X - mid; d += 24) {
+        F.lineBetween(PIPE_X - d, SPRAY_Y, Math.max(mid, PIPE_X - d - 12), SPRAY_Y);
+        F.lineBetween(PL + d, SPRAY_Y, Math.min(mid, PL + d + 12), SPRAY_Y);
+      }
       for (let i = 0; i < 6; i++) {
         F.fillStyle(0x7e96b3, 0.35);
-        F.fillTriangle(GLASS.x + 56 + i * 52, SPRAY_Y + 10, GLASS.x + 40 + i * 52, SOIL_Y, GLASS.x + 72 + i * 52, SOIL_Y);
+        F.fillTriangle(nz(i), SPRAY_Y + 10, nz(i) - 16, SOIL_Y, nz(i) + 16, SOIL_Y);
       }
       if (Math.random() < delta / 8) {
         const i = Math.floor(Math.random() * 6);
-        this.drops.push({ x: GLASS.x + 56 + i * 52, y: SPRAY_Y + 12, vx: (Math.random() - 0.5) * 0.1, vy: 0.1, fall: true });
+        this.drops.push({ x: nz(i), y: SPRAY_Y + 12, vx: (Math.random() - 0.5) * 0.1, vy: 0.1, fall: true });
       }
       if (Math.random() < delta / 30) this.drops.push({ x: GLASS.x + 40 + Math.random() * (GLASS.w - 80), y: SOIL_Y - 4, vx: (Math.random() - 0.5) * 0.15, vy: -0.22 - Math.random() * 0.2 });
     }
@@ -960,7 +971,10 @@ export class BioPanel {
     }
     // feritoie dell'aria sul fianco del vetro
     D.fillStyle(0x8c9893, 1);
-    for (let i = 0; i < 5; i++) D.fillRoundedRect(GLASS.x - 8, GLASS.y + 200 + i * 40, 14, 22, 4);
+    for (let i = 0; i < 5; i++) {
+      D.fillRoundedRect(GLASS.x - 8, GLASS.y + 200 + i * 40, 14, 22, 4);
+      D.fillRoundedRect(GLASS.x + GLASS.w - 6, GLASS.y + 200 + i * 40, 14, 22, 4);
+    }
     // comandi dello zaino, in fila come sul dispositivo: manopola LUCE, ACQUA, display, ARIA,
     // manopola TEMP. Il comando della task ha l'alone del suo colore.
     const A0 = -Math.PI * 1.25;
