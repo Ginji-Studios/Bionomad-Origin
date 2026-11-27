@@ -42,3 +42,34 @@ export function filmOverlay(canvas, parent = document.getElementById("game")) {
   window.addEventListener("resize", () => setTimeout(fit, 60));
   if (window.ResizeObserver && canvas) new ResizeObserver(fit).observe(canvas);
 }
+
+// bande ai lati del gioco: blu petrolio scuro con macchie di luce ardesia sfocate (come una
+// foto fuori fuoco) e una grana fitta sopra. Ferme, dietro al canvas: si vedono solo dove il
+// gioco non arriva (schermi più larghi o più alti di 16:10).
+export function bandBackdrop() {
+  if (document.getElementById("film-bands")) return;
+  const blobs = [
+    [10, 22, 16, 20, 0.5],
+    [3, 70, 12, 18, 0.35],
+    [16, 88, 14, 12, 0.3],
+    [88, 18, 14, 16, 0.32],
+    [95, 55, 12, 22, 0.45],
+    [84, 86, 16, 14, 0.38],
+    [50, 6, 20, 8, 0.25],
+    [48, 96, 22, 8, 0.25]
+  ]
+    .map(([x, y, w, h, a]) => `radial-gradient(ellipse ${w}% ${h}% at ${x}% ${y}%, rgba(125,148,165,${a}) 0%, rgba(88,114,132,${a * 0.45}) 45%, rgba(46,67,80,0) 100%)`)
+    .join(", ");
+  const style = document.createElement("style");
+  style.id = "film-bands";
+  style.textContent = `
+    html, body {
+      background-color: #16222a;
+      background-image: url(${noiseTile(192)}), ${blobs}, linear-gradient(160deg, #23343f 0%, #172229 55%, #1d2c35 100%);
+      background-size: 192px 192px, cover, cover, cover, cover, cover, cover, cover, cover, cover;
+      background-blend-mode: overlay, normal, normal, normal, normal, normal, normal, normal, normal, normal;
+      background-attachment: fixed;
+    }
+  `;
+  document.head.appendChild(style);
+}

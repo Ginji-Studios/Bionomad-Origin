@@ -4,7 +4,7 @@ import { gameConfig } from "./config/gameConfig.js";
 import { PauseScene } from "./scenes/PauseScene.js";
 import { setupTouchControls } from "./input/TouchControls.js";
 import { PlantSensors } from "./input/PlantSensors.js";
-import { filmOverlay } from "./ui/film.js";
+import { filmOverlay, bandBackdrop } from "./ui/film.js";
 import { filmLook } from "./art/filmLook.js";
 
 // stile del riferimento OVUNQUE: ogni disegno che diventa texture (personaggi, zaino, oggetti,
@@ -26,6 +26,8 @@ const game = new Phaser.Game({
 window.game = game;
 // grana e bande di luce sopra tutto il gioco (stile del riferimento)
 game.events.once("ready", () => filmOverlay(game.canvas));
+// trama sfocata nelle bande ai lati del gioco
+bandBackdrop();
 setupTouchControls();
 // pagina ricaricata: se l'Arduino era già stato autorizzato, si ricollega da solo
 PlantSensors.autoConnect();
@@ -64,17 +66,20 @@ window.addEventListener("touchstart", (e) => {
 // tenuto premuto = pausa / riprendi. In pausa anche una pressione breve riprende.
 // luci dei tasti arcade: si accende il tasto di cui è il turno
 //   ACQUA / ARIA  durante la task di irrigazione / ventilazione
-//   START         quando premerlo fa qualcosa (scena con onStart() e, se la scena lo dice, startLit())
+//   START         solo quando serve per la task (la scena lo dice con startLit())
+//   nel tutorial  il tasto che la mano sta mostrando
 function lampsFor(sm) {
   const top = sm.getScenes(true).filter((sc) => !["BootScene", "PreloadScene"].includes(sc.scene.key)).pop();
   if (!top) return "";
-  if (top.scene.key === "PauseScene") return "S";
+  // tutorial: si accende il tasto che la mano sta mostrando (ACQUA, START, ARIA)
+  if (top.scene.key === "TutorialScene") return top.lampNow ?? "";
+  // task dello zaino: il tasto da premere
   const goal = top.bio?.open && !top.bio.done ? top.bio.step?.goal : null;
   if (goal === "water") return "I";
   if (goal === "air") return "A";
   if (goal) return "";
-  if (!top.onStart) return "";
-  return !top.startLit || top.startLit() ? "S" : "";
+  // START solo quando serve per la task (posare, prendere, parlare, dormire, riprovare)
+  return top.startLit && top.startLit() ? "S" : "";
 }
 
 game.events.on("poststep", () => {

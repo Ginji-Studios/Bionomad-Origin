@@ -22,7 +22,7 @@
 // Sulla matrice di LED della scheda all'avvio scorre "biodom+", poi resta fisso il logo b+.
 //
 // Collegamenti: avvio D2, irrigazione D6, aria D5 (altro piedino a GND)
-//               luci dei tasti: avvio D3, irrigazione D7, aria D9 (− della luce a GND)
+//               luci dei tasti: avvio D3, irrigazione D6, aria D5 (− della luce a GND)
 //               manopola temperatura A0, manopola luce A1 (filo centrale; esterni a 5V e GND)
 //               buzzer D8, foglia D0
 
